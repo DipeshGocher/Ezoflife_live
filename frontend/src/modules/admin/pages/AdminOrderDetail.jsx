@@ -1,47 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Package, User, Store, Clock, ChevronRight, CheckCircle2, XCircle, FileText, Printer, X } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ArrowLeft, Package, User, Store, Clock, ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
-import InvoicePrint from '../components/InvoicePrint';
-import { adminApi } from '../../../lib/api';
 
 export default function AdminOrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [showInvoice, setShowInvoice] = useState(false);
-  const [invoiceSettings, setInvoiceSettings] = useState({});
-
-  React.useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const configs = await adminApi.getConfig();
-        const config = configs.find(c => c.key === 'invoice_settings');
-        if (config) setInvoiceSettings(config.value);
-      } catch (err) {
-        console.error('Failed to fetch invoice settings:', err);
-      }
-    };
-    fetchSettings();
-  }, []);
-
-  const handlePrint = () => {
-    const printContent = document.getElementById('invoice-content');
-    const WindowPnt = window.open('', '', 'left=0,top=0,width=800,height=900,toolbar=0,scrollbars=0,status=0');
-    WindowPnt.document.write('<html><head><title>Print Invoice</title>');
-    WindowPnt.document.write('<script src="https://cdn.tailwindcss.com"></script>');
-    WindowPnt.document.write('</head><body>');
-    WindowPnt.document.write(printContent.innerHTML);
-    WindowPnt.document.write('</body></html>');
-    WindowPnt.document.close();
-    setTimeout(() => {
-      WindowPnt.focus();
-      WindowPnt.print();
-      WindowPnt.close();
-    }, 500);
-  };
-
-  // Memoized data for the specific order
   const order = useMemo(() => ({
     id: id || '#SZ-8821',
     status: 'In Progress',
@@ -85,12 +50,6 @@ export default function AdminOrderDetail() {
           <h1 className="font-bold text-slate-900 tracking-tight">Order Details <span className="text-slate-400 font-medium ml-1">{order.id}</span></h1>
           
           <div className="ml-auto flex items-center gap-3">
-            <button 
-              onClick={() => setShowInvoice(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10"
-            >
-              <FileText size={14} /> Download Invoice
-            </button>
             <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
               order.status === 'Delivered' ? 'bg-emerald-100 text-emerald-700' : 
               order.status === 'Cancelled' ? 'bg-rose-100 text-rose-700' : 
@@ -219,51 +178,7 @@ export default function AdminOrderDetail() {
           </div>
         </div>
       </div>
-      <AnimatePresence>
-        {showInvoice && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setShowInvoice(false)}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-slate-100 w-full max-w-4xl h-[90vh] rounded-3xl shadow-2xl relative z-10 overflow-hidden flex flex-col"
-            >
-              <div className="p-4 bg-white border-b border-slate-200 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Invoice Preview</h3>
-                  <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Order ID: {order.id}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={handlePrint}
-                    className="flex items-center gap-2 px-6 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg"
-                  >
-                    <Printer size={14} /> Print / Save PDF
-                  </button>
-                  <button 
-                    onClick={() => setShowInvoice(false)}
-                    className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-12 bg-slate-50">
-                <div className="bg-white shadow-sm ring-1 ring-slate-200">
-                  <InvoicePrint order={order} settings={invoiceSettings} />
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+
     </div>
   );
 }

@@ -554,14 +554,16 @@ const CartPage = () => {
       const taxableValue = itemBase + expressSurcharge;
       
       const itemGstPercent = selectedTier === 'Heritage' 
-        ? (item.heritageGst !== undefined && item.heritageGst !== null ? item.heritageGst : 18)
-        : (item.gst !== undefined && item.gst !== null ? item.gst : 5);
+        ? (item.heritageGst !== undefined && item.heritageGst !== null ? item.heritageGst : gstPercent)
+        : (item.gst !== undefined && item.gst !== null ? item.gst : gstPercent);
         
       return acc + (taxableValue * (itemGstPercent / 100));
     }, 0);
 
-    return itemsGst;
-  }, [cartItems, quantities, areaMultiplier, currentExpressMultiplier, selectedTier]);
+    const serviceValue = cartItems.reduce((sum, item) => sum + getItemPrice(item) * (quantities[item._id || item.id] || 0) * areaMultiplier * currentExpressMultiplier, 0);
+    const customerFees = V_Items - serviceValue + normalLogisticsConfig;
+    return itemsGst + customerFees * gstPercent / 100;
+  }, [cartItems, quantities, areaMultiplier, currentExpressMultiplier, selectedTier, V_Items, normalLogisticsConfig, gstPercent]);
 
   const grandTotal = V + taxAmount;
   
@@ -663,7 +665,7 @@ const CartPage = () => {
         }
       }
 
-      const amountToPay = Math.round(remainingPayable);
+      const amountToPay = Math.round(remainingPayable * 100) / 100;
 
       if (paymentMethod === 'Online' && amountToPay > 0) {
         const loadScript = (src) => {
@@ -762,7 +764,7 @@ const CartPage = () => {
       });
 
       const mergedPhotos = Array.from(new Set([...garmentPhotos, ...allItemPhotos]));
-      const amountToPay = Math.round(remainingPayable);
+      const amountToPay = Math.round(remainingPayable * 100) / 100;
 
       const orderData = {
         customerId: userId,
@@ -1399,7 +1401,7 @@ const CartPage = () => {
                       </div>
                       <div className="flex flex-col items-end shrink-0">
                         <p className="text-[11px] font-black text-slate-900 tracking-tighter">
-                          ₹{Math.round(totalPrice + (totalPrice * ((selectedTier === 'Heritage' ? (item.heritageGst !== undefined && item.heritageGst !== null ? item.heritageGst : 18) : (item.gst !== undefined && item.gst !== null ? item.gst : 5)) / 100)))}
+                          ₹{Math.round(totalPrice + (totalPrice * ((selectedTier === 'Heritage' ? (item.heritageGst !== undefined && item.heritageGst !== null ? item.heritageGst : gstPercent) : (item.gst !== undefined && item.gst !== null ? item.gst : gstPercent)) / 100)))}
                         </p>
                       </div>
                     </div>

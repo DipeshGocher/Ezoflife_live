@@ -33,6 +33,17 @@ const customerSafeOrder = order => {
 };
 
 
+const orderForActor = (req, order) => {
+    const value = typeof order?.toObject === 'function' ? order.toObject() : { ...order };
+    const vendorId = value.vendor?._id || value.vendor;
+    const customerId = value.customer?._id || value.customer;
+    if (req.user?.role === 'Vendor' && String(vendorId) === String(req.user.id)) return value;
+    if (req.user?.role === 'Customer' && String(customerId) === String(req.user.id)) return customerSafeOrder(value);
+    delete value.invoices;
+    return value;
+};
+
+
 const logToFile = (msg) => {
     try {
         fs.appendFileSync('./REAL_USER_DEBUG.log', `${new Date().toISOString()} - ${msg}\n`);
@@ -252,7 +263,7 @@ const quoteWalkInDeliveryFee = async (vendor, deliveryMode) => {
 };
 
 const sendPaymentOrPricingError = (res, error, fallback) => {
-    if (error instanceof PricingError || error instanceof PaymentError) {
+    if (error instanceof PricingError || error instanceof PaymentError || error instanceof GstConfigurationError) {
         return res.status(error.status).json({ message: error.message });
     }
     if (error?.statusCode === 503) return res.status(503).json({ message: 'Online payment is not available right now' });
@@ -605,9 +616,9 @@ export const createOrder = async (req, res) => {
                 pincode: analyticsAddress.pincode || '',
                 geofence: serviceArea?.areaName || ''
             },
-            totalAmount: Math.round(finalTotal),
-            advanceAmount: Math.round(calculatedAdvance),
-            dueAmount: Math.round(calculatedDue),
+            totalAmount: Math.round(finalTotal * 100) / 100,
+            advanceAmount: Math.round(calculatedAdvance * 100) / 100,
+            dueAmount: Math.round(calculatedDue * 100) / 100,
             paymentStatus: resolvedPaymentStatus,
             paymentMethod: resolvedPaymentMethod,
             razorpayPaymentId: paymentTxn?.razorpayPaymentId || null,
@@ -617,7 +628,7 @@ export const createOrder = async (req, res) => {
             deliveryCharge: quote.priceBreakdown.logisticsFee,
             promoApplied: req.body.promoApplied || null,
             discountAmount: validatedDiscount,
-            walletAmountDeducted: Math.round(walletDeduction),
+            walletAmountDeducted: Math.round(walletDeduction * 100) / 100,
             specialInstructions: specialInstructions || '',
             customerPhotos: customerPhotos || [],
             priceBreakdown: finalPriceBreakdown,
@@ -773,7 +784,7 @@ export const createOrder = async (req, res) => {
         console.log(`ALLOCATION STATUS: ${newOrder.allocation_status}`);
         console.log(`========================================\n\n`);
 
-        res.status(201).json(newOrder);
+        res.status(201).json(orderForActor(req, newOrder));
     } catch (err) {
         console.error('Create Order Error Details:', err);
         res.status(500).json({ message: 'Error creating order', error: err.message });
@@ -859,7 +870,7 @@ export const getVendorOrders = async (req, res) => {
         if (!vendorId) return res.status(400).json({ message: 'Vendor ID required' });
 
         const orders = await Order.find({ vendor: vendorId }).populate('customer', 'displayName phone').sort({ createdAt: -1 });
-        res.status(200).json(orders);
+        res.status(200).json(orders.map(order => orderForActor(req, order)));
     } catch (err) {
         res.status(500).json({ message: 'Error fetching vendor orders' });
     }
@@ -1038,7 +1049,7 @@ export const updateOrderStatus = async (req, res) => {
         console.log(`VENDOR APP VIEW: "${getVendorStatus(updatedOrder.status)}"`);
         console.log(`========================================\n\n`);
 
-        res.status(200).json(updatedOrder);
+        res.status(200).json(orderForActor(req, updatedOrder));
     } catch (err) {
         console.error('Update Status Error:', err);
         if (err instanceof GstConfigurationError) return res.status(err.status).json({ message: err.message });
@@ -1099,7 +1110,7 @@ export const getAllOrders = async (req, res) => {
             }
 
             return {
-                ...orderObj,
+                ...orderForActor(req, orderObj),
                 serviceZone: zoneName
             };
         });
@@ -1200,7 +1211,8 @@ export const getAllOrders = async (req, res) => {
 
 export const getPoolOrders = async (req, res) => {
     try {
-        const { vendorId } = req.query;
+        if (req.user?.role !== 'Vendor') return res.status(403).json({ message: 'Only vendors can view the order pool' });
+        const vendorId = req.user.id;
         const vendor = await User.findById(vendorId);
         if (!vendor) {
             console.log(`⚠️ [POOL] Vendor lookup FAILED for ID: ${vendorId}`);
@@ -1607,7 +1619,7 @@ export const vendorAcceptOrder = async (req, res) => {
             }
         }
 
-        res.status(200).json(updatedOrder);
+        res.status(200).json(orderForActor(req, updatedOrder));
     } catch (err) {
         console.error('Vendor Accept Error:', err);
         if (err instanceof GstEligibilityError || err instanceof GstConfigurationError) {
@@ -1668,7 +1680,7 @@ export const getOrderById = async (req, res) => {
             };
         }
 
-        res.status(200).json(viewingAsCustomer ? customerSafeOrder(orderObj) : orderObj);
+        res.status(200).json(orderForActor(req, orderObj));
     } catch (err) {
         res.status(500).json({ message: 'Error fetching order details', error: err.message });
     }
@@ -1743,7 +1755,7 @@ export const markOrderReady = async (req, res) => {
 
         res.status(200).json({ 
             message: 'Order marked as ready. Handover OTP generated for Rider.',
-            order: populatedOrder 
+            order: orderForActor(req, populatedOrder)
         });
     } catch (error) {
         console.error('Mark Ready Error:', error);
@@ -1824,7 +1836,7 @@ export const verifyHandshake = async (req, res) => {
         io.to(`order_${id}`).emit('order_status_update', customerSafeOrder(populatedOrder));
         io.to(`user_${order.customer.toString()}`).emit('order_status_update', customerSafeOrder(populatedOrder));
 
-        res.status(200).json({ message: `${phase} Handshake Verified!`, order: populatedOrder });
+        res.status(200).json({ message: `${phase} Handshake Verified!`, order: orderForActor(req, populatedOrder) });
     } catch (error) {
         console.error('Handshake Verification Error:', error);
         if (error instanceof GstConfigurationError) return res.status(error.status).json({ message: error.message });
@@ -2149,7 +2161,7 @@ export const createWalkInOrder = async (req, res) => {
             displayId: newOrder.orderId
         });
 
-        res.status(201).json(newOrder);
+        res.status(201).json(orderForActor(req, newOrder));
     } catch (err) {
         console.error('Walk-In Creation Error:', err);
         if (err instanceof GstEligibilityError || err instanceof GstConfigurationError) {
@@ -2312,7 +2324,7 @@ export const cancelOrder = async (req, res) => {
         res.status(200).json({
             message: 'Order cancelled successfully',
             refundLog,
-            order: updatedOrder
+            order: orderForActor(req, updatedOrder)
         });
 
     } catch (err) {
@@ -2323,8 +2335,8 @@ export const cancelOrder = async (req, res) => {
 
 /**
  * RBAC Invoice Endpoint:
- * - Invoice 1 (Customer Invoice): Accessible by Customer, Vendor, and Admin
- * - Invoice 2 (Platform Revenue Invoice): Strictly accessible ONLY by Vendor and Admin
+ * - Invoice 1 (Customer Invoice): Accessible by owning Customer and Vendor
+ * - Invoice 2 (Platform Revenue Invoice): Strictly accessible ONLY by the owning Vendor
  */
 export const getOrderInvoices = async (req, res) => {
     try {
@@ -2335,11 +2347,9 @@ export const getOrderInvoices = async (req, res) => {
         const actorId = req.user?.id;
         const actorRole = req.user?.role;
 
-        const isCustomer = order.customer && (order.customer._id?.toString() === actorId || order.customer.toString() === actorId);
-        const isVendor = order.vendor && (order.vendor._id?.toString() === actorId || order.vendor.toString() === actorId);
-        const isAdmin = actorRole === 'Admin';
-
-        if (!isCustomer && !isVendor && !isAdmin) {
+        const isCustomer = actorRole === 'Customer' && order.customer && (order.customer._id?.toString() === actorId || order.customer.toString() === actorId);
+        const isVendor = actorRole === 'Vendor' && order.vendor && (order.vendor._id?.toString() === actorId || order.vendor.toString() === actorId);
+        if (!isCustomer && !isVendor) {
             return res.status(403).json({ message: 'Not authorized to view invoices for this order' });
         }
 
@@ -2356,9 +2366,9 @@ export const getOrderInvoices = async (req, res) => {
         }
 
         // Access Control Rule:
-        // Invoice 1: Customer Invoice -> Only Customer and Vendor (and Admin) can see it.
-        // Invoice 2: Platform Revenue Invoice -> Only Vendor (and Admin) can see it. (Strictly hidden from customer)
-        if (isCustomer && !isVendor && !isAdmin) {
+        // Invoice 1: Customer Invoice -> Only Customer and Vendor can see it.
+        // Invoice 2: Platform Revenue Invoice -> Only Vendor can see it. (Strictly hidden from customer)
+        if (isCustomer && !isVendor) {
             return res.status(200).json({
                 orderId: order._id,
                 orderNo: order.orderId,

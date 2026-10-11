@@ -65,6 +65,25 @@ const placeOnline = (token, proof, overrides = {}) =>
     });
 
 describe('customer orders: the server sets the amount', () => {
+    test('fractional fees collect and store the same amount down to paise', async () => {
+        const configs = mongoose.connection.collection('systemconfigs');
+        await configs.insertOne({ key: 'normal_logistics_fee', value: 1 });
+        try {
+            const checkout = await openCheckout(customer.token);
+            assert.equal(checkout.status, 200);
+            assert.equal(checkout.body.payable, 211.18);
+            assert.equal(gateway.orders.get(checkout.body.id).amount, 21118);
+            const proof = gateway.pay(checkout.body.id);
+            const placed = await placeOnline(customer.token, proof);
+            assert.equal(placed.status, 201, JSON.stringify(placed.body));
+            assert.equal(placed.body.totalAmount, 211.18);
+            assert.equal(placed.body.priceBreakdown.gstAmount, 10.18);
+            assert.equal(placed.body.priceBreakdown.feeGstPercent, 18);
+        } finally {
+            await configs.deleteOne({ key: 'normal_logistics_fee' });
+        }
+    });
+
     test('quote and checkout use database prices, not the app\'s', async () => {
         const quote = await api(env.baseUrl, '/api/orders/quote', { method: 'POST', token: customer.token, body: cart() });
         assert.equal(quote.status, 200);

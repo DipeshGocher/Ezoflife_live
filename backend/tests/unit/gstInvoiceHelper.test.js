@@ -95,7 +95,7 @@ describe('GST invoices and ledger', () => {
             orderType: 'Normal',
             totalAmount: 1207.5,
             items: [{ gstPercent: 5 }],
-            priceBreakdown: { ...order.priceBreakdown, gstAmount: 57.5 }
+            priceBreakdown: { ...order.priceBreakdown, gstAmount: 57.5, feeGstPercent: 5 }
         };
         const result = await generateOrderInvoices({
             order: paidOrder, customer: customer(''), vendor: vendor('27ABCDE1234F1Z5'), configs

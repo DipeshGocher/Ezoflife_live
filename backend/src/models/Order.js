@@ -269,7 +269,8 @@ const orderSchema = new mongoose.Schema({
         expressSurcharge: { type: Number, default: 0 },
         platformFee: { type: Number, default: 0 },
         logisticsFee: { type: Number, default: 0 },
-        gstAmount: { type: Number, default: 0 }
+        gstAmount: { type: Number, default: 0 },
+        feeGstPercent: { type: Number }
     },
     customerPhotos: [{ type: String }],
     pickupStatus: {

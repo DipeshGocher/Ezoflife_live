@@ -75,9 +75,9 @@ for (const [scenario, expectedGstin] of [
     });
     test(`${scenario}: Invoice 1 taxes the full service + platform + logistics value`, () => {
         const one = cases[scenario].customerInvoice;
-        assert.equal(one.serviceValue, 270);
+        assert.equal(one.serviceValue, scenario === 'C' ? 318.6 : 270);
         assert.equal(one.taxAmount, scenario === 'C' ? 0 : 48.6);
-        assert.equal(one.totalAmount, scenario === 'C' ? 270 : 318.6);
+        assert.equal(one.totalAmount, 318.6);
     });
     test(`${scenario}: Invoice 1 reconciles to the customer order payment`, () => {
         assert.equal(cases[scenario].customerInvoice.totalAmount, cases[scenario].order.totalAmount);
@@ -182,5 +182,55 @@ test('Invoice 2 uses the configured fixed platform fee, independently of custome
         assert.equal(result.platformInvoice.platformFeeTax, 6.3);
     } finally {
         await configs.updateOne({ key: 'platform_fee_fixed' }, { $set: { value: 20 } });
+    }
+});
+
+
+test('admin order detail and list do not leak invoice documents', async () => {
+    const token = tokenFor('Admin');
+    const detail = await api(env.baseUrl, `/api/orders/${cases.A.order._id}`, { token });
+    assert.equal(detail.status, 200);
+    assert.equal(Object.hasOwn(detail.body, 'invoices'), false);
+    const list = await api(env.baseUrl, '/api/orders/all', { token });
+    assert.equal(list.status, 200);
+    assert.ok(list.body.every(order => !Object.hasOwn(order, 'invoices')));
+});
+
+test('URD inclusive line totals equal the customer payment with zero GST', () => {
+    const invoice = cases.C.customerInvoice;
+    assert.equal(round(invoice.lineItems.reduce((sum, line) => sum + line.totalAmount, 0)), invoice.totalAmount);
+    assert.ok(invoice.lineItems.every(line => line.gstRate === 0 && line.cgstAmount === 0 && line.sgstAmount === 0 && line.igstAmount === 0));
+});
+
+
+test('paid checkout retains its tax rates when configuration changes before vendor acceptance', async () => {
+    const order = await createOrder('rdCustomer');
+    const configs = mongoose.connection.collection('systemconfigs');
+    await configs.updateOne({ key: 'gst_percent' }, { $set: { value: 0 } });
+    try {
+        const accepted = await call('rdVendor', `/api/orders/vendor-accept/${order._id}`, { method: 'POST', body: {} });
+        assert.equal(accepted.status, 200);
+        const invoice = accepted.body.invoices.customerInvoice;
+        assert.equal(invoice.taxAmount, 48.6);
+        assert.equal(invoice.totalAmount, order.totalAmount);
+        assert.ok(invoice.lineItems.every(line => line.gstRate === 18));
+    } finally {
+        await configs.updateOne({ key: 'gst_percent' }, { $set: { value: 18 } });
+    }
+});
+
+test('configured zero tax rates stay zero in checkout and both invoices', async () => {
+    const configs = mongoose.connection.collection('systemconfigs');
+    await mongoose.connection.collection('masterservices').updateOne({ _id: new mongoose.Types.ObjectId(FIXTURE_SERVICE_ID) }, { $set: { gst: 0 } });
+    for (const key of ['gst_percent', 'platform_fee_gst_percent', 'logistics_fee_gst_percent']) await configs.updateOne({ key }, { $set: { value: 0 } });
+    try {
+        const result = await complete('rdCustomer', 'rdVendor');
+        assert.equal(result.customerInvoice.taxAmount, 0);
+        assert.equal(result.customerInvoice.totalAmount, result.order.totalAmount);
+        assert.equal(result.platformInvoice.platformFeeTax, 0);
+        assert.equal(result.platformInvoice.logisticsFeeTax, 0);
+    } finally {
+        await mongoose.connection.collection('masterservices').updateOne({ _id: new mongoose.Types.ObjectId(FIXTURE_SERVICE_ID) }, { $set: { gst: 18 } });
+        for (const key of ['gst_percent', 'platform_fee_gst_percent', 'logistics_fee_gst_percent']) await configs.updateOne({ key }, { $set: { value: 18 } });
     }
 });

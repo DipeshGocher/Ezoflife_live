@@ -126,6 +126,11 @@ export const generateOrderInvoices = async ({ order, customer, vendor, configs =
     const baseWithArea = Number(order.priceBreakdown?.baseWithArea || 0);
     const expressSurcharge = Number(order.priceBreakdown?.expressSurcharge || 0);
     const platformFee = Number(order.priceBreakdown?.platformFee ?? activeConfigs.platformFeeFixed ?? 0);
+    const vendorPlatformFee = activeConfigs.platformFeeFixed;
+    const hasStoredTax = order.orderType !== 'Walk-In' && order.priceBreakdown?.gstAmount != null;
+    // Pre-fix paid orders did not tax customer fees. Retain those historical
+    // terms; new checkouts always persist feeGstPercent explicitly.
+    const feeGstPercent = Number(order.priceBreakdown?.feeGstPercent ?? (hasStoredTax ? 0 : activeConfigs.gstPercent));
     const logisticsFee = Number(order.priceBreakdown?.logisticsFee ?? order.deliveryCharge ?? 0);
     const grossServiceValue = money(baseWithArea + expressSurcharge + platformFee + logisticsFee);
     const totalPromoDiscount = money(vendorPromoValue);
@@ -143,8 +148,8 @@ export const generateOrderInvoices = async ({ order, customer, vendor, configs =
         const rate = taxable ? Number(item.gstPercent ?? activeConfigs.gstPercent) : 0;
         return makeLine({ description: item.name, sacCode: item.sacCode, quantity, unit: item.unit || 'service', unitPrice, taxableValue: value, gstRate: rate, supplierStateCode: customerSupplierState, placeOfSupplyStateCode: customerPlaceOfSupply });
     });
-    if (platformFee) customerLines.push(makeLine({ description: 'Platform facilitation included in customer price', sacCode: activeConfigs.invoiceSettings.platformSacCode, unitPrice: platformFee, taxableValue: platformFee, gstRate: 0, supplierStateCode: customerSupplierState, placeOfSupplyStateCode: customerPlaceOfSupply }));
-    if (logisticsFee) customerLines.push(makeLine({ description: 'Pickup and delivery included in customer price', sacCode: activeConfigs.invoiceSettings.logisticsSacCode, unitPrice: logisticsFee, taxableValue: logisticsFee, gstRate: 0, supplierStateCode: customerSupplierState, placeOfSupplyStateCode: customerPlaceOfSupply }));
+    if (platformFee) customerLines.push(makeLine({ description: 'Platform facilitation included in customer price', sacCode: activeConfigs.invoiceSettings.platformSacCode, unitPrice: platformFee, taxableValue: platformFee, gstRate: taxable ? feeGstPercent : 0, supplierStateCode: customerSupplierState, placeOfSupplyStateCode: customerPlaceOfSupply }));
+    if (logisticsFee) customerLines.push(makeLine({ description: 'Pickup and delivery included in customer price', sacCode: activeConfigs.invoiceSettings.logisticsSacCode, unitPrice: logisticsFee, taxableValue: logisticsFee, gstRate: taxable ? feeGstPercent : 0, supplierStateCode: customerSupplierState, placeOfSupplyStateCode: customerPlaceOfSupply }));
 
     const storedCheckoutTax = order.orderType !== 'Walk-In' && Number.isFinite(Number(order.priceBreakdown?.gstAmount)) ? Number(order.priceBreakdown.gstAmount) : null;
     let taxAmount = taxable ? money(storedCheckoutTax ?? customerLines.reduce((sum, line) => sum + line.cgstAmount + line.sgstAmount + line.igstAmount, 0)) : 0;
@@ -159,7 +164,24 @@ export const generateOrderInvoices = async ({ order, customer, vendor, configs =
     const itemRates = [...new Set(customerLines.filter(line => line.gstRate > 0).map(line => line.gstRate))];
     const taxPercent = taxable ? (itemRates.length === 1 ? itemRates[0] : activeConfigs.gstPercent) : 0;
     const platformCheckoutDiscount = order.ledger?.promoOwnerType === 'PLATFORM' ? money(order.discountAmount) : 0;
-    const serviceValue = money(grossServiceValue - platformCheckoutDiscount);
+    // URD vendors issue a zero-GST invoice for the agreed inclusive amount.
+    // Never discard the tax component already included in checkout/payment.
+    const inclusiveCheckoutTax = !taxable && order.orderType !== 'Walk-In'
+        ? money(order.priceBreakdown?.gstAmount) : 0;
+    if (inclusiveCheckoutTax) {
+        const weights = customerLines.map(line => line.taxableValue);
+        const weightTotal = weights.reduce((sum, value) => sum + value, 0);
+        let remaining = inclusiveCheckoutTax;
+        customerLines.forEach((line, index) => {
+            const share = index === customerLines.length - 1 ? remaining
+                : money(inclusiveCheckoutTax * (weightTotal ? weights[index] / weightTotal : 0));
+            remaining = money(remaining - share);
+            line.taxableValue = money(line.taxableValue + share);
+            line.unitPrice = money(line.taxableValue / line.quantity);
+            line.totalAmount = line.taxableValue;
+        });
+    }
+    const serviceValue = money(grossServiceValue + inclusiveCheckoutTax - platformCheckoutDiscount);
     const invoice1Total = money(serviceValue + taxAmount);
     const customerTaxSplit = customerLines.reduce((sum, line) => ({
         cgstAmount: money(sum.cgstAmount + line.cgstAmount), sgstAmount: money(sum.sgstAmount + line.sgstAmount), igstAmount: money(sum.igstAmount + line.igstAmount)
@@ -183,17 +205,17 @@ export const generateOrderInvoices = async ({ order, customer, vendor, configs =
 
     const spinzytState = stateCodeFromGstin(snapshot.spinzytGstin);
     const vendorPlaceOfSupply = snapshot.vendorStateCode;
-    const platformFeeTax = money(platformFee * activeConfigs.platformFeeGstPercent / 100);
+    const platformFeeTax = money(vendorPlatformFee * activeConfigs.platformFeeGstPercent / 100);
     const logisticsFeeTax = money(logisticsFee * activeConfigs.logisticsFeeGstPercent / 100);
     const platformLines = [
-        makeLine({ description: 'Platform Facilitation Fee', sacCode: activeConfigs.invoiceSettings.platformSacCode, unitPrice: platformFee, taxableValue: platformFee, gstRate: activeConfigs.platformFeeGstPercent, supplierStateCode: spinzytState, placeOfSupplyStateCode: vendorPlaceOfSupply }),
+        makeLine({ description: 'Platform Facilitation Fee', sacCode: activeConfigs.invoiceSettings.platformSacCode, unitPrice: vendorPlatformFee, taxableValue: vendorPlatformFee, gstRate: activeConfigs.platformFeeGstPercent, supplierStateCode: spinzytState, placeOfSupplyStateCode: vendorPlaceOfSupply }),
         makeLine({ description: 'Logistics / Transportation Fee', sacCode: activeConfigs.invoiceSettings.logisticsSacCode, unitPrice: logisticsFee, taxableValue: logisticsFee, gstRate: activeConfigs.logisticsFeeGstPercent, supplierStateCode: spinzytState, placeOfSupplyStateCode: vendorPlaceOfSupply })
     ];
     if (spinzytPromoShare) platformLines.push(makeLine({ description: 'Spinzyt promotion share', sacCode: activeConfigs.invoiceSettings.promotionSacCode, unitPrice: spinzytPromoShare, taxableValue: spinzytPromoShare, gstRate: 0, supplierStateCode: spinzytState, placeOfSupplyStateCode: vendorPlaceOfSupply }));
     const platformTaxSplit = platformLines.reduce((sum, line) => ({
         cgstAmount: money(sum.cgstAmount + line.cgstAmount), sgstAmount: money(sum.sgstAmount + line.sgstAmount), igstAmount: money(sum.igstAmount + line.igstAmount)
     }), { cgstAmount: 0, sgstAmount: 0, igstAmount: 0 });
-    const totalInvoice2Amount = money(platformFee + platformFeeTax + logisticsFee + logisticsFeeTax + spinzytPromoShare);
+    const totalInvoice2Amount = money(vendorPlatformFee + platformFeeTax + logisticsFee + logisticsFeeTax + spinzytPromoShare);
     const platformInvoice = {
         invoiceNo: '', documentStatus: 'DRAFT', financialYear: '', invoiceDate: null, finalizedAt: null,
         issuerName: activeConfigs.invoiceSettings.businessName || 'Spinzyt', recipientName: snapshot.vendorName,
@@ -201,7 +223,7 @@ export const generateOrderInvoices = async ({ order, customer, vendor, configs =
         supplierStateCode: spinzytState, recipientAddress: snapshot.vendorAddress,
         recipientStateCode: snapshot.vendorStateCode, placeOfSupplyStateCode: vendorPlaceOfSupply,
         reverseCharge: false, currency: 'INR', lineItems: platformLines, ...platformTaxSplit,
-        platformFee, platformFeeTaxPercent: activeConfigs.platformFeeGstPercent, platformFeeTax,
+        platformFee: vendorPlatformFee, platformFeeTaxPercent: activeConfigs.platformFeeGstPercent, platformFeeTax,
         logisticsFee, logisticsFeeTaxPercent: activeConfigs.logisticsFeeGstPercent, logisticsFeeTax,
         spinzytGstin: snapshot.spinzytGstin, spinzytPromoShare,
         totalInvoiceAmount: totalInvoice2Amount, preparedAt, generatedAt: null
@@ -209,7 +231,7 @@ export const generateOrderInvoices = async ({ order, customer, vendor, configs =
 
     const vendorNetPayout = money(invoice1Total - totalInvoice2Amount - customerWalletShare);
     const ledger = {
-        vendorNetPayout, customerWalletCredit: customerWalletShare, platformFee,
+        vendorNetPayout, customerWalletCredit: customerWalletShare, platformFee: vendorPlatformFee,
         spinzytCombinedRevenue: totalInvoice2Amount, appliedPromoValue: totalPromoDiscount,
         promoOwnerType: totalPromoDiscount > 0 ? 'VENDOR' : (order.ledger?.promoOwnerType || 'NONE'),
         invoice1Total, invoice2Total: totalInvoice2Amount, spinzytPromoShare

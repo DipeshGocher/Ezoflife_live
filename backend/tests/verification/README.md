@@ -21,19 +21,28 @@ npm run verify:gst
 
 The seed checks phone collisions before writing and only inserts missing demo users. It never overwrites existing accounts. The acceptance checks use a temporary local MongoDB and real backend API; they do not use the app database. They are a separate verification command so known business-rule failures do not masquerade as passing regression tests. A nonzero exit means the requested requirements are not fully implemented.
 
-## Verified result
+## Corrected behavior
 
-19 acceptance checks: **12 passed, 7 failed**. The existing GST helper suite also passes all 9 checks, demonstrating that those checks alone do not cover the requested rules.
+Validation: all 23 GST acceptance checks pass; all 129 backend unit checks pass; 75 invoice/payment/promotion/authorization/order lifecycle regression checks pass, plus a final payment run of 25 checks including paise collection. The frontend production build passes.
 
-Passing checks include distinct finalized invoice numbers for A/B/C; correct displayed GSTINs; normal URD-vendor pool filtering and rejection of RD-customer acceptance, direct viewing, and fulfillment; customer-only Invoice 1 access; denial for unrelated accounts; configured Invoice 2 tax rates; baseline ledger arithmetic; and the vendor promotion split with one-time wallet credit.
+The initial verification found 7 failing checks out of 19. The fixes cover:
 
-## Confirmed gaps
+- Invoice 1 includes configured GST on customer platform and logistics fees as well as catalog-configured service GST. Checkout persists the fee tax rate; later config changes cannot reprice paid orders. Configured zero rates remain zero.
+- URD vendors issue a zero-GST invoice for the agreed inclusive customer price. The amount previously shown as checkout tax is included in the service value and allocated to invoice lines; it is not charged again or discarded.
+- Customer totals, wallet amounts, and online collection retain paise rather than rounding to whole rupees.
+- Invoice 2 uses `platform_fee_fixed`, independent of percentage-based customer pricing, and separately configured platform/logistics tax rates.
+- The order pool derives vendor identity from the authenticated token, preventing a URD vendor from supplying an RD vendor's ID.
+- Only the owning customer/vendor can access Invoice 1; only the owning vendor can access Invoice 2. Admin order responses strip invoice documents, and admin order invoice download/print controls have been removed. Admin invoice settings may still show synthetic layout samples.
 
-1. **Invoice 1 omits GST on platform/logistics fees.** With base service ₹200, platform ₹20, logistics ₹50, and an 18% configured service tax, A/B produce ₹36 GST and ₹306 total. The requested full-value calculation is ₹48.60 GST and ₹318.60 total. Changing the configured rate to 12% reproduces the omission: ₹24 actual versus ₹32.40 expected.
-2. **URD/URD payment and invoice disagree.** Checkout stores a ₹306 order total, while Invoice 1 removes GST and totals ₹270. The payout ledger balances against the invoice, not the original customer order total. This needs reconciliation before settlement can be considered correct.
-3. **Admins can see both invoices.** The invoice endpoint returns HTTP 200 for Admin, while the supplied rules permit only the owning customer/vendor for Invoice 1 and owning vendor for Invoice 2.
-4. **Order-pool identity bypass.** A URD vendor can supply an RD vendor's ID in the `vendorId` query parameter and see RD business customer orders. Direct acceptance is still rejected. The pool must derive vendor identity from the authenticated session.
-5. **Invoice 2 ignores the configured fixed platform fee when checkout supplies a percentage fee.** Updating `platform_fee_fixed` to ₹35 still generates a ₹20 platform fee in Invoice 2. The configured platform GST is applied to that wrong fee.
+For base service ₹200, customer platform fee ₹20, logistics fee ₹50, and 18% tax rates:
+
+| Scenario | Invoice 1 service value | Invoice 1 GST | Customer total | Invoice 2 | Vendor payout, no promotion |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| A: RD/RD | ₹270 | ₹48.60 | ₹318.60 | ₹82.60 | ₹236 |
+| B: URD/RD | ₹270 | ₹48.60 | ₹318.60 | ₹82.60 | ₹236 |
+| C: URD/URD | ₹318.60 inclusive | ₹0 | ₹318.60 | ₹82.60 | ₹236 |
+
+Completed invoices remain frozen. Existing finalized documents and app database balances are not rewritten by this change. Legacy paid checkouts without the new fee-tax snapshot retain their original tax terms.
 
 ## Promotion and bank-routing limits
 
@@ -41,4 +50,4 @@ For a ₹100 vendor-funded promotion, Invoice 1 shows ₹50 wallet credit, Invoi
 
 These checks use COD orders and do not execute bank transfers. The inspected payout controller records a supplied transaction ID as a completed payout; it does not initiate the vendor/Spinzyt bank split. Real account routing is therefore not verified by these tests.
 
-This change adds demo accounts, repeatable acceptance checks, and this report. It does not change the existing financial or access-control implementation.
+This change fixes the financial calculations and invoice access controls described above; payment-provider bank routing is outside these fixes.

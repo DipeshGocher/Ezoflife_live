@@ -4,6 +4,7 @@ import Service from '../models/Service.js';
 import ServiceArea from '../models/ServiceArea.js';
 import SystemConfig from '../models/SystemConfig.js';
 import Promotion from '../models/Promotion.js';
+import { getGstConfigs } from './gstInvoiceHelper.js';
 
 /**
  * Server-side price of a customer order.
@@ -21,7 +22,7 @@ import Promotion from '../models/Promotion.js';
  *   express    = base × (expressMultiplier − 1)
  *   platform   = (base + express) × rate, clamped to the area's min/max fee
  *   logistics  = normal_logistics_fee
- *   gst        = Σ (unit × qty) × expressMultiplier × item GST%
+ *   gst        = item GST + (platform + logistics) × configured GST%
  *   total      = base + express + platform + logistics + gst − promo discount
  */
 
@@ -87,11 +88,12 @@ export const priceCustomerOrder = async ({
     });
 
     const ids = [...new Set(lines.map(l => l.serviceId))];
-    const [masters, customs, area, configs] = await Promise.all([
+    const [masters, customs, area, configs, gstConfigs] = await Promise.all([
         MasterService.find({ _id: { $in: ids }, isActive: { $ne: false } }).lean(),
         Service.find({ _id: { $in: ids }, approvalStatus: 'Approved', status: { $in: ['Active', null] } }).lean(),
         findServiceArea(pickupLocation),
-        SystemConfig.find({ key: { $in: ['express_multiplier', 'platform_fee_multiplier', 'normal_logistics_fee', 'advance_percentage'] } }).lean()
+        SystemConfig.find({ key: { $in: ['express_multiplier', 'platform_fee_multiplier', 'normal_logistics_fee', 'advance_percentage'] } }).lean(),
+        getGstConfigs()
     ]);
     const services = new Map([...masters, ...customs].map(s => [String(s._id), s]));
     const missing = ids.filter(id => !services.has(id));
@@ -123,8 +125,8 @@ export const priceCustomerOrder = async ({
         const unitPrice = Math.round(source * areaFactor * (tier === 'Heritage' ? heritageMultiplier : 1));
         const lineBase = unitPrice * quantity;
         const gstPercent = tier === 'Heritage'
-            ? (svc.heritageGst ?? 18)
-            : (svc.gst ?? 5);
+            ? (svc.heritageGst ?? gstConfigs.gstPercent)
+            : (svc.gst ?? gstConfigs.gstPercent);
         base += lineBase;
         gst += lineBase * expressMultiplier * (Number(gstPercent) / 100);
         return {
@@ -145,6 +147,9 @@ export const priceCustomerOrder = async ({
     if (minPlatformFee > 0 && platformFee < minPlatformFee) platformFee = minPlatformFee;
     if (maxPlatformFee > 0 && platformFee > maxPlatformFee) platformFee = maxPlatformFee;
 
+    // Customer fees are part of the taxable supply; snapshot the configured
+    // rate so a subsequent config change cannot reprice a paid order.
+    gst += (platformFee + logisticsFee) * gstConfigs.gstPercent / 100;
     const grandTotal = base + expressSurcharge + platformFee + logisticsFee + gst;
 
     // Promotion discount, from the promotion itself (never from the request).
@@ -177,7 +182,8 @@ export const priceCustomerOrder = async ({
             expressSurcharge: round2(expressSurcharge),
             platformFee: round2(platformFee),
             logisticsFee: round2(logisticsFee),
-            gstAmount: round2(gst)
+            gstAmount: round2(gst),
+            feeGstPercent: gstConfigs.gstPercent
         },
         grandTotal: round2(grandTotal),
         promo,
@@ -185,8 +191,8 @@ export const priceCustomerOrder = async ({
         finalTotal: round2(finalTotal),
         walletDeduction: round2(walletDeduction),
         remaining: round2(remaining),
-        // What Razorpay collects: whole rupees, exactly as the cart shows it.
-        payableOnline: Math.round(remaining),
+        // Preserve paise so checkout, collection, invoice, and ledger reconcile.
+        payableOnline: round2(remaining),
         advancePercent
     };
 };
