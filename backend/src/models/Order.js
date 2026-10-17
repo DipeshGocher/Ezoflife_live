@@ -160,7 +160,8 @@ const orderSchema = new mongoose.Schema({
         ref: 'Promotion',
         default: null
     },
-     discountAmount: {
+     checkoutDiscountAmount: { type: Number },
+    discountAmount: {
         type: Number,
         default: 0
     },
@@ -248,6 +249,9 @@ const orderSchema = new mongoose.Schema({
         phone: { type: String, default: null },
         email: { type: String, default: null },
         customerType: { type: String, default: null },
+        businessName: String,
+        businessAddress: String,
+        address: { type: String, default: '' },
         gstNumber: { type: String, default: null },
         isExUser: { type: Boolean, default: false }
     },
@@ -424,7 +428,14 @@ const orderSchema = new mongoose.Schema({
         invoice2Total: { type: Number, default: 0 },
         spinzytPromoShare: { type: Number, default: 0 }
     },
-    walletCreditStatus: { type: String, enum: ['NOT_APPLICABLE', 'PENDING', 'CREDITED'], default: 'NOT_APPLICABLE' },
+    vendorSettlement: {
+        status: { type: String, enum: ['NOT_ROUTED', 'BLOCKED', 'PENDING', 'RETRY', 'TRANSFERRED'], default: 'NOT_ROUTED' },
+        account: { type: String, default: '' }, amount: { type: Number, default: 0 },
+        key: { type: String, default: '' }, transferId: { type: String, default: '' },
+        error: { type: String, default: '' }, updatedAt: Date
+    },
+    vendorPromotion: { type: mongoose.Schema.Types.ObjectId, ref: 'Promotion', default: null },
+    walletCreditStatus: { type: String, enum: ['NOT_APPLICABLE', 'PENDING', 'CREDITED', 'REVERSED'], default: 'NOT_APPLICABLE' },
     walletCreditedAt: { type: Date, default: null },
     invoiceFinalizationStatus: { type: String, enum: ['NOT_READY', 'FINALIZING', 'FINALIZED'], default: 'NOT_READY' },
     invoiceFinalizationStartedAt: { type: Date, default: null },

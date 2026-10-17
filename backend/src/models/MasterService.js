@@ -73,11 +73,13 @@ const masterServiceSchema = new mongoose.Schema({
     },
     gst: {
         type: Number,
-        default: 5
+        min: 0, max: 100,
+        default: undefined
     },
     heritageGst: {
         type: Number,
-        default: 18
+        min: 0, max: 100,
+        default: undefined
     },
     completionTime: {
         type: Number,

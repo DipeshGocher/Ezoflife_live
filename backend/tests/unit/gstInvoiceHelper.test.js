@@ -1,3 +1,4 @@
+import { financialYearFor } from '../../src/services/invoiceFinalizationService.js';
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -104,4 +105,9 @@ describe('GST invoices and ledger', () => {
         assert.equal(result.customerInvoice.taxAmount, 57.5);
         assert.equal(result.customerInvoice.totalAmount, paidOrder.totalAmount);
     });
+});
+
+ test('invoice financial year changes at midnight in India', () => {
+    assert.equal(financialYearFor('2026-03-31T18:29:59Z'), '25-26');
+    assert.equal(financialYearFor('2026-03-31T18:30:00Z'), '26-27');
 });

@@ -1,3 +1,5 @@
+import User from '../models/User.js';
+import { settleVendorOrder } from '../services/vendorSettlement.js';
 console.log('--- ADMIN ROUTES MODULE LOADED ---');
 import express from 'express';
 import { 
@@ -67,6 +69,20 @@ router.delete('/users-clear-all', clearAllUsers);
 router.post('/orders-clear-all', clearAllOrders);
 router.get('/customer-payments', getCustomerPaymentSummary);
 router.get('/vendor-payments', getVendorPaymentSummary);
+router.post('/vendor-payments/account/:vendorId', async (req, res) => {
+    try {
+        const account = String(req.body.account || '');
+        if (!/^acc_[A-Za-z0-9]+$/.test(account)) return res.status(400).json({ message: 'Enter a valid Razorpay linked account ID' });
+        const vendor = await User.findOneAndUpdate({ _id: req.params.vendorId, role: 'Vendor' }, { $set: { razorpayLinkedAccountId: account } }, { new: true }).select('_id razorpayLinkedAccountId');
+        if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+        res.json(vendor);
+    } catch (error) { res.status(error.name === 'CastError' ? 400 : 500).json({ message: 'Could not save linked account' }); }
+});
+
+router.post('/vendor-payments/route/:orderId', async (req, res) => {
+    try { res.json(await settleVendorOrder(req.params.orderId)); }
+    catch (error) { res.status(error.status || 500).json({ message: error.message }); }
+});
 router.get('/refunds', getRefundLedger);
 router.post('/record-vendor-payout', recordVendorPayout);
 router.get('/vendor-payouts/:vendorId', getVendorPayoutHistory);

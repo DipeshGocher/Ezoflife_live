@@ -1,3 +1,4 @@
+import { socketAuth } from '../../../lib/socketAuth';
 import React, { useState, useEffect, useRef } from 'react';
 import { ShieldAlert, IndianRupee, Image, History, ArrowRight, User, CheckCircle2, XCircle, AlertCircle, Search, ExternalLink, Send, Clock } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
@@ -21,7 +22,7 @@ export default function DisputeCenter() {
 
   useEffect(() => {
     fetchTickets();
-    socketRef.current = io(import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000');
+    socketRef.current = io(import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000', { auth: socketAuth });
     
     socketRef.current.on('new_ticket', (data) => {
       // Refresh list if it's a dispute category

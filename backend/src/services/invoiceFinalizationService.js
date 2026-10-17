@@ -1,3 +1,4 @@
+import { settleVendorOrder } from './vendorSettlement.js';
 import Order from '../models/Order.js';
 import User from '../models/User.js';
 import { nextSequence } from '../models/Counter.js';
@@ -5,8 +6,10 @@ import { generateOrderInvoices, GstConfigurationError } from '../utils/gstInvoic
 
 const financialYearFor = dateValue => {
     const date = new Date(dateValue);
-    const year = date.getFullYear();
-    const start = date.getMonth() >= 3 ? year : year - 1;
+    const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', year: 'numeric', month: 'numeric' }).formatToParts(date);
+    const year = Number(parts.find(part => part.type === 'year').value);
+    const month = Number(parts.find(part => part.type === 'month').value);
+    const start = month >= 4 ? year : year - 1;
     return `${String(start).slice(-2)}-${String(start + 1).slice(-2)}`;
 };
 
@@ -46,13 +49,17 @@ export const finalizeDeliveredOrder = async (orderId, { deliveredAt = new Date()
 
     const lockTime = new Date();
     const locked = await Order.findOneAndUpdate(
-        { _id: orderId, invoiceFinalizationStatus: { $in: ['NOT_READY', null] }, status: { $ne: 'CANCELLED' } },
+        { _id: orderId, status: { $ne: 'CANCELLED' }, $or: [
+            { invoiceFinalizationStatus: { $in: ['NOT_READY', null] } },
+            { invoiceFinalizationStatus: 'FINALIZING', invoiceFinalizationStartedAt: { $lt: new Date(Date.now() - 5 * 60 * 1000) } }
+        ] },
         { $set: { invoiceFinalizationStatus: 'FINALIZING', invoiceFinalizationStartedAt: lockTime } },
         { new: true }
     );
     if (!locked) throw Object.assign(new Error('Invoice finalization is unavailable for this order'), { status: 409 });
 
     try {
+        let generatedData = null;
         let customerInvoice = locked.invoices?.customerInvoice;
         let platformInvoice = locked.invoices?.platformInvoice;
         if (!customerInvoice?.preparedAt || !platformInvoice?.preparedAt) {
@@ -63,12 +70,22 @@ export const finalizeDeliveredOrder = async (orderId, { deliveredAt = new Date()
             const generated = await generateOrderInvoices({
                 order: locked, customer, vendor, vendorPromoValue: locked.ledger?.appliedPromoValue || 0
             });
+            generatedData = generated;
             customerInvoice = generated.customerInvoice;
             platformInvoice = generated.platformInvoice;
         }
 
         assertInvoiceFields(customerInvoice, 'Invoice 1');
         assertInvoiceFields(platformInvoice, 'Invoice 2');
+        const round = value => Math.round(Number(value) * 100) / 100;
+        const oneTotal = round(customerInvoice.lineItems.reduce((sum, line) => sum + line.totalAmount, 0) - (customerInvoice.discountAmount || 0));
+        const twoTotal = round(platformInvoice.lineItems.reduce((sum, line) => sum + line.totalAmount, 0));
+        const ledger = generatedData?.ledger || locked.ledger;
+        if (![customerInvoice.totalAmount, platformInvoice.totalInvoiceAmount, ledger.vendorNetPayout, ledger.invoice2Total, ledger.customerWalletCredit].every(value => Number.isFinite(value) && value >= 0)) throw new GstConfigurationError('Invalid invoice or payout amount');
+        if (Math.abs(oneTotal - customerInvoice.totalAmount) > 0.01 || Math.abs(twoTotal - platformInvoice.totalInvoiceAmount) > 0.01
+            || Math.abs(round(ledger.vendorNetPayout + ledger.invoice2Total + ledger.customerWalletCredit) - customerInvoice.totalAmount) > 0.01) {
+            throw new GstConfigurationError('Invoice totals and payout ledger do not reconcile');
+        }
         const financialYear = financialYearFor(deliveredAt);
         const [customerSequence, platformSequence] = await Promise.all([
             nextSequence(`invoice:customer:${financialYear}`),
@@ -82,6 +99,7 @@ export const finalizeDeliveredOrder = async (orderId, { deliveredAt = new Date()
             {
                 $set: {
                     ...set,
+                    ...(generatedData ? { ledger: generatedData.ledger, gstSnapshot: generatedData.gstSnapshot } : {}),
                     status: 'DELIVERED',
                     deliveredAt,
                     'invoices.customerInvoice': invoice1,
@@ -94,6 +112,9 @@ export const finalizeDeliveredOrder = async (orderId, { deliveredAt = new Date()
             { new: true, runValidators: true }
         );
         if (!finalized) throw new Error('Invoice finalization lock was lost');
+        if (process.env.RAZORPAY_ROUTE_ENABLED === 'true') {
+            try { await settleVendorOrder(finalized._id); } catch (error) { console.error('Route settlement queued for retry:', error.message); }
+        }
         return finalized;
     } catch (error) {
         await Order.updateOne(

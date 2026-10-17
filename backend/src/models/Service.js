@@ -60,8 +60,8 @@ const serviceSchema = new mongoose.Schema({
         default: ''
     },
     sacCode: { type: String, default: '9994' },
-    gst: { type: Number, default: 5 },
-    heritageGst: { type: Number, default: 18 },
+    gst: { type: Number, min: 0, max: 100, default: undefined },
+    heritageGst: { type: Number, min: 0, max: 100, default: undefined },
     normalTime: {
         type: String,
         default: ''

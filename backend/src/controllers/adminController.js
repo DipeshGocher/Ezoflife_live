@@ -1,3 +1,4 @@
+import { withVendorPayoutLock } from '../services/vendorPayoutLock.js';
 import User from '../models/User.js';
 import Job from '../models/Job.js';
 import Promotion from '../models/Promotion.js';
@@ -1375,12 +1376,19 @@ export const getSystemConfig = async (req, res) => {
 
 export const updateSystemConfig = async (req, res) => {
     try {
-        const { key, value } = req.body;
+        let { key, value } = req.body;
+        if (key === 'gst_percentage') key = 'gst_percent';
+        if (['gst_percent', 'platform_fee_gst_percent', 'logistics_fee_gst_percent', 'platform_fee_fixed'].includes(key)) {
+            const number = Number(value);
+            if (value == null || value === '' || !Number.isFinite(number) || number < 0 || (key !== 'platform_fee_fixed' && number > 100)) return res.status(400).json({ message: 'Enter a valid non-negative fee or tax rate' });
+            value = number;
+        }
         const config = await SystemConfig.findOneAndUpdate(
             { key },
             { value },
             { upsert: true, new: true }
         );
+        if (key === 'gst_percent') await SystemConfig.findOneAndUpdate({ key: 'gst_percentage' }, { value }, { upsert: true });
         res.status(200).json(config);
     } catch (err) {
         res.status(500).json({ message: 'Error updating config' });
@@ -1555,7 +1563,7 @@ const nextSettlementDate = (cycle, lastPaidAt, pendingBalance) => {
 
 export const getVendorPaymentSummary = async (req, res) => {
     try {
-        const vendors = await User.find({ role: 'Vendor' }).select('displayName phone email shopDetails bankDetails').lean();
+        const vendors = await User.find({ role: 'Vendor' }).select('displayName phone email shopDetails bankDetails razorpayLinkedAccountId').lean();
 
         const [cycleCfg, gstCfg, refundAgg] = await Promise.all([
             SystemConfig.findOne({ key: 'vendor_settlement_cycle' }).lean(),
@@ -1579,7 +1587,7 @@ export const getVendorPaymentSummary = async (req, res) => {
             }).select('priceBreakdown status orderId totalAmount refundAmount ledger').lean();
             
             const totalEarnings = orders.reduce((acc, curr) => {
-                if (curr.ledger?.vendorNetPayout !== undefined && curr.ledger?.vendorNetPayout !== null && curr.ledger.vendorNetPayout > 0) {
+                if (curr.ledger?.vendorNetPayout !== undefined && curr.ledger?.vendorNetPayout !== null && Number.isFinite(curr.ledger.vendorNetPayout)) {
                     return acc + curr.ledger.vendorNetPayout;
                 }
                 const breakdown = curr.priceBreakdown || {};
@@ -1597,12 +1605,14 @@ export const getVendorPaymentSummary = async (req, res) => {
             const totalRefund = refundsByVendor.get(String(vendor._id)) || 0;
             
             // Total Paid by Admin to Vendor
-            const payouts = await Payout.find({ vendor: vendor._id, status: 'Completed' }).select('amount paidAt transactionId').sort({ paidAt: 1 }).lean();
+            const allPayouts = await Payout.find({ vendor: vendor._id, status: { $in: ['Completed', 'Pending'] } }).select('amount paidAt transactionId status').sort({ paidAt: 1 }).lean();
+            const pendingRouteAmount = allPayouts.filter(payout => payout.status === 'Pending').reduce((sum, payout) => sum + payout.amount, 0);
+            const payouts = allPayouts.filter(payout => payout.status === 'Completed');
             const lastPayout = payouts.length > 0 ? payouts[payouts.length - 1] : null;
             const acct = vendor.bankDetails?.accountNumber || '';
             const totalPaid = payouts.reduce((acc, curr) => acc + (curr.amount || 0), 0);
             
-            const pendingBalance = totalEarnings - totalPaid;
+            const pendingBalance = totalEarnings - totalPaid - pendingRouteAmount;
 
             return {
                 _id: vendor._id,
@@ -1615,6 +1625,8 @@ export const getVendorPaymentSummary = async (req, res) => {
                 totalPlatformFee,
                 gstOnFee,
                 totalRefund,
+                pendingRouteAmount,
+                razorpayLinkedAccountId: vendor.razorpayLinkedAccountId || '',
                 netPayable: totalEarnings,
                 settlementCycle,
                 // Real values only: previously these were built from the vendor's phone number.
@@ -1624,7 +1636,7 @@ export const getVendorPaymentSummary = async (req, res) => {
                 totalEarnings,
                 totalPaid,
                 pendingBalance,
-                status: pendingBalance > 0 ? 'Pending' : 'Settled',
+                status: pendingBalance > 0 ? 'Pending' : pendingRouteAmount > 0 ? 'Processing' : 'Settled',
                 paidBy: 'ADMIN',
                 paidOn: payouts.length > 0 ? new Date(payouts[payouts.length - 1].paidAt).toLocaleDateString() : 'N/A',
                 lastPayout: payouts.length > 0 ? payouts[payouts.length - 1].paidAt : null
@@ -1689,7 +1701,7 @@ export const getVendorPaymentSummary = async (req, res) => {
             const payouts = group.payouts;
 
             const totalEarnings = orders.reduce((acc, curr) => {
-                if (curr.ledger?.vendorNetPayout !== undefined && curr.ledger?.vendorNetPayout !== null && curr.ledger.vendorNetPayout > 0) {
+                if (curr.ledger?.vendorNetPayout !== undefined && curr.ledger?.vendorNetPayout !== null && Number.isFinite(curr.ledger.vendorNetPayout)) {
                     return acc + curr.ledger.vendorNetPayout;
                 }
                 const breakdown = curr.priceBreakdown || {};
@@ -1752,16 +1764,24 @@ export const recordVendorPayout = async (req, res) => {
             return res.status(400).json({ message: 'Amount must be a positive number' });
         }
 
-        const payout = new Payout({
-            vendor: vendorId,
-            amount,
-            transactionId,
-            paymentMethod,
-            notes,
-            status: 'Completed'
+        const payout = await withVendorPayoutLock(vendorId, async () => {
+            const earningOrders = await Order.find({ vendor: vendorId, status: { $in: ['READY_FOR_DISPATCH', 'DELIVERED', 'OUT_FOR_DELIVERY'] } }).select('ledger priceBreakdown').lean();
+            const earned = earningOrders.reduce((sum, order) => sum + (Number.isFinite(order.ledger?.vendorNetPayout) ? order.ledger.vendorNetPayout : (order.priceBreakdown?.baseWithArea || 0) + (order.priceBreakdown?.expressSurcharge || 0)), 0);
+            const recorded = await Payout.find({ vendor: vendorId, status: { $in: ['Completed', 'Pending'] } }).select('amount').lean();
+            const due = Math.round((earned - recorded.reduce((sum, payout) => sum + payout.amount, 0)) * 100) / 100;
+            if (Number(amount) > due) throw Object.assign(new Error('Payout exceeds the invoice-based outstanding vendor balance'), { status: 409 });
+            const payout = new Payout({
+                vendor: vendorId,
+                amount,
+                transactionId,
+                paymentMethod,
+                notes,
+                status: 'Completed'
         });
 
         await payout.save();
+        return payout;
+        });
 
         res.status(201).json({
             message: 'Payout recorded successfully',
@@ -1769,7 +1789,7 @@ export const recordVendorPayout = async (req, res) => {
         });
     } catch (err) {
         console.error('Record Payout Error:', err);
-        res.status(500).json({ message: 'Error recording payout', error: err.message });
+        res.status(err.status || 500).json({ message: err.message || 'Error recording payout' });
     }
 };
 

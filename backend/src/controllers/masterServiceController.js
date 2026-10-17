@@ -1,3 +1,4 @@
+import { getGstConfigs } from '../utils/gstInvoiceHelper.js';
 import MasterService from '../models/MasterService.js';
 import ServiceArea from '../models/ServiceArea.js';
 import AreaServiceOverride from '../models/AreaServiceOverride.js';
@@ -48,6 +49,10 @@ export const createMasterService = async (req, res) => {
         const formattedSeq = sequence.toString().padStart(3, '0');
         const finalSkuId = `${catSubPrefix}-${itemCode}-${formattedSeq}`;
 
+        const gstConfig = await getGstConfigs();
+        const configuredGst = gst == null || gst === '' ? gstConfig.gstPercent : Number(gst);
+        const heritageRate = req.body.heritageGst == null || req.body.heritageGst === '' ? configuredGst : Number(req.body.heritageGst);
+        if (![configuredGst, heritageRate].every(rate => Number.isFinite(rate) && rate >= 0 && rate <= 100)) return res.status(400).json({ message: 'GST rates must be between 0 and 100' });
         const service = new MasterService({ 
             itemName, 
             categoryId, 
@@ -62,8 +67,8 @@ export const createMasterService = async (req, res) => {
             excelCategoryId: excelCategoryId || category.excelCategoryId,
             curr_ind: curr_ind || 'y',
             allowDiscount: allowDiscount !== undefined ? allowDiscount : true,
-            gst: gst || 5,
-            heritageGst: gst || 5,
+            gst: configuredGst,
+            heritageGst: heritageRate,
             sacCode: sacCode || '9994',
             estimateTAT: estimateTAT || '48 Hours',
             avgWeight: avgWeight || '0.5'
@@ -236,10 +241,10 @@ export const updateMasterService = async (req, res) => {
     try {
         const { id } = req.params;
         const updates = { ...req.body };
-        if (updates.gst !== undefined && updates.gst !== null) {
+        if (updates.gst !== undefined && updates.gst !== null && updates.heritageGst === undefined) {
             updates.heritageGst = updates.gst;
         }
-        const updated = await MasterService.findByIdAndUpdate(id, updates, { new: true });
+        const updated = await MasterService.findByIdAndUpdate(id, updates, { new: true, runValidators: true });
         
         // Propagate updates to MasterPricing
         const MasterPricing = (await import('../models/MasterPricing.js')).default;

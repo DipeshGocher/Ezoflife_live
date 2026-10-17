@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 
 const payoutSchema = new mongoose.Schema({
+    order: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', unique: true, sparse: true },
     vendor: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

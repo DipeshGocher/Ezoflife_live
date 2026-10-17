@@ -1,3 +1,5 @@
+import { promotionQuery } from '../utils/promotionEligibility.js';
+import { settlePromotionWallet } from '../services/promotionWallet.js';
 import mongoose from 'mongoose';
 import Order from '../models/Order.js';
 import User from '../models/User.js';
@@ -29,6 +31,7 @@ import {
 const customerSafeOrder = order => {
     const value = typeof order?.toObject === 'function' ? order.toObject() : { ...order };
     if (value.invoices) value.invoices = { customerInvoice: value.invoices.customerInvoice };
+    delete value.vendorSettlement;
     return value;
 };
 
@@ -461,25 +464,7 @@ export const createOrder = async (req, res) => {
         const Promotion = (await import('../models/Promotion.js')).default;
         const serviceIds = items.map(item => item.serviceId);
 
-        const matchingVendorPromos = await Promotion.find({
-            owner_type: 'VENDOR',
-            status: 'Active',
-            approval_status: 'APPROVED',
-            start_date: { $lte: new Date() },
-            expiryDate: { $gte: new Date() },
-            $or: [
-                { min_order_value: { $lte: finalPriceBreakdown.baseWithArea } },
-                { minOrderValue: { $lte: finalPriceBreakdown.baseWithArea } }
-            ],
-            $or: [
-                { geofence_id: serviceAreaId },
-                { geofence_id: null }
-            ],
-            $or: [
-                { scope_type: 'GLOBAL_ORDER' },
-                { scope_type: 'SELECTED_SERVICES', selected_services: { $in: serviceIds } }
-            ]
-        });
+        const matchingVendorPromos = await Promotion.find(promotionQuery({ owner: 'VENDOR', amount: finalPriceBreakdown.baseWithArea, areaId: serviceAreaId, serviceIds }));
 
         let allocationStatus = 'NONE';
         let allocationExpiresAt = null;
@@ -507,17 +492,9 @@ export const createOrder = async (req, res) => {
         if (quote.promo) {
             appliedPromo = quote.promo;
             if (appliedPromo.owner_type === 'PLATFORM') {
-                const promoValue = quote.discount;
-                const retailValue = finalTotal + promoValue;
-                const standardFee = retailValue * 0.10;
-                finalLedger = {
-                    vendorNetPayout: retailValue - standardFee,
-                    customerWalletCredit: 0,
-                    platformFee: standardFee,
-                    spinzytCombinedRevenue: standardFee - promoValue,
-                    appliedPromoValue: promoValue,
-                    promoOwnerType: 'PLATFORM'
-                };
+                // Vendor settlement is prepared only when a vendor accepts.
+                finalLedger.appliedPromoValue = quote.discount;
+                finalLedger.promoOwnerType = 'PLATFORM';
             }
         }
 
@@ -628,6 +605,7 @@ export const createOrder = async (req, res) => {
             deliveryCharge: quote.priceBreakdown.logisticsFee,
             promoApplied: req.body.promoApplied || null,
             discountAmount: validatedDiscount,
+            checkoutDiscountAmount: validatedDiscount,
             walletAmountDeducted: Math.round(walletDeduction * 100) / 100,
             specialInstructions: specialInstructions || '',
             customerPhotos: customerPhotos || [],
@@ -650,7 +628,10 @@ export const createOrder = async (req, res) => {
                 phone: customerUser.phone || null,
                 email: customerUser.email || null,
                 customerType: customerUser.customerType || 'individual',
-                gstNumber: customerUser.gstNumber || null,
+                gstNumber: customerUser.gstNumber || '',
+                address: pickupAddress || customerUser.address || '',
+                businessName: customerUser.businessName || '',
+                businessAddress: customerUser.businessAddress || pickupAddress || '',
                 isExUser: false
             },
             ledger: finalLedger
@@ -787,6 +768,7 @@ export const createOrder = async (req, res) => {
         res.status(201).json(orderForActor(req, newOrder));
     } catch (err) {
         console.error('Create Order Error Details:', err);
+        if (err instanceof GstConfigurationError || err instanceof PricingError) return res.status(err.status).json({ message: err.message });
         res.status(500).json({ message: 'Error creating order', error: err.message });
     }
 };
@@ -1301,26 +1283,7 @@ export const getPoolOrders = async (req, res) => {
                 });
                 const serviceAreaId = orderArea ? orderArea._id : null;
 
-                const matchingPromo = await Promotion.findOne({
-                    vendorId: vendor._id,
-                    owner_type: 'VENDOR',
-                    status: 'Active',
-                    approval_status: 'APPROVED',
-                    start_date: { $lte: new Date() },
-                    expiryDate: { $gte: new Date() },
-                    $or: [
-                        { min_order_value: { $lte: order.priceBreakdown?.baseWithArea || order.totalAmount || 0 } },
-                        { minOrderValue: { $lte: order.priceBreakdown?.baseWithArea || order.totalAmount || 0 } }
-                    ],
-                    $or: [
-                        { geofence_id: serviceAreaId },
-                        { geofence_id: null }
-                    ],
-                    $or: [
-                        { scope_type: 'GLOBAL_ORDER' },
-                        { scope_type: 'SELECTED_SERVICES', selected_services: { $in: serviceIds } }
-                    ]
-                });
+                const matchingPromo = await Promotion.findOne(promotionQuery({ owner: 'VENDOR', vendorId: vendor._id, amount: order.priceBreakdown?.baseWithArea || order.totalAmount || 0, areaId: serviceAreaId, serviceIds }));
 
                 if (!matchingPromo) continue; // Skip order if vendor has no matching priority promo
             }
@@ -1351,6 +1314,7 @@ export const getPoolOrders = async (req, res) => {
 
 export const vendorAcceptOrder = async (req, res) => {
     try {
+        if (!['Vendor', 'Admin'].includes(req.user?.role)) return res.status(403).json({ message: 'Only approved vendors can accept orders' });
         const { id } = req.params;
         // The accepting vendor is whoever is logged in. Accepting an order "as"
         // another vendor is an Admin-only action.
@@ -1358,10 +1322,14 @@ export const vendorAcceptOrder = async (req, res) => {
 
         const order = await Order.findById(id);
         if (!order) return res.status(404).json({ message: 'Order not found' });
-        if (order.vendor) return res.status(400).json({ message: 'Order already accepted by another vendor' });
+        if (order.vendor) {
+            if (String(order.vendor) === String(vendorId)) await settlePromotionWallet(order);
+            return res.status(400).json({ message: 'Order already accepted by another vendor' });
+        }
 
         const vendor = await User.findById(vendorId);
         if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+        if (vendor.role !== 'Vendor' || vendor.status !== 'approved') return res.status(403).json({ message: 'Only approved vendors can accept orders' });
 
         // Verify that the vendor has all order services active and approved
         const serviceIds = order.items.map(item => item.serviceId);
@@ -1391,14 +1359,6 @@ export const vendorAcceptOrder = async (req, res) => {
         const ServiceArea = (await import('../models/ServiceArea.js')).default;
 
         let appliedPromo = null;
-        let finalLedger = order.ledger || {
-            vendorNetPayout: 0,
-            customerWalletCredit: 0,
-            platformFee: 0,
-            spinzytCombinedRevenue: 0,
-            appliedPromoValue: 0,
-            promoOwnerType: 'NONE'
-        };
         let finalPromoValue = 0;
 
         if (order.allocation_status === 'PROMO_EXCLUSIVE' && order.allocation_expires_at > new Date()) {
@@ -1416,26 +1376,7 @@ export const vendorAcceptOrder = async (req, res) => {
             });
             const serviceAreaId = orderArea ? orderArea._id : null;
 
-            const matchingPromo = await Promotion.findOne({
-                vendorId: vendor._id,
-                owner_type: 'VENDOR',
-                status: 'Active',
-                approval_status: 'APPROVED',
-                start_date: { $lte: new Date() },
-                expiryDate: { $gte: new Date() },
-                $or: [
-                    { min_order_value: { $lte: order.priceBreakdown?.baseWithArea || order.totalAmount || 0 } },
-                    { minOrderValue: { $lte: order.priceBreakdown?.baseWithArea || order.totalAmount || 0 } }
-                ],
-                $or: [
-                    { geofence_id: serviceAreaId },
-                    { geofence_id: null }
-                ],
-                $or: [
-                    { scope_type: 'GLOBAL_ORDER' },
-                    { scope_type: 'SELECTED_SERVICES', selected_services: { $in: serviceIds } }
-                ]
-            });
+            const matchingPromo = await Promotion.findOne(promotionQuery({ owner: 'VENDOR', vendorId: vendor._id, amount: order.priceBreakdown?.baseWithArea || order.totalAmount || 0, areaId: serviceAreaId, serviceIds }));
 
             if (!matchingPromo) {
                 return res.status(400).json({ message: 'This order is currently in an exclusive priority window for promotional vendors.' });
@@ -1447,35 +1388,7 @@ export const vendorAcceptOrder = async (req, res) => {
                 ? (order.totalAmount * matchingPromo.discountValue) / 100
                 : matchingPromo.discountValue;
 
-            const standardFee = order.totalAmount * 0.10;
             finalPromoValue = Math.min(promoVal, order.totalAmount);
-            // 50% of discount amount due to promotion goes to Customer's Wallet
-            const customerCashback = Math.round((finalPromoValue * 0.50) * 100) / 100;
-
-            finalLedger = {
-                vendorNetPayout: order.totalAmount - standardFee - finalPromoValue,
-                customerWalletCredit: customerCashback,
-                platformFee: standardFee,
-                spinzytCombinedRevenue: standardFee + customerCashback,
-                appliedPromoValue: finalPromoValue,
-                promoOwnerType: 'VENDOR'
-            };
-
-            // Wallet credit is applied only after the conditional order claim
-            // succeeds, preventing duplicate credits from concurrent accepts.
-        } else if (order.ledger && order.ledger.promoOwnerType === 'PLATFORM') {
-            // Already populated during order creation under Branch B
-        } else {
-            // No promo applied, run standard B2B split (10% platform fee, 90% vendor payout)
-            const standardFee = order.totalAmount * 0.10;
-            finalLedger = {
-                vendorNetPayout: order.totalAmount - standardFee,
-                customerWalletCredit: 0,
-                platformFee: standardFee,
-                spinzytCombinedRevenue: standardFee,
-                appliedPromoValue: 0,
-                promoOwnerType: 'NONE'
-            };
         }
 
         // Generate Invoice 1 (Customer Invoice), Invoice 2 (Platform Revenue Invoice) and Payout Ledger
@@ -1513,7 +1426,8 @@ export const vendorAcceptOrder = async (req, res) => {
         };
         if (appliedPromo) {
             claimSet.promoApplied = appliedPromo._id;
-            claimSet.discountAmount = finalPromoValue;
+            // Vendor cashback is separate from the customer checkout discount.
+            claimSet.vendorPromotion = appliedPromo._id;
         }
 
         // The vendor assignment and status predicate form the database lock.
@@ -1525,25 +1439,7 @@ export const vendorAcceptOrder = async (req, res) => {
         );
         if (!claimedOrder) return res.status(409).json({ message: 'Order already accepted by another vendor' });
 
-        const walletCredit = invoiceData.ledger.customerWalletCredit;
-        if (walletCredit > 0) {
-            const credited = await User.updateOne(
-                { _id: order.customer, creditedPromotionOrders: { $ne: order._id } },
-                { $inc: { walletBalance: walletCredit }, $addToSet: { creditedPromotionOrders: order._id } }
-            );
-            if (credited.modifiedCount === 1) {
-                await Order.updateOne(
-                    { _id: order._id, walletCreditStatus: 'PENDING' },
-                    { $set: { walletCreditStatus: 'CREDITED', walletCreditedAt: new Date() } }
-                );
-            } else {
-                // A retry may observe the idempotency key already applied.
-                await Order.updateOne(
-                    { _id: order._id },
-                    { $set: { walletCreditStatus: 'CREDITED' } }
-                );
-            }
-        }
+        await settlePromotionWallet(claimedOrder);
 
         // Remove availability notifications for other vendors
         await Notification.deleteMany({ orderId: id, type: 'order_available' });
@@ -2245,12 +2141,10 @@ export const cancelOrder = async (req, res) => {
 
         // 4. Wallet refund (atomic increment)
         if (order.walletAmountDeducted && order.walletAmountDeducted > 0) {
-            const credited = await User.findByIdAndUpdate(
-                order.customer,
-                { $inc: { walletBalance: order.walletAmountDeducted } },
-                { new: true }
-            );
-            if (credited) {
+            await User.updateOne({ _id: order.customer, refundedWalletOrders: { $ne: order._id } }, {
+                $inc: { walletBalance: order.walletAmountDeducted }, $addToSet: { refundedWalletOrders: order._id }
+            });
+            {
                 walletRefunded = order.walletAmountDeducted;
                 refundLog += `Refunded ₹${walletRefunded} to customer wallet. `;
                 console.log(`💸 [WALLET REFUND] Restored ₹${walletRefunded} to customer ${credited.phone}`);
@@ -2268,6 +2162,7 @@ export const cancelOrder = async (req, res) => {
         order.refundAmount = totalRefunded;
         if (totalRefunded > 0) order.refundedAt = new Date();
         await order.save();
+        if (order.status === 'CANCELLED') await settlePromotionWallet(order);
 
         const updatedOrder = await Order.findById(id)
             .populate('customer', 'displayName phone address email customerType gstNumber')

@@ -1,3 +1,4 @@
+import { socketAuth } from '../../../lib/socketAuth';
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { MessageSquare, Search, User, Send, Loader2, ArrowLeft, Package } from 'lucide-react';
@@ -28,7 +29,7 @@ export default function HelpDesk() {
   // Initialize socket
   useEffect(() => {
     const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-    const s = io(SOCKET_URL, { autoConnect: true, reconnection: true });
+    const s = io(SOCKET_URL, { auth: socketAuth, autoConnect: true, reconnection: true });
     socketRef.current = s;
 
     s.on('new_ticket', (newTicket) => {

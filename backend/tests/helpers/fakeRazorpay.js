@@ -17,6 +17,9 @@ export const startFakeRazorpay = async () => {
     const orders = new Map();
     const payments = new Map();
     const refunds = [];
+    const transfers = new Map();
+    const transferKeys = new Map();
+    const controls = { failTransferResponseOnce: false };
     const validations = new Map();
     let seq = 0;
     const nextId = (prefix) => `${prefix}_${Date.now().toString(36)}${(seq += 1)}`;
@@ -33,6 +36,21 @@ export const startFakeRazorpay = async () => {
             const url = new URL(req.url, 'http://fake');
             const parts = url.pathname.split('/').filter(Boolean); // ['v1', ...]
 
+            if (req.method === 'POST' && url.pathname === '/v1/transfers') {
+                const key = req.headers['x-transfer-idempotency'];
+                if (!key) return send(400, { error: { description: 'Idempotency key required' } });
+                if (transferKeys.has(key)) return send(200, transfers.get(transferKeys.get(key)));
+                const transfer = { id: nextId('trf'), entity: 'transfer', amount: body.amount, recipient: body.account, currency: body.currency, status: 'processed', notes: body.notes };
+                transfers.set(transfer.id, transfer);
+                transferKeys.set(key, transfer.id);
+                if (controls.failTransferResponseOnce) {
+                    controls.failTransferResponseOnce = false;
+                    return send(500, { error: { description: 'Provider processed transfer but response was lost' } });
+                }
+                return send(200, transfer);
+            }
+            const transferMatch = url.pathname.match(/^\/v1\/transfers\/(trf_[^/]+)$/);
+            if (req.method === 'GET' && transferMatch) return send(200, transfers.get(transferMatch[1]));
             if (req.method === 'POST' && url.pathname === '/v1/orders') {
                 const order = { id: nextId('order'), entity: 'order', amount: body.amount, currency: body.currency || 'INR', status: 'created', notes: body.notes };
                 orders.set(order.id, order);
@@ -92,7 +110,7 @@ export const startFakeRazorpay = async () => {
 
     return {
         baseUrl: `http://127.0.0.1:${port}`,
-        orders, payments, refunds, validations,
+        orders, payments, refunds, validations, transfers, controls,
         pay,
         env: {
             RAZORPAY_KEY_ID: FAKE_KEY_ID,

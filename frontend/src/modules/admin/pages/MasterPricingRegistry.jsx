@@ -7,10 +7,12 @@ import {
 import { toast } from 'react-hot-toast';
 import PageHeader from '../components/common/PageHeader';
 import DataGrid from '../components/tables/DataGrid';
-import { BASE_URL } from '../../../lib/api';
+import { BASE_URL, adminApi } from '../../../lib/api';
 import FilterField from "../components/common/FilterLabel";
 
 const MasterPricingRegistry = () => {
+    const [configuredGst, setConfiguredGst] = useState(0);
+    useEffect(() => { adminApi.getConfig().then(rows => { const rate = rows.find(row => row.key === 'gst_percent')?.value; if (rate != null) setConfiguredGst(Number(rate)); }).catch(() => toast.error('Could not load configured GST rate')); }, []);
     const [pricingData, setPricingData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [areas, setAreas] = useState([]);
@@ -166,8 +168,8 @@ const MasterPricingRegistry = () => {
                 const expressMult = row.fenceId?.dynamicSurgeMultiplier || 1.0;
                 const heritageMult = row.fenceId?.heritageMultiplier || 1.0;
                 const discMult = row.fenceId?.allowDiscount !== false ? (row.fenceId?.discountPriceMultiplier || 1.0) : 1.0;
-                const gst = row.serviceId?.gst || 5;
-                const hGst = row.serviceId?.heritageGst || 18;
+                const gst = row.serviceId?.gst ?? configuredGst;
+                const hGst = row.serviceId?.heritageGst ?? configuredGst;
 
                 const baseNormalExcl = Math.round(globalBase * baseMult);
                 const baseNormalIncl = Math.round(globalBase * baseMult * (1 + gst / 100));
@@ -283,7 +285,7 @@ const MasterPricingRegistry = () => {
             key: 'serviceId',
             render: (val) => (
                 <span className="text-[9px] font-black text-slate-500 tabular-nums">
-                    {val?.gst || 5}%
+                    {val?.gst ?? configuredGst}%
                 </span>
             )
         },
@@ -367,7 +369,7 @@ const MasterPricingRegistry = () => {
             render: (_, row) => {
                 const globalBase = row.basePrice || 0;
                 const baseMult = row.fenceId?.basePriceMultiplier || 1.0;
-                const gst = row.serviceId?.gst || 5;
+                const gst = row.serviceId?.gst ?? configuredGst;
                 const priceBeforeTax = globalBase * baseMult;
                 const final = Math.round(priceBeforeTax * (1 + gst / 100));
                 return (
@@ -401,7 +403,7 @@ const MasterPricingRegistry = () => {
                 const globalBase = row.basePrice || 0;
                 const baseMult = row.fenceId?.basePriceMultiplier || 1.0;
                 const expressMult = row.fenceId?.dynamicSurgeMultiplier || 1.0;
-                const gst = row.serviceId?.gst || 5;
+                const gst = row.serviceId?.gst ?? configuredGst;
                 const priceBeforeTax = globalBase * baseMult * expressMult;
                 const final = Math.round(priceBeforeTax * (1 + gst / 100));
                 return (
@@ -435,7 +437,7 @@ const MasterPricingRegistry = () => {
                 const globalBase = row.basePrice || 0;
                 const baseMult = row.fenceId?.basePriceMultiplier || 1.0;
                 const heritageMult = row.fenceId?.heritageMultiplier || 1.0;
-                const hGst = row.serviceId?.heritageGst || 18;
+                const hGst = row.serviceId?.heritageGst ?? configuredGst;
                 const priceBeforeTax = globalBase * baseMult * heritageMult;
                 const final = Math.round(priceBeforeTax * (1 + hGst / 100));
                 return (
@@ -471,7 +473,7 @@ const MasterPricingRegistry = () => {
                 const baseMult = row.fenceId?.basePriceMultiplier || 1.0;
                 const heritageMult = row.fenceId?.heritageMultiplier || 1.0;
                 const expressMult = row.fenceId?.dynamicSurgeMultiplier || 1.0;
-                const hGst = row.serviceId?.heritageGst || 18;
+                const hGst = row.serviceId?.heritageGst ?? configuredGst;
                 const priceBeforeTax = globalBase * baseMult * heritageMult * expressMult;
                 const final = Math.round(priceBeforeTax * (1 + hGst / 100));
                 return (
@@ -505,7 +507,7 @@ const MasterPricingRegistry = () => {
                 const globalDiscounted = row.discountPrice || 0;
                 const baseMult = row.fenceId?.basePriceMultiplier || 1.0;
                 const discMult = row.fenceId?.allowDiscount !== false ? (row.fenceId?.discountPriceMultiplier || 1.0) : 1.0;
-                const gst = row.serviceId?.gst || 5;
+                const gst = row.serviceId?.gst ?? configuredGst;
                 const priceBeforeTax = globalDiscounted * baseMult * discMult;
                 const final = Math.round(priceBeforeTax * (1 + gst / 100));
                 return (
@@ -541,7 +543,7 @@ const MasterPricingRegistry = () => {
                 const baseMult = row.fenceId?.basePriceMultiplier || 1.0;
                 const discMult = row.fenceId?.allowDiscount !== false ? (row.fenceId?.discountPriceMultiplier || 1.0) : 1.0;
                 const expressMult = row.fenceId?.dynamicSurgeMultiplier || 1.0;
-                const gst = row.serviceId?.gst || 5;
+                const gst = row.serviceId?.gst ?? configuredGst;
                 const priceBeforeTax = globalDiscounted * baseMult * discMult * expressMult;
                 const final = Math.round(priceBeforeTax * (1 + gst / 100));
                 return (
@@ -577,7 +579,7 @@ const MasterPricingRegistry = () => {
                 const baseMult = row.fenceId?.basePriceMultiplier || 1.0;
                 const heritageMult = row.fenceId?.heritageMultiplier || 1.0;
                 const discMult = row.fenceId?.allowDiscount !== false ? (row.fenceId?.discountPriceMultiplier || 1.0) : 1.0;
-                const hGst = row.serviceId?.heritageGst || 18;
+                const hGst = row.serviceId?.heritageGst ?? configuredGst;
                 const priceBeforeTax = globalDiscounted * baseMult * heritageMult * discMult;
                 const final = Math.round(priceBeforeTax * (1 + hGst / 100));
                 return (
@@ -615,7 +617,7 @@ const MasterPricingRegistry = () => {
                 const heritageMult = row.fenceId?.heritageMultiplier || 1.0;
                 const discMult = row.fenceId?.allowDiscount !== false ? (row.fenceId?.discountPriceMultiplier || 1.0) : 1.0;
                 const expressMult = row.fenceId?.dynamicSurgeMultiplier || 1.0;
-                const hGst = row.serviceId?.heritageGst || 18;
+                const hGst = row.serviceId?.heritageGst ?? configuredGst;
                 const priceBeforeTax = globalDiscounted * baseMult * heritageMult * discMult * expressMult;
                 const final = Math.round(priceBeforeTax * (1 + hGst / 100));
                 return (
@@ -626,7 +628,7 @@ const MasterPricingRegistry = () => {
                 );
             }
         }
-    ], []);
+    ], [configuredGst]);
 
     return (
         <div className="flex flex-col min-h-screen bg-slate-50/50 pb-20">

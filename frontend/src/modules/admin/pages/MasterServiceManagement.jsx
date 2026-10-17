@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { masterServiceApi, categoryApi } from '../../../lib/api';
+import { masterServiceApi, categoryApi, adminApi } from '../../../lib/api';
 import { toast } from 'react-hot-toast';
 import { 
     Plus, Edit2, Trash2, X, Download, Filter, Search, Settings, 
@@ -13,6 +13,11 @@ import FilterField from "../components/common/FilterLabel";
 
 const MasterServiceManagement = () => {
     const location = useLocation();
+    const [configuredGst, setConfiguredGst] = useState('');
+    useEffect(() => { adminApi.getConfig().then(rows => {
+        const rate = rows.find(row => row.key === 'gst_percent')?.value;
+        if (rate != null) { setConfiguredGst(Number(rate)); setFormData(previous => ({ ...previous, gst: previous.gst === '' ? Number(rate) : previous.gst, heritageGst: previous.heritageGst === '' ? Number(rate) : previous.heritageGst })); }
+    }).catch(() => toast.error('Could not load configured GST rate')); }, []);
     const [services, setServices] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -33,8 +38,8 @@ const MasterServiceManagement = () => {
         seasonality: 'All Season',
         estimateTAT: '48 Hours',
         expressMultiplier: 2,
-        gst: 5,
-        heritageGst: 18,
+        gst: '',
+        heritageGst: '',
         heritageMultiplier: 1.5,
         basePrice: 0,
         discountedPrice: 0,
@@ -111,7 +116,7 @@ const MasterServiceManagement = () => {
             svc.itemName || '',
             svc.avgWeight || '0.5',
             svc.estimateTAT || '48 Hours',
-            svc.gst || 5,
+            svc.gst ?? configuredGst,
             svc.basePrice || 0,
             svc.discountedPrice || 0,
             String(svc.curr_ind).toUpperCase(),
@@ -194,8 +199,8 @@ const MasterServiceManagement = () => {
                 seasonality: service.seasonality || 'All Season',
                 estimateTAT: service.estimateTAT || '48 Hours',
                 expressMultiplier: service.expressMultiplier || 2,
-                gst: service.gst || 5,
-                heritageGst: service.heritageGst || 18,
+                gst: service.gst ?? configuredGst,
+                heritageGst: service.heritageGst ?? configuredGst,
                 heritageMultiplier: service.heritageMultiplier || 1.5,
                 basePrice: service.basePrice,
                 discountedPrice: service.discountedPrice,
@@ -220,8 +225,8 @@ const MasterServiceManagement = () => {
                 seasonality: 'All Season',
                 estimateTAT: '48 Hours',
                 expressMultiplier: 2,
-                gst: 5,
-                heritageGst: 18,
+                gst: configuredGst,
+                heritageGst: configuredGst,
                 heritageMultiplier: 1.5,
                 basePrice: 0,
                 discountedPrice: 0,
@@ -382,7 +387,7 @@ const MasterServiceManagement = () => {
                 </div>
             )
         }
-    ], []);
+    ], [configuredGst]);
 
     return (
         <div className="flex flex-col min-h-screen bg-slate-50/50 pb-20">

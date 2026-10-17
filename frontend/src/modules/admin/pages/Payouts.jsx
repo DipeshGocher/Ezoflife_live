@@ -1,3 +1,4 @@
+import { BASE_URL } from '../../../lib/api';
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Download, ArrowDownLeft, ArrowUpRight, Wallet, RefreshCcw, ChevronDown, IndianRupee, X } from 'lucide-react';
@@ -286,7 +287,18 @@ export default function Payments() {
       money('totalEarnings', 'Earnings', 'text-slate-900'),
       money('totalPaid', 'Paid Out'),
       money('pendingBalance', 'Due', 'text-amber-700'),
+      money('pendingRouteAmount', 'Routing', 'text-blue-700'),
       { header: 'Next Settlement', key: 'settlementDate', render: (v, r) => <span className="text-[10px] text-slate-500 tabular-nums">{r.settlementCycle === 'Archived' ? 'Archived' : v ? fmtDate(v) : (r.pendingBalance > 0 ? 'Manual' : '—')}</span> },
+      { header: 'Razorpay Route', key: 'razorpayLinkedAccountId', render: (value, row) => <button className="text-xs text-blue-700 underline" onClick={async () => {
+        const account = window.prompt('Vendor Razorpay linked account ID', value || '');
+        if (!account) return;
+        try {
+          const response = await fetch(`${BASE_URL}/admin/vendor-payments/account/${row._id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ account }) });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message);
+          toast.success('Linked account saved'); fetchAllData();
+        } catch (error) { toast.error(error.message); }
+      }}>{value || 'Configure linked account'}</button> },
       { header: 'Bank Account', key: 'bankAccount', render: v => <span className="text-[10px] text-slate-600 font-bold">{v || <span className="text-slate-400">Not added</span>}</span> },
       { header: 'Last Payout', key: 'lastPayout', render: (v, r) => <span className="text-[10px] text-slate-500">{v ? `${fmtDate(v)}${r.razorpayPayoutId && r.razorpayPayoutId !== 'N/A' ? ` · ${r.razorpayPayoutId}` : ''}` : '—'}</span> },
       { header: 'Status', key: 'status', render: v => <StatusPill value={v} /> },

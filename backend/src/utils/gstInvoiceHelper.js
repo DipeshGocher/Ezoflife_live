@@ -54,7 +54,11 @@ export const validateGstConfigs = configMap => {
 export const getGstConfigs = async () => {
     const keys = ['gst_percent', 'platform_fee_fixed', 'platform_fee_gst_percent', 'logistics_fee_gst_percent', 'spinzyt_gstin', 'invoice_settings'];
     const configs = await SystemConfig.find({ key: { $in: keys } }).lean();
-    return validateGstConfigs(Object.fromEntries(configs.map(config => [config.key, config.value])));
+    const result = validateGstConfigs(Object.fromEntries(configs.map(config => [config.key, config.value])));
+    const required = ['registeredAddress', 'platformSacCode', 'logisticsSacCode', 'promotionSacCode'];
+    const missing = required.filter(key => !String(result.invoiceSettings[key] || '').trim());
+    if (missing.length) throw new GstConfigurationError(`Complete Admin Invoice Settings before checkout: ${missing.join(', ')}`);
+    return result;
 };
 
 const taxSplit = (taxAmount, rate, supplierStateCode, placeOfSupplyStateCode) => {
@@ -113,6 +117,11 @@ const makeLine = ({ description, sacCode, quantity = 1, unit = 'service', unitPr
 };
 
 export const generateOrderInvoices = async ({ order, customer, vendor, configs = null, vendorPromoValue = 0 }) => {
+    if (order.customerSnapshot?.gstNumber != null) {
+        const plainCustomer = typeof customer?.toObject === 'function' ? customer.toObject() : customer;
+        const frozen = typeof order.customerSnapshot.toObject === 'function' ? order.customerSnapshot.toObject() : order.customerSnapshot;
+        customer = { ...plainCustomer, ...frozen, gstNumber: frozen.gstNumber };
+    }
     const activeConfigs = configs ? validateGstConfigs({
         gst_percent: configs.gstPercent, platform_fee_fixed: configs.platformFeeFixed,
         platform_fee_gst_percent: configs.platformFeeGstPercent,
@@ -133,9 +142,6 @@ export const generateOrderInvoices = async ({ order, customer, vendor, configs =
     const feeGstPercent = Number(order.priceBreakdown?.feeGstPercent ?? (hasStoredTax ? 0 : activeConfigs.gstPercent));
     const logisticsFee = Number(order.priceBreakdown?.logisticsFee ?? order.deliveryCharge ?? 0);
     const grossServiceValue = money(baseWithArea + expressSurcharge + platformFee + logisticsFee);
-    const totalPromoDiscount = money(vendorPromoValue);
-    const customerWalletShare = money(totalPromoDiscount * 0.5);
-    const spinzytPromoShare = money(totalPromoDiscount - customerWalletShare);
     const taxable = scenario !== GST_SCENARIOS.URD_URD;
     const customerSupplierState = snapshot.vendorStateCode;
     const customerPlaceOfSupply = snapshot.customerStateCode;
@@ -163,7 +169,7 @@ export const generateOrderInvoices = async ({ order, customer, vendor, configs =
     }
     const itemRates = [...new Set(customerLines.filter(line => line.gstRate > 0).map(line => line.gstRate))];
     const taxPercent = taxable ? (itemRates.length === 1 ? itemRates[0] : activeConfigs.gstPercent) : 0;
-    const platformCheckoutDiscount = order.ledger?.promoOwnerType === 'PLATFORM' ? money(order.discountAmount) : 0;
+    const platformCheckoutDiscount = money(order.checkoutDiscountAmount ?? (order.ledger?.promoOwnerType === 'PLATFORM' ? order.discountAmount : 0));
     // URD vendors issue a zero-GST invoice for the agreed inclusive amount.
     // Never discard the tax component already included in checkout/payment.
     const inclusiveCheckoutTax = !taxable && order.orderType !== 'Walk-In'
@@ -189,6 +195,11 @@ export const generateOrderInvoices = async ({ order, customer, vendor, configs =
     const legacyScenario = scenario === GST_SCENARIOS.RD_RD ? 'A' : scenario === GST_SCENARIOS.URD_RD ? 'B' : 'C';
     const display = scenario === GST_SCENARIOS.RD_RD ? ['Customer GSTIN', snapshot.customerGstin] : scenario === GST_SCENARIOS.URD_RD ? ['Vendor GSTIN', snapshot.vendorGstin] : ['Spinzyt GSTIN', snapshot.spinzytGstin];
     const preparedAt = new Date();
+    // A vendor-funded benefit cannot exceed that vendor's available earnings.
+    const feeCharges = money(vendorPlatformFee * (1 + activeConfigs.platformFeeGstPercent / 100) + logisticsFee * (1 + activeConfigs.logisticsFeeGstPercent / 100));
+    const totalPromoDiscount = money(Math.min(Math.max(0, vendorPromoValue), Math.max(0, invoice1Total - feeCharges)));
+    const customerWalletShare = money(totalPromoDiscount / 2);
+    const spinzytPromoShare = money(totalPromoDiscount - customerWalletShare);
     const customerInvoice = {
         invoiceNo: '', documentStatus: 'DRAFT', financialYear: '', invoiceDate: null, finalizedAt: null,
         scenario: legacyScenario, gstScenario: scenario, issuerName: snapshot.vendorName,

@@ -198,6 +198,11 @@ const userSchema = new mongoose.Schema({
     },
     // Idempotency keys for vendor-funded promotion credits. The conditional
     // update that adds one of these keys also increments walletBalance.
+    refundedWalletOrders: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Order' }],
+    payoutLockUntil: Date,
+    payoutLockToken: String,
+    reversedPromotionOrders: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Order' }],
+    razorpayLinkedAccountId: { type: String, default: '' },
     creditedPromotionOrders: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Order' }],
     upiId: {
         type: String,

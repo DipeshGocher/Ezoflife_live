@@ -42,12 +42,12 @@ export const getVendorEarnings = async (req, res) => {
         // Vendor Earnings = baseWithArea + expressSurcharge from priceBreakdown
         const orders = await Order.find({ 
             vendor: vendorId,
-            status: { $in: ['Ready', 'Delivered', 'Out for Delivery'] }
-        }).select('priceBreakdown status orderId createdAt').lean();
+            status: { $in: ['READY_FOR_DISPATCH', 'DELIVERED', 'OUT_FOR_DELIVERY'] }
+        }).select('priceBreakdown status orderId createdAt ledger').lean();
         
         const totalEarnings = orders.reduce((acc, curr) => {
             const breakdown = curr.priceBreakdown || {};
-            return acc + (breakdown.baseWithArea || 0) + (breakdown.expressSurcharge || 0);
+            return acc + (Number.isFinite(curr.ledger?.vendorNetPayout) ? curr.ledger.vendorNetPayout : (breakdown.baseWithArea || 0) + (breakdown.expressSurcharge || 0));
         }, 0);
         
         // Total Paid by Admin to Vendor
@@ -756,12 +756,12 @@ export const getUserProfile = async (req, res) => {
 const NEVER_EDITABLE_PROFILE_FIELDS = new Set([
     'role', 'adminRole', 'adminPermissions', 'adminAccessType', 'geofenceRestrictions',
     'inviteTokenHash', 'inviteSentAt', 'inviteAcceptedAt', 'inviteSendCount', 'invitedBy',
-    'otp', 'otpExpiry', 'password'
+    'otp', 'otpExpiry', 'password', 'payoutLockUntil', 'payoutLockToken', 'refundedWalletOrders'
 ]);
 // Only an Admin may change these on someone's profile.
 const ADMIN_ONLY_PROFILE_FIELDS = new Set([
     'status', 'rejectionReason', 'rejectionFlags', 'onboardingStage', 'isVerifiedSupplier',
-    'successfulDeliveries', 'walletBalance', 'bankVerification', 'tier', 'phone'
+    'successfulDeliveries', 'walletBalance', 'bankVerification', 'tier', 'phone', 'razorpayLinkedAccountId', 'reversedPromotionOrders', 'creditedPromotionOrders'
 ]);
 const IGNORED_PROFILE_FIELDS = new Set(['_id', 'id', '__v', 'createdAt', 'updatedAt']);
 

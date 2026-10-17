@@ -4,6 +4,7 @@ import Service from '../models/Service.js';
 import ServiceArea from '../models/ServiceArea.js';
 import SystemConfig from '../models/SystemConfig.js';
 import Promotion from '../models/Promotion.js';
+import { promotionQuery } from './promotionEligibility.js';
 import { getGstConfigs } from './gstInvoiceHelper.js';
 
 /**
@@ -119,6 +120,7 @@ export const priceCustomerOrder = async ({
     let gst = 0;
     const pricedItems = lines.map(({ serviceId, quantity }) => {
         const svc = services.get(serviceId);
+        if (!String(svc.sacCode || '').trim()) throw new PricingError(`Configure the SAC code for ${svc.itemName || svc.name || 'this service'} before checkout`, 503);
         const basePrice = Number(svc.basePrice || svc.totalPrice) || 0;
         const discounted = Number(svc.discountedPrice) || basePrice;
         const source = (!allowDiscount || svc.showDiscountPrice === false) ? basePrice : discounted;
@@ -156,7 +158,7 @@ export const priceCustomerOrder = async ({
     let promo = null;
     let discount = 0;
     if (promoApplied && mongoose.isValidObjectId(promoApplied)) {
-        const found = await Promotion.findById(promoApplied).lean();
+        const found = await Promotion.findOne({ _id: promoApplied, ...promotionQuery({ owner: 'PLATFORM', amount: round2(base), areaId: area?._id, serviceIds: ids }) }).lean();
         if (isPromoLive(found)) {
             promo = found;
             const value = Number(found.discountValue) || 0;

@@ -1,3 +1,5 @@
+import { reconcileVendorSettlements } from '../services/vendorSettlement.js';
+import { reconcilePromotionWallets } from '../services/promotionWallet.js';
 import cron from 'node-cron';
 import { runPaymentReconciliation } from '../services/paymentSync.js';
 
@@ -13,6 +15,8 @@ export const startPaymentReconciler = () => {
         if (running) return;
         running = true;
         try {
+            await reconcilePromotionWallets();
+            await reconcileVendorSettlements();
             const summary = await runPaymentReconciliation();
             if (summary.captured || summary.refunded || summary.expired || summary.errors) {
                 console.log('💳 [RECONCILE]', summary);
