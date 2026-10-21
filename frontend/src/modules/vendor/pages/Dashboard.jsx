@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import VendorHeader from "../components/VendorHeader";
+import { ArrowUpRight, Clock3, Headset, Timer } from "lucide-react";
 import { orderApi, authApi, vendorPaymentApi } from "../../../lib/api";
 import useNotificationStore from "../../../shared/stores/notificationStore";
 import socket from "../../../lib/socket";
@@ -937,49 +938,6 @@ const Dashboard = () => {
                           return status;
                         };
 
-                        const posessionTime = Math.floor(
-                          (new Date() - new Date(order.updatedAt)) /
-                            (1000 * 60),
-                        );
-
-                        const getDropoffInfo = () => {
-                          let targetDate = order.deliveryTriggerTime
-                            ? new Date(order.deliveryTriggerTime)
-                            : new Date(
-                                new Date(order.createdAt).getTime() +
-                                  48 * 60 * 60 * 1000,
-                              );
-                          const msDiff =
-                            targetDate.getTime() - new Date().getTime();
-                          const hoursRemaining = msDiff / (1000 * 60 * 60);
-
-                          if (hoursRemaining > 0 && hoursRemaining <= 12) {
-                            const h = Math.floor(hoursRemaining);
-                            const m = Math.floor((hoursRemaining - h) * 60);
-                            return {
-                              text: `${h}h ${m}m left`,
-                              countdown: true,
-                            };
-                          } else if (hoursRemaining < 0) {
-                            return { text: `OVERDUE`, countdown: true };
-                          } else {
-                            if (
-                              order.deliverySlot?.date &&
-                              order.deliverySlot?.time
-                            ) {
-                              return {
-                                text: `${order.deliverySlot.date} ${order.deliverySlot.time.split("-")[0]}`,
-                                countdown: false,
-                              };
-                            }
-                            return {
-                              text: `${targetDate.toLocaleDateString("en-IN", { month: "short", day: "numeric" })}`,
-                              countdown: false,
-                            };
-                          }
-                        };
-                        const dropoffInfo = getDropoffInfo();
-
                         return (
                           <motion.div
                             key={order._id}
@@ -987,64 +945,40 @@ const Dashboard = () => {
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm space-y-2 relative overflow-hidden group">
-                            {/* Order ID */}
-                            <div className="flex justify-start items-center">
-                              <span className="bg-slate-900 text-white px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest">
-                                {order.orderId?.startsWith("#")
-                                  ? order.orderId
-                                  : `#${order.orderId}`}
+                            className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4 relative overflow-hidden group">
+                            <div className="flex flex-wrap justify-between items-center gap-2">
+                              <span className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-black tracking-wide">
+                                {order.orderId?.startsWith("#") ? order.orderId : `#${order.orderId}`}
+                              </span>
+                              <span className="rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-bold text-slate-600">
+                                {getFriendlyStatus(order.status)}
                               </span>
                             </div>
 
-                            {/* Order Received Date & Time */}
-                            <div className="flex items-center justify-between mt-1">
-                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                Date & Time Received
-                              </span>
-                              <span className="text-[10px] font-black text-slate-900 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100 flex items-center gap-1.5">
-                                <span className="material-symbols-outlined text-[10px] text-slate-400">
-                                  schedule
-                                </span>
-                                {new Date(order.createdAt).toLocaleString(
-                                  "en-IN",
-                                  {
-                                    month: "short",
-                                    day: "numeric",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  },
-                                )}
-                              </span>
-                            </div>
-
-                            {/* Time Elapsed */}
-                            <div className="flex items-center justify-between mt-1">
-                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                Time for Delivery
-                              </span>
-                              <span className="text-[10px] font-black text-slate-900 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100 flex items-center gap-1.5">
-                                <span className="material-symbols-outlined text-[10px] text-slate-400">
-                                  timer
-                                </span>
-                                {(() => {
-                                  const end =
-                                    order.status === "DELIVERED" ||
-                                    order.status === "READY_FOR_DISPATCH"
-                                      ? new Date(order.updatedAt)
-                                      : new Date();
-                                  const timeTakenMs =
-                                    end - new Date(order.createdAt);
-                                  const hours = Math.floor(
-                                    timeTakenMs / (1000 * 60 * 60),
-                                  );
-                                  const minutes = Math.floor(
-                                    (timeTakenMs % (1000 * 60 * 60)) /
-                                      (1000 * 60),
-                                  );
-                                  return `${hours}h ${minutes}m`;
-                                })()}
-                              </span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div className="min-w-0 rounded-xl bg-slate-50 border border-slate-100 px-3 py-3">
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-2">Date & Time Received</p>
+                                <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-900">
+                                  <Clock3 size={17} className="shrink-0 text-slate-400" aria-hidden="true" />
+                                  <span>{new Date(order.createdAt).toLocaleString("en-IN", {
+                                    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+                                  })}</span>
+                                </div>
+                              </div>
+                              <div className="min-w-0 rounded-xl bg-slate-50 border border-slate-100 px-3 py-3">
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-2">
+                                  {activeTab === "Completed" ? "Time taken" : "Time elapsed"}
+                                </p>
+                                <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-900">
+                                  <Timer size={17} className="shrink-0 text-slate-400" aria-hidden="true" />
+                                  <span>{(() => {
+                                    const end = ["DELIVERED", "READY_FOR_DISPATCH"].includes(order.status)
+                                      ? new Date(order.updatedAt) : new Date();
+                                    const minutes = Math.max(0, Math.floor((end - new Date(order.createdAt)) / 60000));
+                                    return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+                                  })()}</span>
+                                </div>
+                              </div>
                             </div>
 
                             {/* Total Amount (Right Aligned for Completed Tab only) */}
@@ -1132,39 +1066,30 @@ const Dashboard = () => {
                                 </motion.div>
                               )}
 
-                            {/* Bottom Row for In Progress Tab: Amount & More Button */}
+                            {/* Order total and a single, grouped set of actions. */}
                             {activeTab !== "Completed" && (
-                              <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-slate-50">
-                                <span className="text-[12px] font-black text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 shadow-sm">
-                                  ₹{order.totalAmount || 0}
-                                </span>
-                                <button
-                                  onClick={() =>
-                                    navigate(`/vendor/order/${order._id}`)
-                                  }
-                                  className="px-4 py-1.5 bg-slate-900 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md shadow-slate-900/20">
-                                  More
-                                </button>
+                              <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                                <div className="min-w-0">
+                                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Order total</p>
+                                  <p className="mt-1 text-lg font-black text-slate-900 tabular-nums">
+                                    {Number(order.totalAmount || 0).toLocaleString("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 2 })}
+                                  </p>
+                                </div>
                                 <div className="flex items-center gap-2">
                                   <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      navigate(
-                                        `/vendor/order-chat/${order._id}`,
-                                      );
-                                    }}
-                                    className="p-1.5 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 transition-all border border-rose-100"
-                                    title="Report Issue / Chat Support">
-                                    <span className="material-symbols-outlined text-[16px] block">
-                                      support_agent
-                                    </span>
+                                    type="button"
+                                    onClick={() => navigate(`/vendor/order-chat/${order._id}`)}
+                                    className="h-11 w-11 flex shrink-0 items-center justify-center bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-colors border border-rose-100"
+                                    aria-label="Contact support"
+                                    title="Report issue / Chat support">
+                                    <Headset size={19} aria-hidden="true" />
                                   </button>
                                   <button
-                                    onClick={() =>
-                                      navigate(`/vendor/order/${order._id}`)
-                                    }
-                                    className="px-4 py-1.5 bg-slate-900 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md shadow-slate-900/20">
-                                    More
+                                    type="button"
+                                    onClick={() => navigate(`/vendor/order/${order._id}`)}
+                                    className="min-h-11 flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors">
+                                    View order
+                                    <ArrowUpRight size={16} aria-hidden="true" />
                                   </button>
                                 </div>
                               </div>
