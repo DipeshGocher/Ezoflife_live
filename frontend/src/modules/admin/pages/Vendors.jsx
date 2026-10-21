@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -186,13 +187,13 @@ export default function Vendors() {
           <button 
             onClick={async (e) => { 
                 e.stopPropagation(); 
-                if (window.confirm(`CRITICAL: Are you sure you want to delete ${row.name}? This will permanently remove ALL their data including Jobs, Orders, and Promotions. This action cannot be undone.`)) {
+                if (await appDialog.confirm(`CRITICAL: Are you sure you want to delete ${row.name}? This will permanently remove ALL their data including Jobs, Orders, and Promotions. This action cannot be undone.`)) {
                     try {
                         await adminApi.deleteVendor(row.id);
-                        alert('Vendor and all associated data deleted successfully');
+                        await appDialog.alert('Vendor and all associated data deleted successfully');
                         fetchVendors();
                     } catch (err) {
-                        alert('Failed to delete vendor');
+                        await appDialog.alert('Failed to delete vendor');
                     }
                 }
             }}
@@ -212,16 +213,16 @@ export default function Vendors() {
     try {
       const response = await authApi.registerVendor(vendorForm);
       if (response.vendor) {
-        alert('Vendor registered successfully!');
+        await appDialog.alert('Vendor registered successfully!');
         setShowRegisterModal(false);
         setVendorForm({ name: '', mobile: '', email: '', gstNumber: '', password: '', address: '' });
         fetchVendors(); // Refresh the list
       } else {
-        alert(response.message || 'Registration failed');
+        await appDialog.alert(response.message || 'Registration failed');
       }
     } catch (error) {
       console.error('Registration Error:', error);
-      alert('Failed to connect to backend server');
+      await appDialog.alert('Failed to connect to backend server');
     } finally {
       setIsRegistering(false);
     }

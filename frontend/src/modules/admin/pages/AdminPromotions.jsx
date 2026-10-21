@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Tag, Check, X, FileText, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -66,7 +67,7 @@ const AdminPromotions = () => {
     }, []);
 
     const handleApprove = async (id) => {
-        if (!window.confirm('Are you sure you want to approve this promotion?')) return;
+        if (!await appDialog.confirm('Are you sure you want to approve this promotion?')) return;
         try {
             await promotionApi.adminApprove(id);
             toast.success('Promotion approved successfully!');

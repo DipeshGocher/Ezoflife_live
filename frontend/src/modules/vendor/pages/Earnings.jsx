@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -45,7 +46,7 @@ const Earnings = () => {
         fetchData();
     }, [vendorId]);
 
-    const handleDownloadInvoice = () => {
+    const handleDownloadInvoice = async () => {
         try {
             const doc = new jsPDF();
             doc.setFontSize(22);
@@ -86,7 +87,7 @@ const Earnings = () => {
 
             doc.save(`Statement_${vendorId}_${Date.now()}.pdf`);
         } catch (error) {
-            alert('Could not generate PDF');
+            await appDialog.alert('Could not generate PDF');
         }
     };
 

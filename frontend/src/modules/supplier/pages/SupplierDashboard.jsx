@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import BrandLogo from '../../../shared/components/BrandLogo.jsx';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -738,9 +739,9 @@ const SupplierDashboard = () => {
                                             {/* Actions for Completed Tab */}
                                             <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-slate-100">
                                                 <button 
-                                                    onClick={(e) => {
+                                                    onClick={async (e) => {
                                                         e.stopPropagation();
-                                                        alert('Invoice will be downloaded shortly.');
+                                                        await appDialog.alert('Invoice will be downloaded shortly.');
                                                     }}
                                                     className="w-full py-1.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"
                                                 >

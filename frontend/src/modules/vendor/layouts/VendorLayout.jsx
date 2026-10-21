@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -96,7 +97,7 @@ const VendorLayout = () => {
             clearIncomingRequest();
             navigate(`/vendor/order/${orderId}`);
         } catch (err) {
-            alert('Order already taken or error occurred.');
+            await appDialog.alert('Order already taken or error occurred.');
         } finally {
             setAcceptingId(null);
         }

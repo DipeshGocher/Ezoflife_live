@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useEffect, useState, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -136,7 +137,7 @@ export default function OnboardingApprovals() {
       if (page > totalPages) setPage(totalPages);
     } catch (err) {
       console.error('Action Error:', err);
-      alert('Action failed. Try again.');
+      await appDialog.alert('Action failed. Try again.');
     } finally {
       setIsProcessing(null);
     }
@@ -235,7 +236,7 @@ export default function OnboardingApprovals() {
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
 
-  const handleExportFile = (format) => {
+  const handleExportFile = async (format) => {
     console.log(`Exporting ${format} for onboarding approvals (${activeTab})`);
     try {
       const headers = [
@@ -279,10 +280,10 @@ export default function OnboardingApprovals() {
       } else if (format === 'csv') {
         XLSX.writeFile(wb, `${activeTab}_Onboarding_Approvals_${new Date().getTime()}.csv`, { bookType: 'csv' });
       }
-      alert(`${format.toUpperCase()} export downloaded successfully`);
+      await appDialog.alert(`${format.toUpperCase()} export downloaded successfully`);
     } catch (err) {
       console.error(`Export ${format} error:`, err);
-      alert(`Error exporting to ${format}`);
+      await appDialog.alert(`Error exporting to ${format}`);
     }
   };
 

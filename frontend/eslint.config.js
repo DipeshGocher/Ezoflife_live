@@ -23,6 +23,7 @@ export default defineConfig([
       },
     },
     rules: {
+      'no-alert': 'error',
       'react-hooks/set-state-in-effect': 'off',
       'no-unused-vars': [
         'error',

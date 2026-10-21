@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { vendorMasterSupplyApi, vendorSupplyCategoryApi, mediaApi } from '../../../lib/api';
 import { toast } from 'react-hot-toast';
@@ -377,7 +378,7 @@ const VendorProductTableManagement = () => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this supply item?')) {
+        if (await appDialog.confirm('Are you sure you want to delete this supply item?')) {
             try {
                 await vendorMasterSupplyApi.delete(id);
                 toast.success('Supply item deleted');

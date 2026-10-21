@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo } from 'react';
 import { feedbackApi } from '../../../lib/api';
 import PageHeader from '../components/common/PageHeader';
@@ -57,7 +58,7 @@ const FeedbackManagement = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this feedback?')) return;
+        if (!await appDialog.confirm('Are you sure you want to delete this feedback?')) return;
         try {
             await feedbackApi.delete(id);
             toast.success('Feedback deleted successfully');

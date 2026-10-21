@@ -1,15 +1,25 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 import useNotificationStore from '../../../shared/stores/notificationStore';
 
 const NotificationsPage = () => {
   const navigate = useNavigate();
-  const { notifications, markAsRead, clearAll } = useNotificationStore();
+  const { notifications, markAsRead, clearAll, fetchNotifications } = useNotificationStore();
+  const userId = useMemo(() => {
+    const user = JSON.parse(localStorage.getItem('user') || localStorage.getItem('userData') || '{}');
+    return user._id || user.id;
+  }, []);
+
+  // Saved customer notifications use 'user'; socket events use 'customer'.
+  useEffect(() => {
+    if (userId) fetchNotifications(userId, 'user');
+  }, [userId, fetchNotifications]);
   
   // Filter for user-specific notifications
   const userNotifications = useMemo(() => 
-    notifications.filter(n => n.persona === 'user'),
+    notifications.filter(n => ['customer', 'user'].includes(n.persona?.toLowerCase())),
     [notifications]
   );
 
@@ -114,7 +124,7 @@ const NotificationsPage = () => {
         {userNotifications.length > 0 && (
             <motion.button 
               whileTap={{ scale: 0.98 }}
-              onClick={clearAll}
+              onClick={() => clearAll(userId, 'user')}
               className="w-full mt-10 py-5 rounded-3xl border border-slate-200 bg-white text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] hover:text-error hover:border-error/20 transition-all shadow-sm"
             >
               Clear Log Archive

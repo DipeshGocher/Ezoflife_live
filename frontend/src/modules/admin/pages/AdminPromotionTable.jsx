@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { promotionApi, BASE_URL } from '../../../lib/api';
 import { toast } from 'react-hot-toast';
@@ -304,7 +305,7 @@ const AdminPromotionTable = () => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this promotion?')) {
+        if (await appDialog.confirm('Are you sure you want to delete this promotion?')) {
             try {
                 await promotionApi.delete(id);
                 toast.success('Promotion deleted successfully');

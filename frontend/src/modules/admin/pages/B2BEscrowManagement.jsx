@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect } from 'react';
 import { IndianRupee, ShieldCheck, Truck, User, Store, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { b2bOrderApi } from '../../../lib/api';
@@ -26,13 +27,13 @@ export default function B2BEscrowManagement() {
   }, []);
 
   const handleRelease = async (orderId) => {
-    if (!confirm('Are you sure you want to release funds to the supplier? This action cannot be undone.')) return;
+    if (!await appDialog.confirm('Are you sure you want to release funds to the supplier? This action cannot be undone.')) return;
     try {
       await b2bOrderApi.releasePayment(orderId);
-      alert('Funds released successfully!');
+      await appDialog.alert('Funds released successfully!');
       fetchEscrowOrders();
     } catch (error) {
-      alert('Failed to release funds');
+      await appDialog.alert('Failed to release funds');
     }
   };
 

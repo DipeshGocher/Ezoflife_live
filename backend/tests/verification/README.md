@@ -11,6 +11,17 @@ The registered/unregistered demo accounts are available in the configured app da
 
 These are synthetic GST identifiers, not verified legal identities. Use the normal customer/vendor login flow. Mock WhatsApp mode uses OTP `123456`; a live provider generates and sends its normal OTP.
 
+On 21 October 2026, the four existing demo accounts were aligned with customer `7777777772` in the active **Nashik-Serene Medows** region (20.0219057, 73.7294076). Both customers' saved addresses and both vendors' shop addresses were aligned too. The seed's original Indore locations are insertion defaults and are not applied to existing accounts.
+
+To align only these four demo accounts with another test customer's saved region:
+
+```sh
+node scripts/alignGstDemoRegion.js --customer-phone PHONE
+node scripts/alignGstDemoRegion.js --customer-phone PHONE --apply
+```
+
+The first command previews the update. Apply validates demo account identities, requires one active reference geofence, saves a location backup in the OS temporary directory, and changes only addresses and coordinates. It preserves GST, service approvals, orders, and balances. A GST customer's orders remain eligible only for GST-registered vendors. Refresh the vendor dashboard after changing locations to reload the available order pool.
+
 From `backend`:
 
 ```sh

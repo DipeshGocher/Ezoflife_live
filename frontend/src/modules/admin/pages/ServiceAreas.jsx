@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, {
   useState,
   useEffect,
@@ -578,7 +579,7 @@ export default function ServiceAreas() {
 
   // ─── Delete area ───────────────────────────────────────────────────────────
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete this service zone? This cannot be undone."))
+    if (!await appDialog.confirm("Delete this service zone? This cannot be undone."))
       return;
     try {
       const res = await fetch(`${BASE_URL}/geofence/areas/${id}`, {

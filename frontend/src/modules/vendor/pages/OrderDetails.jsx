@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -417,7 +418,7 @@ const OrderDetails = () => {
 
   const handleVerifyHandshake = async () => {
     const otpString = otp.join("");
-    if (otpString.length !== 4) return alert("Please enter 4-digit OTP");
+    if (otpString.length !== 4) return await appDialog.alert("Please enter 4-digit OTP");
 
     try {
       setVerifying(true);
@@ -430,7 +431,7 @@ const OrderDetails = () => {
       }
       window.location.reload();
     } catch (err) {
-      alert(err.message || "Verification failed");
+      await appDialog.alert(err.message || "Verification failed");
     } finally {
       setVerifying(false);
     }
@@ -850,7 +851,7 @@ const OrderDetails = () => {
                       setActiveHandshakePhase("Inbound");
                       setIsHandshakeModalOpen(true);
                     } catch (err) {
-                      alert("Failed to request Inbound OTP. Please try again.");
+                      await appDialog.alert("Failed to request Inbound OTP. Please try again.");
                     } finally {
                       setVerifying(false);
                     }
@@ -928,7 +929,7 @@ const OrderDetails = () => {
                   await orderApi.markOrderReady(order._id);
                   window.location.reload();
                 } catch (err) {
-                  alert("Error marking as ready");
+                  await appDialog.alert("Error marking as ready");
                 }
               }}
               className="bg-black text-white w-full py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.1em] flex items-center justify-center gap-3 shadow-xl shadow-black/20 mt-2">

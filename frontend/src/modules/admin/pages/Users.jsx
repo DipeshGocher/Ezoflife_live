@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useEffect, useState, useMemo } from 'react';
 import { 
   Users as UsersIcon, Mail, Phone, MoreHorizontal, ShieldAlert, UserCheck, 
@@ -207,7 +208,7 @@ export default function Users() {
   };
 
   const handleClearAll = async () => {
-    if (window.confirm('CRITICAL ACTION: This will delete ALL users (Customers, Vendors, Suppliers). Are you absolutely sure?')) {
+    if (await appDialog.confirm('CRITICAL ACTION: This will delete ALL users (Customers, Vendors, Suppliers). Are you absolutely sure?')) {
         try {
             setLoading(true);
             const response = await fetch(`${BASE_URL}/admin/users-clear-all`, {

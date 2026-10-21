@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { adApi, UPLOADS_URL } from '../../../lib/api';
@@ -142,7 +143,7 @@ const AdminAdvertisementPage = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this ad?')) return;
+        if (!await appDialog.confirm('Are you sure you want to delete this ad?')) return;
         try {
             await adApi.delete(id);
             toast.success('Ad deleted');

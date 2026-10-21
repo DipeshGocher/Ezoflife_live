@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { jobApi, adminApi, UPLOADS_URL } from "../../../lib/api";
@@ -256,7 +257,7 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
 
   const handleDeleteJob = async (id) => {
     if (
-      confirm(
+      await appDialog.confirm(
         "Are you sure you want to permanently delete this job posting? This action will also delete all candidate applications linked to it.",
       )
     ) {
@@ -272,7 +273,7 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
   };
 
   const handleDeleteApplication = async (id) => {
-    if (confirm("Are you sure you want to delete this application record?")) {
+    if (await appDialog.confirm("Are you sure you want to delete this application record?")) {
       try {
         await jobApi.deleteApplication(id);
         await fetchApplications();

@@ -8,6 +8,7 @@ import PrivacyPolicyPage from "./modules/user/pages/PrivacyPolicyPage";
 import TermsConditionsPage from "./modules/user/pages/TermsConditionsPage";
 import ScrollToTop from "./shared/components/ScrollToTop";
 import GlobalToast from "./shared/components/GlobalToast";
+import AppDialog from "./shared/components/AppDialog";
 import LocationPrompt from "./shared/components/LocationPrompt";
 import LocationPicker from "./shared/components/LocationPicker";
 import { useJsApiLoader } from "@react-google-maps/api";
@@ -43,6 +44,7 @@ function App() {
       <ScrollToTop />
       <Toaster />
       <GlobalToast />
+      <AppDialog />
       <LocationPrompt />
       <LocationPicker isLoaded={isLoaded} />
       <ErrorBoundary>

@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { vendorSupplyCategoryApi } from '../../../lib/api';
 import { toast } from 'react-hot-toast';
@@ -267,7 +268,7 @@ const VendorSupplyCategoryManagement = () => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this supply category?')) {
+        if (await appDialog.confirm('Are you sure you want to delete this supply category?')) {
             try {
                 await vendorSupplyCategoryApi.delete(id);
                 toast.success('Supply category deleted');

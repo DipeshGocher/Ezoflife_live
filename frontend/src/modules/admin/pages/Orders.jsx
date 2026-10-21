@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { formatOrderWeight, getOrderWeight } from "../../../lib/orderWeight";
@@ -225,14 +226,14 @@ export default function Orders() {
   };
 
   const handleDeleteOrder = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this order?")) return;
+    if (!await appDialog.confirm("Are you sure you want to delete this order?")) return;
     try {
       await orderApi.deleteOrder(id);
       setAllOrders((prev) => prev.filter((order) => order._id !== id));
-      alert("Order deleted successfully");
+      await appDialog.alert("Order deleted successfully");
     } catch (err) {
       console.error("Delete order error:", err);
-      alert("Error deleting order");
+      await appDialog.alert("Error deleting order");
     }
   };
 
@@ -249,7 +250,7 @@ export default function Orders() {
       "DELIVERED",
       "CANCELLED",
     ];
-    const newStatus = window.prompt(
+    const newStatus = await appDialog.prompt(
       `Update status for order ${id}. Choices: ${nextStatuses.join(", ")}`,
       currentStatus,
     );
@@ -262,10 +263,10 @@ export default function Orders() {
             order._id === id ? { ...order, status: newStatus } : order,
           ),
         );
-        alert("Status updated");
+        await appDialog.alert("Status updated");
       } catch (err) {
         console.error("Update status error:", err);
-        alert("Error updating status");
+        await appDialog.alert("Error updating status");
       }
     }
   };
@@ -441,7 +442,7 @@ export default function Orders() {
       console.log("PDF Download Started");
     } catch (err) {
       console.error("Export PDF error:", err);
-      alert("Error exporting PDF");
+      await appDialog.alert("Error exporting PDF");
     } finally {
       setLoading(false);
     }
@@ -661,7 +662,7 @@ export default function Orders() {
       console.log(`${format.toUpperCase()} Download Finished`);
     } catch (err) {
       console.error(`Export ${format} error:`, err);
-      alert(`Error exporting to ${format}`);
+      await appDialog.alert(`Error exporting to ${format}`);
     } finally {
       setLoading(false);
     }
@@ -669,7 +670,7 @@ export default function Orders() {
 
   const handleClearAllOrders = async () => {
     if (
-      !window.confirm(
+      !await appDialog.confirm(
         "⚠️ WARNING: This will permanently delete ALL orders from the system. This action cannot be undone. Are you sure?",
       )
     )
@@ -680,13 +681,13 @@ export default function Orders() {
       const result = await adminApi.clearAllOrders();
       if (result.message) {
         setAllOrders([]);
-        alert(result.message);
+        await appDialog.alert(result.message);
       } else {
         throw new Error("Invalid response from server");
       }
     } catch (err) {
       console.error("Clear all orders error:", err);
-      alert(`Failed to clear orders: ${err.message}`);
+      await appDialog.alert(`Failed to clear orders: ${err.message}`);
     } finally {
       setLoading(false);
     }

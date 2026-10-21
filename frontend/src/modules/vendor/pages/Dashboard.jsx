@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -558,9 +559,9 @@ const Dashboard = () => {
       await orderApi.updateOrderStatus(order._id, "READY_FOR_DISPATCH");
       fetchOrders(); // Refresh
       setSelectedOrderForReady(null);
-      alert(`Order ${order.orderId} marked as READY. Return rider notified!`);
+      await appDialog.alert(`Order ${order.orderId} marked as READY. Return rider notified!`);
     } catch (err) {
-      alert("Error updating status");
+      await appDialog.alert("Error updating status");
     }
   };
 
@@ -569,7 +570,7 @@ const Dashboard = () => {
       await orderApi.updateOrderStatus(order._id, "PROCESSING");
       fetchOrders();
     } catch (err) {
-      alert("Error starting process");
+      await appDialog.alert("Error starting process");
     }
   };
 
@@ -578,10 +579,10 @@ const Dashboard = () => {
       setAcceptingId(orderId);
       await orderApi.vendorAcceptOrder(orderId, vendorId);
       fetchAllData(); // Refresh everything
-      alert("Order Accepted! Pickup requested from Shiprocket.");
+      await appDialog.alert("Order Accepted! Pickup requested from Shiprocket.", { title: "Order accepted", confirmLabel: "Done" });
     } catch (err) {
       console.error("Accept error:", err);
-      alert(
+      await appDialog.alert(
         "Failed to accept order. It might have been taken by another vendor.",
       );
     } finally {
@@ -1059,9 +1060,9 @@ const Dashboard = () => {
                             {activeTab === "Completed" && (
                               <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-slate-100">
                                 <button
-                                  onClick={(e) => {
+                                  onClick={async (e) => {
                                     e.stopPropagation();
-                                    alert(
+                                    await appDialog.alert(
                                       "Invoice will be downloaded shortly.",
                                     );
                                     setInvoiceModalOrder(order);

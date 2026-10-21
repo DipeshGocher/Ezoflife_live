@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo } from 'react';
 import { BASE_URL } from '../../../lib/api';
 import { toast } from 'react-hot-toast';
@@ -162,7 +163,7 @@ const ServiceGeofenceTable = () => {
     }, [selectedAreaName, searchAreaNameInput, searchBaseMultiplier, searchExpressMultiplier, searchHeritageMultiplier, searchDiscountMultiplier]);
 
     const handleDeleteArea = async (id) => {
-        if (!window.confirm('Delete this service zone?')) return;
+        if (!await appDialog.confirm('Delete this service zone?')) return;
         try {
             const res = await fetch(`${BASE_URL}/geofence/areas/${id}`, { method: 'DELETE' });
             if (res.ok) {

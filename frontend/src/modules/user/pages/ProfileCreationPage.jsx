@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,7 +22,10 @@ const ProfileCreationPage = () => {
     const [showMapPicker, setShowMapPicker] = useState(false);
 
     // Business onboarding additions
-    const [customerType, setCustomerType] = useState('individual'); // 'individual' or 'retail' (for business)
+    const [customerType, setCustomerType] = useState(() =>
+        (mergedUser.customerType || localStorage.getItem('userType') || 'individual').toLowerCase() === 'retail'
+            ? 'retail' : 'individual'
+    );
     const [gpsAddress, setGpsAddress] = useState(''); // GPS selected location for Business
     const [businessName, setBusinessName] = useState(mergedUser.businessName || '');
     const [businessAddress, setBusinessAddress] = useState(mergedUser.businessAddress || '');
@@ -123,9 +127,9 @@ const ProfileCreationPage = () => {
                     reverseGeocode(newPos.lat, newPos.lng);
                     setIsLocating(false);
                 },
-                (error) => {
+                async (error) => {
                     console.error('Geolocation error:', error);
-                    alert('Could not fetch location. Please enable GPS.');
+                    await appDialog.alert('Could not fetch location. Please enable GPS.');
                     setIsLocating(false);
                 }
             );
@@ -223,7 +227,7 @@ const ProfileCreationPage = () => {
             
             navigate('/user/home');
         } catch (err) {
-            alert('Could not save profile: ' + err.message);
+            await appDialog.alert('Could not save profile: ' + err.message);
         } finally {
             setIsLoading(false);
         }

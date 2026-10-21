@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import BrandLogo from '../../../shared/components/BrandLogo.jsx';
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -2810,9 +2811,9 @@ const WalkInOrderPage = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         if (
-                          window.confirm("Delete all photos for this service?")
+                          await appDialog.confirm("Delete all photos for this service?")
                         ) {
                           setItemPhotos((prev) => {
                             const { [activePhotoService.id]: _, ...rest } =

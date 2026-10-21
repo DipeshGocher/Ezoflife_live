@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { mediaApi } from '../../../lib/api';
@@ -101,7 +102,7 @@ const AdminBrandInquiries = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this inquiry?')) return;
+        if (!await appDialog.confirm('Are you sure you want to delete this inquiry?')) return;
         try {
             await mediaApi.deleteInquiry(id);
             toast.success('Inquiry deleted successfully');

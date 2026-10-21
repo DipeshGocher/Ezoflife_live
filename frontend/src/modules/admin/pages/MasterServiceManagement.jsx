@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -262,7 +263,7 @@ const MasterServiceManagement = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Delete this service?')) return;
+        if (!await appDialog.confirm('Delete this service?')) return;
         try {
             await masterServiceApi.delete(id);
             toast.success('Deleted');

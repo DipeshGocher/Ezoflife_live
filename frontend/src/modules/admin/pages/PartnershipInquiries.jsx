@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo } from 'react';
 import { partnershipApi } from '../../../lib/api';
 import toast from 'react-hot-toast';
@@ -98,7 +99,7 @@ const PartnershipInquiries = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this partnership inquiry?')) return;
+        if (!await appDialog.confirm('Are you sure you want to delete this partnership inquiry?')) return;
         try {
             await partnershipApi.delete(id);
             toast.success('Inquiry deleted successfully');

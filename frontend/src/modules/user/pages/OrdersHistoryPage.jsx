@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import { renderCustomerInvoiceHtml } from '../../../lib/customerInvoiceHtml';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -35,7 +36,7 @@ const OrdersHistoryPage = () => {
   };
 
   const handleCancelOrder = async (orderId) => {
-    if (!window.confirm("Are you sure you want to cancel this order? Paid amount will be refunded automatically.")) return;
+    if (!await appDialog.confirm("Are you sure you want to cancel this order? Paid amount will be refunded automatically.")) return;
     try {
         setCancelling(orderId);
         const res = await orderApi.cancelOrder(orderId);

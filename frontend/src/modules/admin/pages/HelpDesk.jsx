@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import { socketAuth } from '../../../lib/socketAuth';
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -166,7 +167,7 @@ export default function HelpDesk() {
       const listData = await ticketApi.getAllTickets();
       setTickets(listData);
     } catch (err) {
-      alert('Failed to send reply');
+      await appDialog.alert('Failed to send reply');
     } finally {
       setIsSending(false);
     }
@@ -181,7 +182,7 @@ export default function HelpDesk() {
       const listData = await ticketApi.getAllTickets();
       setTickets(listData);
     } catch (err) {
-      alert('Failed to resolve ticket');
+      await appDialog.alert('Failed to resolve ticket');
     }
   };
   // Time checking helpers

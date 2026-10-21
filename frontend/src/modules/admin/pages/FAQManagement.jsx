@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect } from 'react';
 import { faqApi } from '../../../lib/api';
 import PageHeader from '../components/common/PageHeader';
@@ -105,7 +106,7 @@ const FAQManagement = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Delete this FAQ?')) return;
+        if (!await appDialog.confirm('Delete this FAQ?')) return;
         try {
             await faqApi.delete(id);
             fetchFaqs();

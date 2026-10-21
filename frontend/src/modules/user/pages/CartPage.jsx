@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,6 +17,7 @@ const CartPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const selectedService = location.state?.selectedService;
+  const placedOrderRef = useRef(null);
 
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -228,7 +230,7 @@ const CartPage = () => {
   }, [quantities]);
 
   useEffect(() => {
-    if (!loading && cartItems.length === 0) {
+    if (!placedOrderRef.current && !loading && cartItems.length === 0) {
       navigate('/user/home');
     }
   }, [loading, cartItems, navigate]);
@@ -652,7 +654,7 @@ const CartPage = () => {
     try {
       const userData = JSON.parse(localStorage.getItem('user') || '{}');
       const userId = userData._id || userData.id; 
-      if (!userId) return alert('Please login');
+      if (!userId) return await appDialog.alert('Please login');
 
       // Enforce photo presence validation
       for (const item of cartItems) {
@@ -680,7 +682,7 @@ const CartPage = () => {
 
         const res = await loadScript('https://checkout.razorpay.com/v1/checkout.js');
         if (!res) {
-          alert('Razorpay SDK failed to load');
+          await appDialog.alert('Razorpay SDK failed to load');
           return;
         }
 
@@ -708,7 +710,7 @@ const CartPage = () => {
         }
 
         if (Math.abs((rzpOrder.payable || 0) - amountToPay) > 1) {
-          const proceed = window.confirm(
+          const proceed = await appDialog.confirm(
             `The final amount for this order is ₹${rzpOrder.payable} (the cart showed ₹${amountToPay}). Continue and pay ₹${rzpOrder.payable}?`
           );
           if (!proceed) return;
@@ -748,7 +750,7 @@ const CartPage = () => {
         await finalizeOrder(userId, null, actualMethod);
       }
     } catch (err) {
-      alert('Error initiating order');
+      await appDialog.alert('Error initiating order');
     }
   };
 
@@ -808,6 +810,8 @@ const CartPage = () => {
 
       const response = await orderApi.createOrder(orderData);
       if (response._id) {
+        // Clearing a confirmed cart must never trigger the empty-cart Home redirect.
+        placedOrderRef.current = response._id;
         // 1. Thoroughly remove all cart, scheduling, and draft items from localStorage
         const keysToRemove = [
           'cart_quantities',
@@ -830,27 +834,23 @@ const CartPage = () => {
         setItemPhotos({});
         setSpecialInstructions('');
 
-        // 3. Clear draft cart in backend database
-        try {
-          if (userId) {
-            await authApi.updateDraftCart(userId, {});
-          }
-        } catch (_) {}
-
-        // 4. Dispatch storage and custom events so Header, Home, & GlobalCartButton reset immediately
+        // 3. Dispatch storage and custom events so Header, Home, & GlobalCartButton reset immediately
         window.dispatchEvent(new Event('storage'));
         window.dispatchEvent(new CustomEvent('cart-cleared'));
 
-        // 5. Navigate to order tracking
-        navigate(`/user/tracking/${response._id}`);
+        // 4. Show vendor search immediately; draft cleanup must not delay this transition.
+        navigate(`/user/tracking/${response._id}`, { replace: true, state: { order: response } });
+        try {
+          if (userId) await authApi.updateDraftCart(userId, {});
+        } catch (_) {}
       } else {
         // The server rejected the order — most often a payment it could not verify.
-        alert(response.message || 'Order could not be placed. Please try again.');
+        await appDialog.alert(response.message || 'Order could not be placed. Please try again.');
       }
     } catch (err) {
-      alert('Error finalizing order');
+      await appDialog.alert('Error finalizing order');
     } finally {
-      setLoading(false);
+      if (!placedOrderRef.current) setLoading(false);
     }
   };
 
@@ -1524,8 +1524,8 @@ const CartPage = () => {
                         </button>
                         <button 
                           type="button"
-                          onClick={() => {
-                            if (window.confirm("Delete all photos for this item?")) {
+                          onClick={async () => {
+                            if (await appDialog.confirm("Delete all photos for this item?")) {
                               setItemPhotos(prev => {
                                 const { [activePhotoService.id]: _, ...rest } = prev;
                                 localStorage.setItem('item_photos', JSON.stringify(rest));

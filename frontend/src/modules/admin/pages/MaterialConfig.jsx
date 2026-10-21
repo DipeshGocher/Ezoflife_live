@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState } from 'react';
 import { 
     Package, 
@@ -47,18 +48,18 @@ export default function MaterialConfig() {
             setShowAddModal(false);
         } catch (error) {
             console.error('Add Material Error:', error);
-            alert('Failed to add material');
+            await appDialog.alert('Failed to add material');
         }
     };
 
     const handleDelete = async (id) => {
-        if (!confirm('Are you sure you want to delete this material?')) return;
+        if (!await appDialog.confirm('Are you sure you want to delete this material?')) return;
         try {
             await materialApi.delete(id);
             fetchMaterials();
         } catch (error) {
             console.error('Delete Material Error:', error);
-            alert('Failed to delete material');
+            await appDialog.alert('Failed to delete material');
         }
     };
 

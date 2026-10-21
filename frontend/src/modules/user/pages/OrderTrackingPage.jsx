@@ -1,5 +1,6 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useEffect, useRef, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import gsap from 'gsap';
 import { orderApi, logisticsApi } from '../../../lib/api';
@@ -23,8 +24,11 @@ const defaultCenter = {
 const OrderTrackingPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [order, setOrder] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const location = useLocation();
+  const confirmedOrder = location.state?.order;
+  const initialOrder = confirmedOrder?._id === id ? confirmedOrder : null;
+  const [order, setOrder] = useState(initialOrder);
+  const [loading, setLoading] = useState(!initialOrder);
   const [refreshing, setRefreshing] = useState(false);
   const [isHandshakeModalOpen, setIsHandshakeModalOpen] = useState(false);
   const [handshakeOtp, setHandshakeOtp] = useState('');
@@ -104,7 +108,7 @@ const OrderTrackingPage = () => {
   }, [order]);
 
   const handleCancelOrder = async () => {
-    if (!window.confirm("Are you sure you want to cancel this order? Paid amount will be refunded automatically.")) return;
+    if (!await appDialog.confirm("Are you sure you want to cancel this order? Paid amount will be refunded automatically.")) return;
     try {
         setCancelling(true);
         const res = await orderApi.cancelOrder(id);

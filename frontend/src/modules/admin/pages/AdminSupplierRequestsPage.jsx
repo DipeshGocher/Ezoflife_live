@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -155,7 +156,7 @@ const AdminSupplierRequestsPage = () => {
 
     const totalPages = Math.ceil(filteredRequests.length / itemsPerPage) || 1;
 
-    const handleExportFile = (format) => {
+    const handleExportFile = async (format) => {
         try {
             const headers = [
                 "Supplier Name", "Business Name", "Contact Number", 
@@ -196,10 +197,10 @@ const AdminSupplierRequestsPage = () => {
             } else if (format === 'csv') {
                 XLSX.writeFile(wb, `Supplier_Requests_${new Date().getTime()}.csv`, { bookType: 'csv' });
             }
-            alert(`${format.toUpperCase()} export downloaded successfully`);
+            await appDialog.alert(`${format.toUpperCase()} export downloaded successfully`);
         } catch (err) {
             console.error(`Export ${format} error:`, err);
-            alert(`Error exporting to ${format}`);
+            await appDialog.alert(`Error exporting to ${format}`);
         }
     };
 

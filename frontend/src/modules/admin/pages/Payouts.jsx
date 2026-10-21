@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import { BASE_URL } from '../../../lib/api';
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -161,7 +162,7 @@ export default function Payments() {
   };
 
   const releaseSupplier = async (row) => {
-    if (!window.confirm(`Release ${inr(row.totalAmount)} held for order ${row.b2bOrderId} to the supplier? This cannot be undone.`)) return;
+    if (!await appDialog.confirm(`Release ${inr(row.totalAmount)} held for order ${row.b2bOrderId} to the supplier? This cannot be undone.`)) return;
     try {
       const res = await b2bOrderApi.releasePayment(row._id);
       if (!res?.order) throw new Error(res?.message || 'Release failed');
@@ -291,7 +292,7 @@ export default function Payments() {
       money('bankPendingAmount', 'Bank Settlement Pending', 'text-blue-700'),
       { header: 'Next Settlement', key: 'settlementDate', render: (v, r) => <span className="text-[10px] text-slate-500 tabular-nums">{r.settlementCycle === 'Archived' ? 'Archived' : v ? fmtDate(v) : (r.pendingBalance > 0 ? 'Manual' : '—')}</span> },
       { header: 'Razorpay Route', key: 'razorpayLinkedAccountId', render: (value, row) => <button className="text-xs text-blue-700 underline" onClick={async () => {
-        const account = window.prompt('Vendor Razorpay linked account ID', value || '');
+        const account = await appDialog.prompt('Vendor Razorpay linked account ID', value || '');
         if (!account) return;
         try {
           const response = await fetch(`${BASE_URL}/admin/vendor-payments/account/${row._id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ account }) });

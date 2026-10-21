@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 // eslint-disable-next-line no-unused-vars
@@ -381,7 +382,7 @@ const HomePage = () => {
     const { line1, line2, floor, landmark, pincode, city, state } =
       addressDetails;
     if (!line1 || !city || !state)
-      return alert(
+      return await appDialog.alert(
         "Please fill in required address fields (Line 1, City, State)",
       );
 
@@ -1117,7 +1118,7 @@ const HomePage = () => {
       localStorage.setItem("last_visited_vendor_id", service.vendorId);
   };
 
-  const handleLiveLocation = () => {
+  const handleLiveLocation = async () => {
     const updateDetails = (data) => {
       setAddressDetails({
         line1: data.area || "",
@@ -1137,7 +1138,7 @@ const HomePage = () => {
     }
 
     if (!navigator.geolocation) {
-      alert("Geolocation not supported");
+      await appDialog.alert("Geolocation not supported");
       return;
     }
     setIsLocating(true);
@@ -2805,9 +2806,9 @@ const HomePage = () => {
                     <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={async () => {
                           if (
-                            window.confirm("Delete all photos for this item?")
+                            await appDialog.confirm("Delete all photos for this item?")
                           ) {
                             setItemPhotos((prev) => {
                               const { [activePhotoService.id]: _, ...rest } =
