@@ -19,7 +19,7 @@ export const startFakeRazorpay = async () => {
     const refunds = [];
     const transfers = new Map();
     const transferKeys = new Map();
-    const controls = { failTransferResponseOnce: false };
+    const controls = { failTransferResponseOnce: false, transferStatus: 'processed', settlementStatus: 'pending' };
     const validations = new Map();
     let seq = 0;
     const nextId = (prefix) => `${prefix}_${Date.now().toString(36)}${(seq += 1)}`;
@@ -40,7 +40,7 @@ export const startFakeRazorpay = async () => {
                 const key = req.headers['x-transfer-idempotency'];
                 if (!key) return send(400, { error: { description: 'Idempotency key required' } });
                 if (transferKeys.has(key)) return send(200, transfers.get(transferKeys.get(key)));
-                const transfer = { id: nextId('trf'), entity: 'transfer', amount: body.amount, recipient: body.account, currency: body.currency, status: 'processed', notes: body.notes };
+                const transfer = { id: nextId('trf'), entity: 'transfer', amount: body.amount, recipient: body.account, currency: body.currency, status: controls.transferStatus, settlement_status: controls.settlementStatus, recipient_settlement_id: null, amount_reversed: 0, notes: body.notes };
                 transfers.set(transfer.id, transfer);
                 transferKeys.set(key, transfer.id);
                 if (controls.failTransferResponseOnce) {

@@ -16,12 +16,11 @@ const SearchResultsPage = () => {
   useEffect(() => {
     const fetchServices = async () => {
       try {
-        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-        const customerType = (userData.customerType || localStorage.getItem('userType') || 'individual').toLowerCase();
 
+        // All customers use the standard catalogue, including GST-registered businesses.
         const [masterRes, vendorRes] = await Promise.all([
-            masterServiceApi.getAll({ serviceType: customerType, activeOnly: true }),
-            serviceApi.getAll({ approvedOnly: true, serviceType: customerType })
+            masterServiceApi.getAll({ serviceType: 'individual', activeOnly: true }),
+            serviceApi.getAll({ approvedOnly: true, serviceType: 'individual' })
         ]);
         
         // Combine and filter: Only show Approved or Master services

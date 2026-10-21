@@ -17,12 +17,11 @@ const AllServicesPage = () => {
   const fetchServices = async () => {
     try {
       setLoading(true);
-      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-      const customerType = (userData.customerType || localStorage.getItem('userType') || 'individual').toLowerCase();
 
+      // All customers use the standard catalogue, including GST-registered businesses.
       const [masterRes, customRes] = await Promise.all([
-        masterServiceApi.getAll({ serviceType: customerType, activeOnly: true }),
-        serviceApi.getAll({ approvedOnly: true, serviceType: customerType })
+        masterServiceApi.getAll({ serviceType: 'individual', activeOnly: true }),
+        serviceApi.getAll({ approvedOnly: true, serviceType: 'individual' })
       ]);
 
       const combined = [

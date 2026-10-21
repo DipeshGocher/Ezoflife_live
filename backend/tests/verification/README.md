@@ -16,10 +16,13 @@ From `backend`:
 ```sh
 npm test
 npm run verify:gst
+npm run verify:gst:display
 npm run seed:gst-users -- --dry-run
 ```
 
 `npm test` includes unit tests, API tests (including the fake Razorpay routing tests), and the GST verification regressions. `verify:gst` runs both `gstBusinessRules.test.js` and `gstDeepAudit.test.js`. Tests use temporary local MongoDB databases and local backend servers; they do not mutate the configured app database or execute real transfers. The deep tests exercise the frontend invoice renderer as well as the backend APIs and socket permissions.
+
+`verify:gst:display` additionally requires installed frontend dependencies, Playwright Chromium, and a frontend production build (`npm run build` in `frontend`). It creates and completes real API orders in a temporary database, then renders the customer copy, vendor Invoice 1, and vendor Invoice 2 in Chromium for scenarios A/B/C, promotion, interstate supply, and changed tax settings. It checks finalized numbers, GSTINs, SACs, line totals, tax splits, frozen identities, wallet/platform shares, and horizontal overflow. Screenshots are written to `/private/tmp/ezoflife-gst-invoice-display`.
 
 The demo-user seed is idempotent, refuses phone collisions, and does not overwrite existing accounts. See [fixes, configuration changes, and live routing setup](../../../docs/GST_FIXES_2026-10-17.md). The [original audit](../../../docs/GST_FLOW_AUDIT_2026-10-17.md) is retained as historical evidence.
 

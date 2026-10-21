@@ -6,6 +6,10 @@ import { orderApi, authApi, vendorPaymentApi } from '../../../lib/api';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+const payoutStatusLabel = payout => !payout.order ? payout.status : ({
+    SETTLED: 'Bank settled', ON_HOLD: 'Bank settlement on hold', REVIEW: 'Reconciliation required'
+}[payout.bankSettlementStatus] || (payout.status === 'Completed' ? 'Transferred · bank pending' : 'Transfer pending'));
+
 const Earnings = () => {
     const navigate = useNavigate();
     const [performanceFilter, setPerformanceFilter] = useState('Weekly');
@@ -58,7 +62,7 @@ const Earnings = () => {
             doc.text('FINANCIAL SUMMARY', 25, 55);
             doc.setFontSize(10);
             doc.text(`Total Lifetime Earnings: INR ${summary?.totalEarnings?.toLocaleString() || 0}`, 25, 65);
-            doc.text(`Total Settled (Paid): INR ${summary?.totalPaid?.toLocaleString() || 0}`, 25, 72);
+            doc.text(`Transferred / Recorded: INR ${summary?.totalPaid?.toLocaleString() || 0}`, 25, 72);
             doc.setFontSize(11);
             doc.text(`CURRENT PENDING BALANCE: INR ${summary?.pendingBalance?.toLocaleString() || 0}`, 25, 80);
 
@@ -67,12 +71,13 @@ const Earnings = () => {
                     p.transactionId,
                     new Date(p.paidAt).toLocaleDateString(),
                     p.paymentMethod,
-                    `INR ${p.amount}`
+                    `INR ${p.amount}`,
+                    payoutStatusLabel(p)
                 ]);
 
                 autoTable(doc, {
                     startY: 95,
-                    head: [['Transaction ID', 'Date', 'Method', 'Amount']],
+                    head: [['Transaction ID', 'Date', 'Method', 'Amount', 'Status']],
                     body: tableData,
                     theme: 'grid',
                     headStyles: { fillColor: [61, 90, 254] }
@@ -127,7 +132,7 @@ const Earnings = () => {
                                 <p className="text-sm font-black text-slate-200">₹{summary?.totalEarnings?.toLocaleString() || 0}</p>
                             </div>
                             <div>
-                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Settled</p>
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Transferred / Recorded</p>
                                 <p className="text-sm font-black text-slate-200">₹{summary?.totalPaid?.toLocaleString() || 0}</p>
                             </div>
                         </div>
@@ -168,7 +173,8 @@ const Earnings = () => {
                                     </div>
                                     <div className="text-right">
                                         <p className="text-base font-black text-emerald-600 tracking-tight leading-none">+₹{p.amount.toLocaleString()}</p>
-                                        <p className="text-[8px] font-black text-emerald-500 uppercase tracking-widest mt-1">Completed</p>
+                                        <p className="text-[8px] font-black text-emerald-500 uppercase tracking-widest mt-1">{payoutStatusLabel(p)}</p>
+                                        {p.recipientSettlementId && <p className="text-[8px] text-slate-500 mt-1">{p.recipientSettlementId}</p>}
                                     </div>
                                 </div>
                             ))

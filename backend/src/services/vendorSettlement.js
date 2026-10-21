@@ -6,6 +6,34 @@ import Payout from '../models/Payout.js';
 import PaymentTransaction from '../models/PaymentTransaction.js';
 import { getRazorpay, razorpayApiBaseUrl, toPaise } from '../utils/razorpayClient.js';
 
+const bankSettlementFields = data => ({
+    providerTransferStatus: data.status || data.transfer_status || '',
+    bankSettlementStatus: Number(data.amount_reversed || 0) > 0 || ['failed', 'reversed', 'partially_reversed'].includes(data.status || data.transfer_status)
+        ? 'REVIEW' : ({ pending: 'PENDING', on_hold: 'ON_HOLD', settled: 'SETTLED' }[data.settlement_status] || 'UNKNOWN'),
+    recipientSettlementId: data.recipient_settlement_id || '',
+    bankSettlementCheckedAt: new Date()
+});
+
+// Fetch-only: a bank-settlement retry must never create another transfer.
+const refreshBankSettlement = async order => {
+    const request = order.vendorSettlement;
+    if (!request?.transferId || request.bankSettlementStatus === 'SETTLED') return request;
+    try {
+        const data = await getRazorpay().transfers.fetch(request.transferId);
+        if (data.id !== request.transferId || Number(data.amount) !== toPaise(request.amount) || data.recipient !== request.account || data.currency !== 'INR') throw new Error('Transfer response does not match saved payout');
+        const fields = bankSettlementFields(data);
+        const error = fields.bankSettlementStatus === 'REVIEW' ? 'Transfer failed or reversed; manual reconciliation required' : '';
+        await Payout.updateOne({ order: order._id, transactionId: request.transferId }, { $set: fields });
+        await Order.updateOne({ _id: order._id, 'vendorSettlement.transferId': request.transferId }, { $set: Object.fromEntries(Object.entries({ ...fields, error }).map(([key, value]) => [`vendorSettlement.${key}`, value])) });
+        return { ...request.toObject(), ...fields, error };
+    } catch (error) {
+        // Preserve the reservation/transfer state; a fetch failure is no evidence
+        // that funds were returned or that a replacement transfer is safe.
+        await Order.updateOne({ _id: order._id }, { $set: { 'vendorSettlement.error': 'Bank settlement status check failed; retry required' } });
+        return { ...request.toObject(), error: 'Bank settlement status check failed; retry required' };
+    }
+};
+
 /** Route transfers use one immutable request + provider idempotency key per
  * finalized order. A timeout may safely be retried with the same request. */
 const routeVendorOrder = async orderId => {
@@ -56,14 +84,16 @@ const routeVendorOrder = async orderId => {
             auth: { username: process.env.RAZORPAY_KEY_ID, password: process.env.RAZORPAY_KEY_SECRET },
             headers: { 'X-Transfer-Idempotency': request.key }, timeout: 15000
         })).data;
-        if (!data.id || data.amount !== toPaise(request.amount) || data.recipient !== request.account) throw new Error('Transfer response does not match settlement request');
-        const completed = data.status === 'processed';
+        if (!data.id || data.amount !== toPaise(request.amount) || data.recipient !== request.account || data.currency !== 'INR') throw new Error('Transfer response does not match settlement request');
+        const bankFields = bankSettlementFields(data);
+        const completed = (data.status || data.transfer_status) === 'processed' && bankFields.bankSettlementStatus !== 'REVIEW';
         await Payout.findOneAndUpdate({ order: order._id }, { $set: {
             vendor: order.vendor, order: order._id, amount: request.amount, transactionId: data.id,
             paymentMethod: 'Bank Transfer', status: completed ? 'Completed' : 'Pending',
+            ...bankFields,
             notes: 'Razorpay Route transfer to vendor linked account; bank settlement follows provider schedule.'
         } }, { upsert: true, runValidators: true });
-        const state = { ...request.toObject(), status: completed ? 'TRANSFERRED' : 'PENDING', transferId: data.id, error: '', updatedAt: new Date() };
+        const state = { ...request.toObject(), ...bankFields, status: completed ? 'TRANSFERRED' : 'PENDING', transferId: data.id, error: bankFields.bankSettlementStatus === 'REVIEW' ? 'Transfer failed or reversed; manual reconciliation required' : '', updatedAt: new Date() };
         await Order.updateOne({ _id: order._id }, { $set: { vendorSettlement: state } });
         return state;
     } catch (error) {
@@ -75,14 +105,20 @@ const routeVendorOrder = async orderId => {
 export const settleVendorOrder = async orderId => {
     const order = await Order.findById(orderId).select('vendor vendorSettlement');
     if (!order) throw Object.assign(new Error('Order not found'), { status: 404 });
-    if (order.vendorSettlement?.status === 'TRANSFERRED') return order.vendorSettlement;
     if (!order.vendor) throw Object.assign(new Error('Vendor not assigned'), { status: 409 });
-    return withVendorPayoutLock(order.vendor, () => routeVendorOrder(orderId));
+    return withVendorPayoutLock(order.vendor, async () => {
+        const current = await Order.findById(orderId).select('vendor vendorSettlement');
+        return current.vendorSettlement?.status === 'TRANSFERRED' ? refreshBankSettlement(current) : routeVendorOrder(orderId);
+    });
 };
 export const reconcileVendorSettlements = async () => {
     if (process.env.RAZORPAY_ROUTE_ENABLED !== 'true') return;
     const orders = await Order.find({ status: 'DELIVERED', invoiceFinalizationStatus: 'FINALIZED', paymentMethod: 'Online', paymentStatus: 'Paid', 'vendorSettlement.status': { $ne: 'TRANSFERRED' } }).select('_id').limit(100);
     for (const order of orders) {
         try { await settleVendorOrder(order._id); } catch (error) { console.error('Route reconciliation:', error.message); }
+    }
+    const bankPending = await Order.find({ 'vendorSettlement.status': 'TRANSFERRED', 'vendorSettlement.bankSettlementStatus': { $nin: ['SETTLED', 'REVIEW'] } }).select('_id').sort({ 'vendorSettlement.bankSettlementCheckedAt': 1 }).limit(100);
+    for (const order of bankPending) {
+        try { await settleVendorOrder(order._id); } catch (error) { console.error('Bank settlement reconciliation:', error.message); }
     }
 };

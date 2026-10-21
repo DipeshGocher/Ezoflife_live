@@ -288,6 +288,7 @@ export default function Payments() {
       money('totalPaid', 'Paid Out'),
       money('pendingBalance', 'Due', 'text-amber-700'),
       money('pendingRouteAmount', 'Routing', 'text-blue-700'),
+      money('bankPendingAmount', 'Bank Settlement Pending', 'text-blue-700'),
       { header: 'Next Settlement', key: 'settlementDate', render: (v, r) => <span className="text-[10px] text-slate-500 tabular-nums">{r.settlementCycle === 'Archived' ? 'Archived' : v ? fmtDate(v) : (r.pendingBalance > 0 ? 'Manual' : '—')}</span> },
       { header: 'Razorpay Route', key: 'razorpayLinkedAccountId', render: (value, row) => <button className="text-xs text-blue-700 underline" onClick={async () => {
         const account = window.prompt('Vendor Razorpay linked account ID', value || '');

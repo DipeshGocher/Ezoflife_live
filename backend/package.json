@@ -17,7 +17,8 @@
     "test:perf": "node tests/load/loadTest.js --scenario all",
     "test:stress": "node tests/load/loadTest.js --scenario stress",
     "seed:gst-users": "node scripts/seedGstVerificationUsers.js",
-    "verify:gst": "node --test --test-reporter=spec --test-timeout=120000 --test-concurrency=1 tests/verification/gstBusinessRules.test.js tests/verification/gstDeepAudit.test.js"
+    "verify:gst": "node --test --test-reporter=spec --test-timeout=120000 --test-concurrency=1 tests/verification/gstBusinessRules.test.js tests/verification/gstDeepAudit.test.js",
+    "verify:gst:display": "node --test --test-reporter=spec tests/verification/gstInvoiceDisplay.test.js"
   },
   "keywords": [],
   "author": "",

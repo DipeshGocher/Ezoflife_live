@@ -1605,9 +1605,11 @@ export const getVendorPaymentSummary = async (req, res) => {
             const totalRefund = refundsByVendor.get(String(vendor._id)) || 0;
             
             // Total Paid by Admin to Vendor
-            const allPayouts = await Payout.find({ vendor: vendor._id, status: { $in: ['Completed', 'Pending'] } }).select('amount paidAt transactionId status').sort({ paidAt: 1 }).lean();
+            const allPayouts = await Payout.find({ vendor: vendor._id, status: { $in: ['Completed', 'Pending'] } }).select('order amount paidAt transactionId status bankSettlementStatus').sort({ paidAt: 1 }).lean();
             const pendingRouteAmount = allPayouts.filter(payout => payout.status === 'Pending').reduce((sum, payout) => sum + payout.amount, 0);
             const payouts = allPayouts.filter(payout => payout.status === 'Completed');
+            const bankPendingAmount = payouts.filter(payout => payout.order && payout.bankSettlementStatus !== 'SETTLED').reduce((sum, payout) => sum + payout.amount, 0);
+            const bankSettlementNeedsReview = allPayouts.some(payout => payout.bankSettlementStatus === 'REVIEW');
             const lastPayout = payouts.length > 0 ? payouts[payouts.length - 1] : null;
             const acct = vendor.bankDetails?.accountNumber || '';
             const totalPaid = payouts.reduce((acc, curr) => acc + (curr.amount || 0), 0);
@@ -1626,6 +1628,8 @@ export const getVendorPaymentSummary = async (req, res) => {
                 gstOnFee,
                 totalRefund,
                 pendingRouteAmount,
+                bankPendingAmount,
+                bankSettlementNeedsReview,
                 razorpayLinkedAccountId: vendor.razorpayLinkedAccountId || '',
                 netPayable: totalEarnings,
                 settlementCycle,
@@ -1636,7 +1640,7 @@ export const getVendorPaymentSummary = async (req, res) => {
                 totalEarnings,
                 totalPaid,
                 pendingBalance,
-                status: pendingBalance > 0 ? 'Pending' : pendingRouteAmount > 0 ? 'Processing' : 'Settled',
+                status: bankSettlementNeedsReview ? 'Review Required' : pendingBalance > 0 ? 'Pending' : pendingRouteAmount > 0 ? 'Processing' : bankPendingAmount > 0 ? 'Bank Pending' : 'Settled',
                 paidBy: 'ADMIN',
                 paidOn: payouts.length > 0 ? new Date(payouts[payouts.length - 1].paidAt).toLocaleDateString() : 'N/A',
                 lastPayout: payouts.length > 0 ? payouts[payouts.length - 1].paidAt : null

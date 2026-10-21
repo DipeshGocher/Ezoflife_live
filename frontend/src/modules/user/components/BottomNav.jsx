@@ -16,14 +16,6 @@ const BottomNav = () => {
     }
   }, []);
 
-  const userType = useMemo(() => {
-    try {
-      return (localStorage.getItem("userType") || "individual").toLowerCase();
-    } catch {
-      return "individual";
-    }
-  }, []);
-
   const navItems = useMemo(() => {
     switch (userRole) {
       case "vendor":
@@ -52,15 +44,15 @@ const BottomNav = () => {
         return [
           { label: "Home", icon: "home", path: "/user/home" },
           {
-            label: userType === "retail" ? "Bulk Orders" : "My Orders",
-            icon: userType === "retail" ? "inventory" : "local_laundry_service",
+            label: "My Orders",
+            icon: "local_laundry_service",
             path: "/user/orders",
           },
           { label: "Profile", icon: "person", path: "/user/profile" },
           { label: "More", icon: "menu", path: "/user/more" },
         ];
     }
-  }, [userRole, userType]);
+  }, [userRole]);
 
   const handleNavClick = (path) => {
     // Public paths allowed without login

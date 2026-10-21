@@ -734,13 +734,7 @@ const HomePage = () => {
 
   const fetchServices = async () => {
     try {
-      const userData = JSON.parse(localStorage.getItem("userData") || "{}");
-      const customerType = (
-        userData.customerType ||
-        localStorage.getItem("userType") ||
-        "individual"
-      ).toLowerCase();
-
+      // GST registration affects invoicing, not the customer service catalogue.
       // Fetch all categories to check which ones are active
       const activeCategoryIds = new Set();
       const activeCategoryNames = new Set();
@@ -765,10 +759,10 @@ const HomePage = () => {
       try {
         const [masterRes, customRes] = await Promise.all([
           masterServiceApi.getAll({
-            serviceType: customerType,
+            serviceType: "individual",
             activeOnly: true,
           }),
-          serviceApi.getAll({ approvedOnly: true, serviceType: customerType }),
+          serviceApi.getAll({ approvedOnly: true, serviceType: "individual" }),
         ]);
         data = [
           ...(Array.isArray(masterRes)
@@ -805,8 +799,7 @@ const HomePage = () => {
           const target = (s.targetAudience || "both").toLowerCase();
           const isMatch =
             target === "both" ||
-            target === customerType ||
-            (customerType === "retail" && target === "individual") ||
+            target === "individual" ||
             !s.targetAudience;
 
           // Category must be active (check both ObjectId and category name string)

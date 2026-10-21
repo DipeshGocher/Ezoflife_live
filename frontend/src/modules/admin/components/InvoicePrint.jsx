@@ -7,11 +7,11 @@ const InvoicePrint = ({ order, invoice = null, settings = {} }) => {
     const isFinalized = custInv?.documentStatus === 'FINALIZED';
 
     const customerObj = order.customer || order.user;
-    const customerGstin = custInv?.recipientGstin || order.gstSnapshot?.customerGstin || customerObj?.gstNumber || '';
+    const customerGstin = custInv ? (custInv.recipientGstin || '') : (order.gstSnapshot?.customerGstin || customerObj?.gstNumber || '');
     const isCustRD = order.gstSnapshot?.customerRegistered ?? Boolean(custInv?.gstScenario === 'RD_RD');
 
     const vendorObj = order.vendor;
-    const vendorGstin = custInv?.supplierGstin || order.gstSnapshot?.vendorGstin || vendorObj?.shopDetails?.gst || vendorObj?.gstNumber || order.vendorSnapshot?.gstNumber || '';
+    const vendorGstin = custInv ? (custInv.supplierGstin || '') : (order.gstSnapshot?.vendorGstin || vendorObj?.shopDetails?.gst || vendorObj?.gstNumber || order.vendorSnapshot?.gstNumber || '');
     const isVendRD = order.gstSnapshot?.vendorRegistered ?? Boolean(['RD_RD', 'URD_RD'].includes(custInv?.gstScenario));
 
     let scenario = custInv?.scenario;
@@ -43,7 +43,7 @@ const InvoicePrint = ({ order, invoice = null, settings = {} }) => {
     const expressSurcharge = Number(order.priceBreakdown?.expressSurcharge || 0);
     const platformFee = Number(order.priceBreakdown?.platformFee || 0);
     const logisticsFee = Number(order.priceBreakdown?.logisticsFee || order.deliveryCharge || 0);
-    const discount = Number(order.discountAmount || order.priceBreakdown?.discount || 0);
+    const discount = Number(custInv?.discountAmount ?? order.checkoutDiscountAmount ?? 0);
 
     const serviceValue = custInv?.serviceValue !== undefined 
         ? custInv.serviceValue 
@@ -81,7 +81,7 @@ const InvoicePrint = ({ order, invoice = null, settings = {} }) => {
                 <div className="relative z-10 space-y-4">
                     <h1 className="text-[32px] font-black tracking-tight leading-none text-slate-900">{supplierName}</h1>
                     <div className="inline-block bg-purple-100 text-purple-800 border border-purple-200 px-3 py-1 rounded text-[10px] font-black uppercase tracking-widest">
-                        Invoice 1 • Customer Tax Invoice
+                        Invoice 1 • {scenario === 'C' ? 'Customer Invoice' : 'Customer Tax Invoice'}
                     </div>
                     <div className="space-y-1 text-[13px] font-bold text-slate-600">
                         <p className="tracking-tight">www.spinzyt.com • {contactEmail}</p>
@@ -119,14 +119,14 @@ const InvoicePrint = ({ order, invoice = null, settings = {} }) => {
             <div className="py-8 px-4 flex justify-between items-start border-x border-slate-200 bg-slate-50/50">
                 <div className="space-y-1.5">
                     <p className="text-[13px] font-black uppercase tracking-tight text-slate-900">Invoice No: <span className="font-mono text-purple-700 ml-2">{invoiceNo}</span></p>
-                    <p className="text-[13px] font-black uppercase tracking-tight text-slate-900">Customer Name: <span className="font-bold text-slate-600 ml-2">{customerObj?.displayName || order.user?.name || 'Customer'}</span></p>
+                    <p className="text-[13px] font-black uppercase tracking-tight text-slate-900">Customer Name: <span className="font-bold text-slate-600 ml-2">{order.gstSnapshot?.customerName || order.customerSnapshot?.displayName || customerObj?.displayName || 'Customer'}</span></p>
                     <p className="text-[11px] font-medium text-slate-600">Supplier Address: {custInv?.supplierAddress || order.gstSnapshot?.vendorAddress || '—'}</p>
                     <p className="text-[11px] font-medium text-slate-600">Recipient Address: {custInv?.recipientAddress || order.gstSnapshot?.customerAddress || '—'}</p>
                     {customerGstin && (
                         <p className="text-[13px] font-black uppercase tracking-tight text-slate-900">Customer GSTIN: <span className="font-bold text-slate-900 ml-2">{customerGstin}</span></p>
                     )}
                     {vendorObj && (
-                        <p className="text-[12px] font-black uppercase tracking-tight text-slate-700">Vendor: <span className="font-bold text-slate-600 ml-2">{vendorObj.shopDetails?.name || vendorObj.displayName || 'Partner Vendor'} {vendorGstin ? `(${vendorGstin})` : ''}</span></p>
+                        <p className="text-[12px] font-black uppercase tracking-tight text-slate-700">Vendor: <span className="font-bold text-slate-600 ml-2">{supplierName} {vendorGstin ? `(${vendorGstin})` : ''}</span></p>
                     )}
                     {gstNotice && (
                         <p className="text-[11px] font-black uppercase tracking-wider text-purple-700 mt-2 bg-purple-50 inline-block px-2 py-1 rounded border border-purple-200">{gstNotice}</p>
@@ -157,34 +157,22 @@ const InvoicePrint = ({ order, invoice = null, settings = {} }) => {
                             <tr key={i} className="hover:bg-slate-50/50">
                                 <td className="border-r border-slate-200 px-6 py-3.5 text-[13px] font-bold text-slate-800">{item.description}</td>
                                 <td className="border-r border-slate-200 px-4 py-3.5 text-center text-[12px] font-mono text-slate-500">{item.sacCode || '—'}</td>
-                                <td className="border-r border-slate-200 px-6 py-3.5 text-[13px] font-medium text-slate-600">{item.unit || 'service'}</td>
+                                <td className="border-r border-slate-200 px-6 py-3.5 text-[13px] font-medium text-slate-600">{item.unit || 'service'} · GST {Number(item.gstRate ?? taxPercent)}%</td>
                                 <td className="border-r border-slate-200 px-4 py-3.5 text-center text-[13px] font-bold text-slate-700">{item.quantity || 1}</td>
                                 <td className="border-r border-slate-200 px-6 py-3.5 text-right text-[13px] font-bold text-slate-700">₹{Number(item.unitPrice || 0).toFixed(2)}</td>
                                 <td className="px-6 py-3.5 text-right text-[13px] font-black text-slate-900">₹{Number(item.totalAmount ?? item.taxableValue ?? 0).toFixed(2)}</td>
                             </tr>
                         ))}
                         
-                        {/* Calculations Section */}
+                        {/* Frozen line values already include platform and logistics components. */}
                         <tr className="border-t-2 border-slate-300 bg-slate-50/50">
-                            <td colSpan={5} className="border-r border-slate-200 px-6 py-3 text-left text-[11px] font-black uppercase tracking-widest text-slate-500">Base Services Subtotal</td>
-                            <td className="px-6 py-3 text-right text-[13px] font-black text-slate-900">₹{(baseWithArea + expressSurcharge).toFixed(2)}</td>
+                            <td colSpan={5} className="px-6 py-3 text-left text-[11px] font-black uppercase tracking-widest text-slate-500">Line Items Subtotal (Before GST)</td>
+                            <td className="px-6 py-3 text-right text-[13px] font-black text-slate-900">₹{invoiceLines.reduce((sum, line) => sum + Number(line.taxableValue || 0), 0).toFixed(2)}</td>
                         </tr>
-                        {platformFee > 0 && (
-                            <tr className="bg-slate-50/50">
-                                <td colSpan={5} className="border-r border-slate-200 px-6 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Platform Facilitation Fee</td>
-                                <td className="px-6 py-2.5 text-right text-[13px] font-bold text-slate-800">₹{platformFee.toFixed(2)}</td>
-                            </tr>
-                        )}
                         {discount > 0 && (
                             <tr className="bg-slate-50/50 text-emerald-700">
-                                <td colSpan={5} className="border-r border-slate-200 px-6 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider">Promotional Discount</td>
+                                <td colSpan={5} className="px-6 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider">Platform Checkout Discount</td>
                                 <td className="px-6 py-2.5 text-right text-[13px] font-bold">- ₹{discount.toFixed(2)}</td>
-                            </tr>
-                        )}
-                        {logisticsFee > 0 && (
-                            <tr className="bg-slate-50/50">
-                                <td colSpan={5} className="border-r border-slate-200 px-6 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">Logistics & Delivery Fee</td>
-                                <td className="px-6 py-2.5 text-right text-[13px] font-bold text-slate-800">₹{logisticsFee.toFixed(2)}</td>
                             </tr>
                         )}
 
@@ -206,7 +194,7 @@ const InvoicePrint = ({ order, invoice = null, settings = {} }) => {
                         {/* Taxes */}
                         <tr>
                             <td colSpan={5} className="border-r border-slate-200 px-6 py-3 text-left text-[11px] font-black uppercase tracking-widest text-slate-600">
-                                {scenario === 'C' ? 'GST (0% - Unregistered Vendor Facilitated)' : `GST (${taxPercent}%)`}
+                                {scenario === 'C' ? 'GST (0% - Unregistered Vendor Facilitated)' : 'Total GST (Line Rates Above)'}
                             </td>
                             <td className="px-6 py-3 text-right text-[13px] font-black text-slate-900">
                                 {scenario === 'C' ? '₹0.00 (Inclusive)' : `₹${taxAmount.toFixed(2)}`}
@@ -228,7 +216,7 @@ const InvoicePrint = ({ order, invoice = null, settings = {} }) => {
             {/* Footer Section */}
             <div className="mt-10 text-center space-y-3">
                 <div className="py-3 border-y border-slate-100">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{settings.invoiceNote || 'This is a computer generated tax invoice and does not require a physical signature.'}</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{settings.invoiceNote || 'This is a computer generated invoice and does not require a physical signature.'}</p>
                 </div>
                 <div className="pt-1">
                     {settings.showTerms !== false && settings.customTerms && (

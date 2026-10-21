@@ -10,7 +10,7 @@ const PlatformRevenueInvoicePrint = ({
   const platInv = invoice || order.invoices?.platformInvoice || {};
   const isFinalized = platInv.documentStatus === "FINALIZED";
 
-  const businessName = settings.businessName || "EZOFLIFE TECHNOLOGY LLP";
+  const businessName = platInv.issuerName || settings.businessName || "EZOFLIFE TECHNOLOGY LLP";
   const contactEmail = settings.contactEmail || "connect@spinzyt.com";
   const spinzytGstin =
     platInv.spinzytGstin || order.gstSnapshot?.spinzytGstin || settings.gstNumber || "";
@@ -36,7 +36,7 @@ const PlatformRevenueInvoicePrint = ({
       : Math.round(logisticsFee * (logisticsFeeTaxPercent / 100) * 100) / 100;
 
   const spinzytPromoShare =
-    platInv.spinzytPromoShare || order.ledger?.spinzytPromoShare || 0;
+    platInv.spinzytPromoShare ?? order.ledger?.spinzytPromoShare ?? 0;
 
   const totalInvoiceAmount =
     platInv.totalInvoiceAmount !== undefined
@@ -52,15 +52,19 @@ const PlatformRevenueInvoicePrint = ({
 
   const vendorObj = order.vendor || {};
   const vendorName =
-    vendorObj.displayName ||
     order.vendorSnapshot?.displayName ||
+    order.gstSnapshot?.vendorName ||
+    vendorObj.displayName ||
     "Partner Vendor";
   const shopName =
+    platInv.recipientName ||
+    order.gstSnapshot?.vendorName ||
     vendorObj.shopDetails?.name ||
     order.vendorSnapshot?.shopName ||
     "Partner Shop";
-  const vendorGstin =
-    vendorObj.shopDetails?.gst ||
+  const vendorGstin = platInv.documentStatus
+    ? (platInv.recipientGstin || "URD (Unregistered)")
+    : vendorObj.shopDetails?.gst ||
     vendorObj.gstNumber ||
     order.vendorSnapshot?.gstNumber ||
     "URD (Unregistered)";
@@ -298,8 +302,8 @@ const PlatformRevenueInvoicePrint = ({
           </strong>
           <br />
           The total amount of ₹{totalInvoiceAmount.toFixed(2)} is withheld by
-          Spinzyt from the customer collection, and the Net Payment is routed to
-          the Vendor's account.
+          Spinzyt from the customer collection, and the Net Payment is payable to
+          the Vendor's account. Customer wallet promotion credit is reserved separately.
         </p>
       </div>
 
@@ -307,7 +311,7 @@ const PlatformRevenueInvoicePrint = ({
       <div className="mt-10 text-center space-y-2 text-slate-400">
         <p className="text-[10px] font-black uppercase tracking-[0.3em]">
           This is a computer-generated tax invoice issued by {businessName} to
-          the registered service vendor.
+          the service vendor.
         </p>
         <p className="text-[11px] font-bold text-slate-600 tracking-wider">
           SPINZYT TECHNOLOGY • ALL RIGHTS RESERVED

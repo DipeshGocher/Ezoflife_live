@@ -162,8 +162,7 @@ export const getPricingPreview = async (req, res) => {
             key: { $in: [
                 'essential_fee', 
                 'heritage_fee',
-                'normal_logistics_fee',
-                'gst_percentage'
+                'normal_logistics_fee'
             ]}
         }).lean();
 
@@ -175,7 +174,7 @@ export const getPricingPreview = async (req, res) => {
         const essentialFee = getConfig('essential_fee', 20); // default 20%
         const heritageFee = getConfig('heritage_fee', 150); // default 150%
         const logisticsFee = getConfig('normal_logistics_fee', 50); // default 50
-        const gstPercentage = getConfig('gst_percentage', 18); // default 18%
+        const { gstPercent: feeGstPercentage } = await getGstConfigs();
         let query = { isActive: true };
         if (serviceType) {
             query.serviceType = serviceType === 'individual' ? 'normal' : serviceType;
@@ -196,6 +195,7 @@ export const getPricingPreview = async (req, res) => {
         const overrides = await AreaServiceOverride.find({ areaId: area_id }).lean();
 
         const preview = services.map(service => {
+            const gstPercentage = (service.tier === 'Heritage' ? service.heritageGst : service.gst) ?? feeGstPercentage;
             const override = overrides.find(o => o.serviceId.toString() === service._id.toString());
             
             // Formula: {[(Vendor Rate X Aggregator Fee) + Logistics Fee] X Surcharge} + GST
@@ -211,7 +211,8 @@ export const getPricingPreview = async (req, res) => {
             const priceWithSurge = subtotal * multiplier;
             
             // Final Price = Price With Surge + GST
-            const gstAmount = priceWithSurge * (gstPercentage / 100);
+            const gstAmount = service.discountedPrice * multiplier * gstPercentage / 100
+                + (service.discountedPrice * aggregatorFeeMultiplier + logisticsFee) * multiplier * feeGstPercentage / 100;
             const finalPrice = priceWithSurge + gstAmount;
 
             return {

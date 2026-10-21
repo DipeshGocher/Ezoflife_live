@@ -324,3 +324,44 @@ test('customers and unapproved vendors cannot accept service orders', async () =
         assert.equal((await call('rdVendor', `/api/orders/vendor-accept/${order._id}`, { method: 'POST', body: {} })).status, 403);
     } finally { await User.updateOne({ _id: sessions.rdVendor.id }, { $set: { status: 'approved' } }); }
 });
+
+test('pricing preview and area synchronization use configured GST and preserve zero rates', async () => {
+    const MasterService = (await import('../../src/models/MasterService.js')).default;
+    const Category = (await import('../../src/models/Category.js')).default;
+    const ServiceArea = (await import('../../src/models/ServiceArea.js')).default;
+    const MasterPricing = (await import('../../src/models/MasterPricing.js')).default;
+    const { masterPricingService } = await import('../../src/services/masterPricingService.js');
+    const configs = mongoose.connection.collection('systemconfigs');
+    const category = await Category.create({ mainCategory: 'GST Preview', subCategory: 'Configured rate' });
+    const area = await ServiceArea.create({ areaName: 'GST preview test', boundary: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] } });
+    const services = await MasterService.create([
+        { itemName: 'Preview inherited GST', categoryId: category._id, basePrice: 100, discountedPrice: 100, unit: 'per_item' },
+        { itemName: 'Preview zero GST', categoryId: category._id, basePrice: 100, discountedPrice: 100, unit: 'per_item', gst: 0 }
+    ]);
+    try {
+        // Deliberately stale legacy key must not override the canonical setting.
+        await configs.updateOne({ key: 'gst_percentage' }, { $set: { value: 18 } }, { upsert: true });
+        for (const rate of [12, 0]) {
+            await configs.updateOne({ key: 'gst_percent' }, { $set: { value: rate } });
+            await masterPricingService.syncAreaWithServices(area._id);
+            const rows = await MasterPricing.find({ fenceId: area._id }).lean();
+            assert.equal(rows.find(row => String(row.serviceId) === String(services[0]._id)).gstPercent, rate);
+            assert.equal(rows.find(row => String(row.serviceId) === String(services[1]._id)).gstPercent, 0);
+            const response = await api(env.baseUrl, `/api/master-services/preview?area_id=${area._id}&category_id=${category._id}`);
+            assert.equal(response.status, 200, JSON.stringify(response.body));
+            const inherited = response.body.find(row => row.serviceId === String(services[0]._id));
+            const zero = response.body.find(row => row.serviceId === String(services[1]._id));
+            assert.equal(inherited.gst, `${rate}%`);
+            assert.equal(inherited.finalPrice, Math.round(170 * (1 + rate / 100)));
+            assert.equal(zero.gst, '0%');
+            assert.equal(zero.finalPrice, Math.round(170 + 70 * rate / 100));
+        }
+    } finally {
+        await configs.updateOne({ key: 'gst_percent' }, { $set: { value: 18 } });
+        await configs.deleteOne({ key: 'gst_percentage' });
+        await MasterPricing.deleteMany({ fenceId: area._id });
+        await MasterService.deleteMany({ _id: { $in: services.map(service => service._id) } });
+        await ServiceArea.deleteOne({ _id: area._id });
+        await Category.deleteOne({ _id: category._id });
+    }
+});

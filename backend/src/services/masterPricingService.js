@@ -1,6 +1,7 @@
 import MasterPricing from '../models/MasterPricing.js';
 import MasterService from '../models/MasterService.js';
 import ServiceArea from '../models/ServiceArea.js';
+import { getGstConfigs } from '../utils/gstInvoiceHelper.js';
 
 export const masterPricingService = {
     /**
@@ -10,6 +11,7 @@ export const masterPricingService = {
     syncAreaWithServices: async (fenceId) => {
         const area = await ServiceArea.findById(fenceId);
         const services = await MasterService.find();
+        const { gstPercent } = await getGstConfigs();
         
         const bulkOps = services.map(service => {
             const expM = service.expressMultiplier !== undefined && service.expressMultiplier !== null ? service.expressMultiplier : 1;
@@ -29,7 +31,7 @@ export const masterPricingService = {
                             categoryId: service.categoryId,
                             basePrice: service.basePrice,
                             discountPrice: service.discountedPrice,
-                            gstPercent: service.gst !== undefined && service.gst !== null ? service.gst : 18,
+                            gstPercent: service.gst ?? gstPercent,
                             expressMultiplier: expM,
                             surgeMultiplier: surgeM,
                             areaMultiplier: areaM,

@@ -432,6 +432,9 @@ const orderSchema = new mongoose.Schema({
         status: { type: String, enum: ['NOT_ROUTED', 'BLOCKED', 'PENDING', 'RETRY', 'TRANSFERRED'], default: 'NOT_ROUTED' },
         account: { type: String, default: '' }, amount: { type: Number, default: 0 },
         key: { type: String, default: '' }, transferId: { type: String, default: '' },
+        bankSettlementStatus: { type: String, enum: ['UNKNOWN', 'PENDING', 'ON_HOLD', 'SETTLED', 'REVIEW'], default: 'UNKNOWN' },
+        recipientSettlementId: { type: String, default: '' }, providerTransferStatus: { type: String, default: '' },
+        bankSettlementCheckedAt: Date,
         error: { type: String, default: '' }, updatedAt: Date
     },
     vendorPromotion: { type: mongoose.Schema.Types.ObjectId, ref: 'Promotion', default: null },

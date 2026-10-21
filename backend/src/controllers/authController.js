@@ -51,13 +51,18 @@ export const getVendorEarnings = async (req, res) => {
         }, 0);
         
         // Total Paid by Admin to Vendor
-        const payouts = await Payout.find({ vendor: vendorId, status: 'Completed' }).select('amount paidAt').lean();
+        const allPayouts = await Payout.find({ vendor: vendorId, status: { $in: ['Completed', 'Pending'] } }).select('order amount paidAt status bankSettlementStatus').lean();
+        const payouts = allPayouts.filter(payout => payout.status === 'Completed');
         const totalPaid = payouts.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+        const pendingRouteAmount = allPayouts.filter(payout => payout.status === 'Pending').reduce((sum, payout) => sum + payout.amount, 0);
+        const bankPendingAmount = payouts.filter(payout => payout.order && payout.bankSettlementStatus !== 'SETTLED').reduce((sum, payout) => sum + payout.amount, 0);
         
-        const pendingBalance = totalEarnings - totalPaid;
+        const pendingBalance = totalEarnings - totalPaid - pendingRouteAmount;
 
         res.status(200).json({
             _id: vendorId,
+            pendingRouteAmount,
+            bankPendingAmount,
             displayName: vendor.displayName,
             shopName: vendor.shopDetails?.name || 'N/A',
             totalOrders: orders.length,
