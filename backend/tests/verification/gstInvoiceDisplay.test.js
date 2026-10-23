@@ -132,6 +132,16 @@ test('finalized invoices display accurately for A, B, C, promotion, interstate a
                 const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
                 assert.equal(overflow, false, `${name}/${view}: horizontal overflow`);
                 await page.screenshot({ path: `${output}/${name}-${view}.png`, fullPage: true });
+                if (view.startsWith('vendor-')) {
+                    assert.ok(!/Scenario [ABC]|\\rightarrow/.test(text), `${name}/${view}: no internal labels`);
+                    for (const width of [320, 360, 390, 430, 768]) {
+                        await page.setViewportSize({ width, height: 850 });
+                        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `${name}/${view}/${width}: no horizontal overflow`);
+                        assert.ok(await page.locator('body').innerText().then(value => value.includes(`₹${Number(invoice.totalAmount ?? invoice.totalInvoiceAmount).toFixed(2)}`)));
+                        await page.screenshot({ path: `${output}/${name}-${view}-${width}.png`, fullPage: true });
+                    }
+                    await page.setViewportSize({ width: 1280, height: 1500 });
+                }
             }
         }
     } finally {

@@ -74,7 +74,7 @@ const BottomNav = () => {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-2xl border-t border-slate-100 pb-safe shadow-[0_-1px_10px_rgba(0,0,0,0.02)] h-16 flex justify-center">
+    <nav data-bottom-navigation className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-2xl border-t border-slate-100 pb-safe shadow-[0_-1px_10px_rgba(0,0,0,0.02)] h-16 flex justify-center">
       <motion.div className="flex justify-around items-center w-full h-full max-w-lg mx-auto">
         {navItems.map((item) => {
           const isActive = currentPath === item.path;

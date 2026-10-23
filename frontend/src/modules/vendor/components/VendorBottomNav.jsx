@@ -26,7 +26,7 @@ const VendorBottomNav = () => {
   if (hideRoutes.some((route) => location.pathname === route)) return null;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-[100] bg-white border-t border-slate-100 flex justify-center pointer-events-none h-16">
+    <nav data-bottom-navigation className="fixed bottom-0 left-0 right-0 z-[100] bg-white border-t border-slate-100 flex justify-center pointer-events-none h-16">
       <motion.div
         layout
         initial={{ y: 20, opacity: 0 }}

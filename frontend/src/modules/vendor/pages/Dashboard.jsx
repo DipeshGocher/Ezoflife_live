@@ -8,8 +8,7 @@ import { orderApi, authApi, vendorPaymentApi } from "../../../lib/api";
 import useNotificationStore from "../../../shared/stores/notificationStore";
 import socket from "../../../lib/socket";
 import { requestForToken } from "../../../lib/firebase";
-import InvoicePrint from "../../admin/components/InvoicePrint";
-import PlatformRevenueInvoicePrint from "../components/PlatformRevenueInvoicePrint";
+import InvoicePreview from "../components/InvoicePreview";
 
 const IncomingTimer = ({ duration, onExpire }) => {
   const [timeLeft, setTimeLeft] = useState(duration);
@@ -312,36 +311,6 @@ const Dashboard = () => {
   const [selectedOrderForDetails, setSelectedOrderForDetails] = useState(null);
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [invoiceModalOrder, setInvoiceModalOrder] = useState(null);
-  const [activeInvoiceType, setActiveInvoiceType] = useState("invoice1"); // 'invoice1' | 'invoice2'
-
-  const handlePrintInvoice = () => {
-    const printId =
-      activeInvoiceType === "invoice1"
-        ? "invoice-content"
-        : "platform-invoice-content";
-    const content = document.getElementById(printId);
-    if (!content) return;
-    const win = window.open("", "", "width=900,height=750");
-    win.document.write(`
-            <html>
-                <head>
-                    <title>${activeInvoiceType === "invoice1" ? "Customer Tax Invoice (Invoice 1)" : "Platform Revenue Invoice (Invoice 2)"}</title>
-                    <script src="https://cdn.tailwindcss.com"></script>
-                    <style>
-                        body { font-family: sans-serif; background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                        @media print {
-                            @page { margin: 10mm; }
-                        }
-                    </style>
-                </head>
-                <body onload="setTimeout(() => { window.print(); window.close(); }, 500);">
-                    ${content.outerHTML}
-                </body>
-            </html>
-        `);
-    win.document.close();
-  };
-
   const vendorDataRaw =
     localStorage.getItem("vendorData") ||
     localStorage.getItem("user") ||
@@ -994,23 +963,15 @@ const Dashboard = () => {
                             {activeTab === "Completed" && (
                               <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-slate-100">
                                 <button
-                                  onClick={async (e) => {
+                                  onClick={(e) => {
                                     e.stopPropagation();
-                                    await appDialog.alert(
-                                      "Invoice will be downloaded shortly.",
-                                    );
                                     setInvoiceModalOrder(order);
-                                    setActiveInvoiceType("invoice1");
                                   }}
                                   className="w-full py-1.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-colors flex items-center justify-center gap-2">
                                   <span className="material-symbols-outlined text-[14px]">
-                                    download
-                                  </span>
-                                  Download Invoice
-                                  <span className="material-symbols-outlined text-[14px]">
                                     receipt_long
                                   </span>
-                                  View Invoices (1 & 2)
+                                  View invoices
                                 </button>
 
                                 <button
@@ -1117,91 +1078,8 @@ const Dashboard = () => {
         </section>
       </main>
 
-      {/* Dual Invoices Modal (Invoice 1: Customer Tax Invoice & Invoice 2: Platform Revenue Invoice) */}
-      <AnimatePresence>
-        {invoiceModalOrder && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm overflow-y-auto">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden my-auto">
-              {/* Modal Header */}
-              <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-white text-lg">
-                      receipt_long
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-black uppercase tracking-wider text-white">
-                      Order Invoices •{" "}
-                      {invoiceModalOrder.orderId || invoiceModalOrder._id}
-                    </h3>
-                    <p className="text-[11px] text-slate-400 font-medium">
-                      {activeInvoiceType === "invoice1"
-                        ? "Invoice 1: Raised by Vendor to Customer"
-                        : "Invoice 2: Platform Charges Raised by Spinzyt to Vendor"}
-                    </p>
-                  </div>
-                </div>
+      {invoiceModalOrder && <InvoicePreview order={invoiceModalOrder} onClose={() => setInvoiceModalOrder(null)} />}
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handlePrintInvoice}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-md active:scale-95">
-                    <span className="material-symbols-outlined text-[16px]">
-                      print
-                    </span>
-                    Print / PDF
-                  </button>
-                  <button
-                    onClick={() => setInvoiceModalOrder(null)}
-                    className="p-2 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors">
-                    <span className="material-symbols-outlined text-[20px]">
-                      close
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Tab Switcher */}
-              <div className="flex border-b border-slate-200 bg-slate-100/70 p-2 gap-2">
-                <button
-                  onClick={() => setActiveInvoiceType("invoice1")}
-                  className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
-                    activeInvoiceType === "invoice1"
-                      ? "bg-white text-slate-900 shadow-sm border border-slate-200/80"
-                      : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
-                  }`}>
-                  <span className="w-2 h-2 rounded-full bg-purple-600"></span>
-                  Invoice 1: Customer Invoice (Vendor $\rightarrow$ Customer)
-                </button>
-                <button
-                  onClick={() => setActiveInvoiceType("invoice2")}
-                  className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
-                    activeInvoiceType === "invoice2"
-                      ? "bg-white text-slate-900 shadow-sm border border-slate-200/80"
-                      : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
-                  }`}>
-                  <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-                  Invoice 2: Platform Revenue (Spinzyt $\rightarrow$ Vendor)
-                </button>
-              </div>
-
-              {/* Modal Content / Invoice Viewer */}
-              <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
-                {activeInvoiceType === "invoice1" ? (
-                  <InvoicePrint order={invoiceModalOrder} />
-                ) : (
-                  <PlatformRevenueInvoicePrint order={invoiceModalOrder} />
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 };
