@@ -1,7 +1,7 @@
+import { priceCustomerOrder } from '../utils/customerOrderPricing.js';
 import { getGstConfigs } from '../utils/gstInvoiceHelper.js';
 import MasterService from '../models/MasterService.js';
 import ServiceArea from '../models/ServiceArea.js';
-import AreaServiceOverride from '../models/AreaServiceOverride.js';
 import mongoose from 'mongoose';
 
 export const createMasterService = async (req, res) => {
@@ -154,27 +154,6 @@ export const getPricingPreview = async (req, res) => {
         const area = await ServiceArea.findById(area_id);
         if (!area) return res.status(404).json({ message: 'Area not found' });
 
-        const multiplier = area.multiplier || 1.0;
-
-        // Fetch Global Configs
-        const SystemConfig = (await import('../models/SystemConfig.js')).default;
-        const globalConfigs = await SystemConfig.find({
-            key: { $in: [
-                'essential_fee', 
-                'heritage_fee',
-                'normal_logistics_fee'
-            ]}
-        }).lean();
-
-        const getConfig = (key, def) => {
-            const found = globalConfigs.find(c => c.key === key);
-            return found ? Number(found.value) : def;
-        };
-        
-        const essentialFee = getConfig('essential_fee', 20); // default 20%
-        const heritageFee = getConfig('heritage_fee', 150); // default 150%
-        const logisticsFee = getConfig('normal_logistics_fee', 50); // default 50
-        const { gstPercent: feeGstPercentage } = await getGstConfigs();
         let query = { isActive: true };
         if (serviceType) {
             query.serviceType = serviceType === 'individual' ? 'normal' : serviceType;
@@ -192,45 +171,28 @@ export const getPricingPreview = async (req, res) => {
         }
 
         const services = await MasterService.find(query).populate('categoryId').lean();
-        const overrides = await AreaServiceOverride.find({ areaId: area_id }).lean();
-
-        const preview = services.map(service => {
-            const gstPercentage = (service.tier === 'Heritage' ? service.heritageGst : service.gst) ?? feeGstPercentage;
-            const override = overrides.find(o => o.serviceId.toString() === service._id.toString());
-            
-            // Formula: {[(Vendor Rate X Aggregator Fee) + Logistics Fee] X Surcharge} + GST
-            const aggregatorFeeMultiplier = (service.tier === 'Heritage' ? heritageFee : essentialFee) / 100;
-            
-            // Aggregated Rate = Vendor Rate (discountedPrice) * Markup
-            const aggregatedRate = service.discountedPrice * (1 + aggregatorFeeMultiplier);
-            
-            // Subtotal = Aggregated Rate + Logistics Fee
-            const subtotal = aggregatedRate + logisticsFee;
-            
-            // Price With Surge = Subtotal * Area Multiplier
-            const priceWithSurge = subtotal * multiplier;
-            
-            // Final Price = Price With Surge + GST
-            const gstAmount = service.discountedPrice * multiplier * gstPercentage / 100
-                + (service.discountedPrice * aggregatorFeeMultiplier + logisticsFee) * multiplier * feeGstPercentage / 100;
-            const finalPrice = priceWithSurge + gstAmount;
-
+        // Preview a one-item Normal order using the same authoritative calculator as checkout.
+        const preview = await Promise.all(services.map(async service => {
+            const quote = await priceCustomerOrder({
+                items: [{ serviceId: String(service._id), quantity: 1 }],
+                selectedTier: service.tier || 'Essential', deliveryMode: 'Normal',
+            }, { resolvedArea: area });
             return {
                 serviceId: service._id,
                 itemName: service.itemName,
                 category: `${service.categoryId?.mainCategory || 'N/A'} / ${service.categoryId?.subCategory || 'N/A'}`,
                 tier: service.tier,
                 basePrice: service.basePrice,
-                vendorRate: service.discountedPrice,
-                aggregatorFee: `${service.tier === 'Heritage' ? heritageFee : essentialFee}%`,
-                logisticsFee: logisticsFee,
-                surge: multiplier,
-                gst: `${gstPercentage}%`,
-                finalPrice: Math.round(override ? override.customPrice : finalPrice),
+                vendorRate: quote.items[0].price,
+                aggregatorFee: `${Math.round(quote.multipliers.platformRate * 100)}%`,
+                logisticsFee: quote.priceBreakdown.logisticsFee,
+                areaMultiplier: quote.multipliers.areaFactor,
+                finalPrice: quote.finalTotal,
+                gst: `${quote.items[0].gstPercent}%`,
                 unit: service.unit,
-                isOverride: !!override
+                isOverride: false,
             };
-        });
+        }));
 
         res.status(200).json(preview);
     } catch (err) {

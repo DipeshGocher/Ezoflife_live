@@ -97,8 +97,38 @@ describe('payments use real records', () => {
         const ravi = res.body.find(c => c.phone === '9500000012');
         assert.equal(ravi.totalOrders, 1);
         assert.equal(ravi.cancelledOrders, 2);
-        assert.equal(ravi.totalSpent, 400);
+        assert.equal(ravi.totalSpent, 350);
         assert.equal(ravi.refundedOrders, 1);
+    });
+
+    test('vendor refund totals use the recorded refund, not the undiscounted order total', async () => {
+        const filter = { razorpayPaymentId: 'pay_REAL123' };
+        await db.collection('orders').updateOne(filter, { $set: { refundAmount: 125, walletRefundAmount: 50, onlineRefundAmount: 75 } });
+        try {
+            const result = await api(env.baseUrl, '/api/admin/vendor-payments', { token: admin });
+            assert.equal(result.body.find(v => v.phone === '9500000001').totalRefund, 125);
+            const ledger = await api(env.baseUrl, '/api/admin/refunds', { token: admin });
+            assert.equal(ledger.body.refunds[0].amount, 125);
+        } finally {
+            await db.collection('orders').updateOne(filter, { $unset: { refundAmount: '', walletRefundAmount: '', onlineRefundAmount: '' } });
+        }
+    });
+
+    test('wallet and mixed paid orders do not create phantom customer debt; COD remains unpaid', async () => {
+        const customerId = oid();
+        await db.collection('users').insertOne({ _id: customerId, role: 'Customer', phone: '9500000099', displayName: 'Accounting regression' });
+        await db.collection('orders').insertMany([
+            { customer: customerId, orderId: 'CALC-WALLET', status: 'ORDER_PLACED', totalAmount: 100.25, paymentMethod: 'Wallet', paymentStatus: 'Paid', walletAmountDeducted: 100.25, advanceAmount: 0, dueAmount: 0 },
+            { customer: customerId, orderId: 'CALC-MIXED', status: 'ORDER_PLACED', totalAmount: 200, checkoutDiscountAmount: 20, paymentMethod: 'Online', paymentStatus: 'Paid', walletAmountDeducted: 30, advanceAmount: 150, dueAmount: 0 },
+            { customer: customerId, orderId: 'CALC-COD', status: 'ORDER_PLACED', totalAmount: 50, paymentMethod: 'COD', paymentStatus: 'Pending', advanceAmount: 0, dueAmount: 50 },
+        ]);
+        const res = await api(env.baseUrl, '/api/admin/customer-payments', { token: admin });
+        const row = res.body.find(c => c.phone === '9500000099');
+        assert.equal(row.totalSpent, 330.25);
+        assert.equal(row.totalPaid, 280.25);
+        assert.equal(row.pendingBalance, 50);
+        await db.collection('orders').deleteMany({ customer: customerId });
+        await db.collection('users').deleteOne({ _id: customerId });
     });
 
     test('vendor payouts: real bank account, refunds and settlement date from the configured cycle', async () => {

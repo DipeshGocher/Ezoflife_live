@@ -1,3 +1,4 @@
+import { servicePricing } from '../../../lib/servicePricing';
 import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -966,21 +967,14 @@ const HomePage = () => {
         (s) => s._id?.toString() === id || s.id?.toString() === id,
       );
       if (!service) return acc;
-      const actualPrice =
-        allowDiscount !== false
-          ? service.discountedPrice || service.basePrice || 0
-          : service.basePrice || 0;
-      const isHeritage = selectedTier === "Heritage";
-      const price =
-        actualPrice *
-        (pricingFactor || 1) *
-        (isExpress ? expressMultiplier || 1 : 1) *
-        (isHeritage ? heritageMultiplier || 1 : 1);
+      const { price } = servicePricing(service, { pricingFactor, allowDiscount,
+        isExpress, expressMultiplier, isHeritage: selectedTier === "Heritage", heritageMultiplier });
       return acc + price * q;
     }, 0);
   }, [
     selectedQuantities,
     services,
+    allowDiscount,
     pricingFactor,
     isExpress,
     expressMultiplier,
@@ -1657,22 +1651,9 @@ const HomePage = () => {
                 const isSelected = qty > 0;
                 const photosCount = itemPhotos[serviceId]?.length || 0;
 
-                const basePrice =
-                  (allowDiscount !== false
-                    ? service.discountedPrice || service.basePrice
-                    : service.basePrice) || 0;
-                const calculatedPrice = Math.round(
-                  basePrice *
-                    (pricingFactor || 1) *
-                    (isExpress ? expressMultiplier || 1 : 1) *
-                    (isHeritage ? heritageMultiplier || 1 : 1),
-                );
-                const originalPrice = Math.round(
-                  (service.basePrice || 0) *
-                    (pricingFactor || 1) *
-                    (isExpress ? expressMultiplier || 1 : 1) *
-                    (isHeritage ? heritageMultiplier || 1 : 1),
-                );
+                const { price: calculatedPrice, originalPrice, hasDiscount } = servicePricing(service, {
+                  pricingFactor, allowDiscount, isExpress, expressMultiplier, isHeritage, heritageMultiplier,
+                });
 
                 return (
                   <motion.div
@@ -1712,9 +1693,7 @@ const HomePage = () => {
                           <span className="text-sm sm:text-base font-bold text-slate-900">
                             ₹{calculatedPrice}
                           </span>
-                          {allowDiscount !== false &&
-                            (service.basePrice || 0) >
-                              (service.discountedPrice || 0) && (
+                          {hasDiscount && (
                               <span className="text-[11px] font-normal line-through text-slate-400">
                                 ₹{originalPrice}
                               </span>

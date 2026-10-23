@@ -1,3 +1,4 @@
+import { servicePricing } from '../../../lib/servicePricing';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -83,13 +84,13 @@ const ServiceInfoPage = () => {
                 <div className="flex flex-col">
                   <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant opacity-40 mb-1">Starting Rate</p>
                   <div className="flex items-center gap-3">
-                    {(allowDiscount !== false && (service.basePrice || 0) > (service.discountedPrice || 0)) && (
+                    {servicePricing(service, { pricingFactor, allowDiscount, isExpress, expressMultiplier, isHeritage, heritageMultiplier }).hasDiscount && (
                       <span className="text-sm font-bold text-slate-400 line-through">
-                        ₹{Math.round((service.basePrice || 0) * (pricingFactor || 1) * (isExpress ? (expressMultiplier || 1) : 1) * (isHeritage ? (heritageMultiplier || 1) : 1))}
+                        ₹{servicePricing(service, { pricingFactor, allowDiscount, isExpress, expressMultiplier, isHeritage, heritageMultiplier }).originalPrice}
                       </span>
                     )}
                     <p className="text-2xl font-black text-primary">
-                      ₹{Math.round(((allowDiscount !== false ? (service.discountedPrice || service.basePrice) : service.basePrice) || 0) * (pricingFactor || 1) * (isExpress ? (expressMultiplier || 1) : 1) * (isHeritage ? (heritageMultiplier || 1) : 1))}
+                      ₹{servicePricing(service, { pricingFactor, allowDiscount, isExpress, expressMultiplier, isHeritage, heritageMultiplier }).price}
                     </p>
                   </div>
                 </div>

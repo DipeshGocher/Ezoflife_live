@@ -1459,12 +1459,16 @@ export const clearAllOrders = async (req, res) => {
  * from spend and balances (they were previously counted as money owed).
  */
 const summarizeCustomerOrders = (orders) => {
-    const live = orders.filter(o => o.status !== 'CANCELLED');
-    const totalSpent = live.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
-    const totalAdvancePaid = live.reduce((acc, o) => acc + (o.advanceAmount || 0), 0);
+    const money = value => Math.round((Number(value) || 0) * 100) / 100;
+    const live = orders.filter(o => String(o.status).toUpperCase() !== 'CANCELLED');
+    const netDue = order => Math.max(0, Number(order.totalAmount || 0) - Number(order.checkoutDiscountAmount
+        ?? (order.ledger?.promoOwnerType === 'VENDOR' ? 0 : order.discountAmount) ?? 0));
+    const totalSpent = money(live.reduce((acc, o) => acc + netDue(o), 0));
+    const totalAdvancePaid = money(live.reduce((acc, o) => acc + (o.advanceAmount || 0), 0));
     // Cash collected on delivery
-    const totalCodPaid = live.filter(o => o.status === 'DELIVERED').reduce((acc, o) => acc + (o.dueAmount || 0), 0);
-    const totalPaid = totalAdvancePaid + totalCodPaid;
+    const totalCodPaid = money(live.filter(o => o.status === 'DELIVERED' && o.paymentMethod === 'COD' && o.paymentStatus === 'Paid').reduce((acc, o) => acc + (o.dueAmount || 0), 0));
+    const totalPaid = money(live.reduce((acc, o) => acc + (o.paymentStatus === 'Paid'
+        ? netDue(o) : Math.min(netDue(o), Number(o.advanceAmount || 0) + Number(o.walletAmountDeducted || 0))), 0));
     const latest = [...orders].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     const lastOnline = latest.find(o => o.razorpayPaymentId);
     return {
@@ -1476,7 +1480,7 @@ const summarizeCustomerOrders = (orders) => {
         totalAdvancePaid,
         totalCodPaid,
         totalPaid,
-        pendingBalance: Math.max(0, totalSpent - totalPaid),
+        pendingBalance: money(Math.max(0, totalSpent - totalPaid)),
         totalGst: live.reduce((acc, o) => acc + ((o.priceBreakdown || {}).gstAmount || 0), 0),
         totalPlatformFee: live.reduce((acc, o) => acc + ((o.priceBreakdown || {}).platformFee || 0), 0),
         lastOrderAt: latest[0]?.createdAt || null,
@@ -1489,7 +1493,7 @@ export const getCustomerPaymentSummary = async (req, res) => {
         const customers = await User.find({ role: 'Customer' }).select('displayName phone email').lean();
         
         const summary = await Promise.all(customers.map(async (cust) => {
-            const orders = await Order.find({ customer: cust._id }).select('totalAmount advanceAmount dueAmount status paymentStatus priceBreakdown razorpayPaymentId createdAt').lean();
+            const orders = await Order.find({ customer: cust._id }).select('totalAmount advanceAmount dueAmount discountAmount checkoutDiscountAmount ledger.promoOwnerType walletAmountDeducted paymentMethod status paymentStatus priceBreakdown razorpayPaymentId createdAt').lean();
             
             const figures = summarizeCustomerOrders(orders);
 
@@ -1509,7 +1513,7 @@ export const getCustomerPaymentSummary = async (req, res) => {
                 { 'customerSnapshot.isExUser': true },
                 { customer: { $nin: Array.from(activeCustomerIds) } }
             ]
-        }).select('customer customerSnapshot totalAmount advanceAmount dueAmount status paymentStatus priceBreakdown razorpayPaymentId createdAt').lean();
+        }).select('customer customerSnapshot totalAmount advanceAmount dueAmount discountAmount checkoutDiscountAmount ledger.promoOwnerType walletAmountDeducted paymentMethod status paymentStatus priceBreakdown razorpayPaymentId createdAt').lean();
 
         const exGroups = {};
         for (const order of exCustomerOrders) {
@@ -1571,7 +1575,9 @@ export const getVendorPaymentSummary = async (req, res) => {
             // Refunded orders are cancelled, so they never appear in the earning orders below
             Order.aggregate([
                 { $match: { paymentStatus: 'Refunded', vendor: { $ne: null } } },
-                { $group: { _id: '$vendor', total: { $sum: '$totalAmount' } } }
+                { $group: { _id: '$vendor', total: { $sum: { $cond: [
+                    { $gt: [{ $ifNull: ['$refundAmount', 0] }, 0] }, '$refundAmount', '$totalAmount'
+                ] } } } }
             ])
         ]);
         const settlementCycle = SETTLEMENT_CYCLES[cycleCfg?.value] !== undefined ? cycleCfg.value : 'Weekly';

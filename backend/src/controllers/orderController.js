@@ -404,7 +404,6 @@ export const createOrder = async (req, res) => {
             throw error;
         }
         const finalPriceBreakdown = { ...quote.priceBreakdown };
-        const multipliers = { advancePerc: quote.advancePercent };
 
         // --- DROP-OFF CALCULATION ---
         const itemIds = items.map(i => i.serviceId);
@@ -504,8 +503,8 @@ export const createOrder = async (req, res) => {
         // amount) is verified and consumed; a payment can be consumed only once.
         const validatedDiscount = quote.discount;
         const remainingTotal = quote.remaining;
-        const calculatedAdvance = (remainingTotal * (multipliers.advancePerc / 100));
-        const calculatedDue = remainingTotal - calculatedAdvance;
+        let calculatedAdvance = 0;
+        let calculatedDue = remainingTotal;
 
         let resolvedPaymentStatus = 'Pending';
         let resolvedPaymentMethod = 'COD';
@@ -534,6 +533,9 @@ export const createOrder = async (req, res) => {
             }
             resolvedPaymentStatus = 'Paid';
             resolvedPaymentMethod = 'Online';
+            // Razorpay collects the full remaining amount, regardless of legacy advance settings.
+            calculatedAdvance = remainingTotal;
+            calculatedDue = 0;
         }
 
         // Payment is settled, so the wallet can now be debited — atomically, so two
@@ -2147,7 +2149,7 @@ export const cancelOrder = async (req, res) => {
             {
                 walletRefunded = order.walletAmountDeducted;
                 refundLog += `Refunded ₹${walletRefunded} to customer wallet. `;
-                console.log(`💸 [WALLET REFUND] Restored ₹${walletRefunded} to customer ${credited.phone}`);
+                console.log(`💸 [WALLET REFUND] Restored ₹${walletRefunded} to customer ${order.customer}`);
             }
         }
 

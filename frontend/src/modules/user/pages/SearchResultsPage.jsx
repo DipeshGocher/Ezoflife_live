@@ -1,3 +1,4 @@
+import { servicePricing } from '../../../lib/servicePricing';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,8 +12,11 @@ const SearchResultsPage = () => {
   const [query, setQuery] = useState(initialQuery);
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { location: userLocation, zone } = useLocationStore();
+  const { location: userLocation, zone, pricingFactor, allowDiscount, expressMultiplier, heritageMultiplier } = useLocationStore();
   
+  const isExpress = localStorage.getItem('is_express') === 'true';
+  const isHeritage = localStorage.getItem('selected_tier') === 'Heritage';
+
   useEffect(() => {
     const fetchServices = async () => {
       try {
@@ -104,7 +108,7 @@ const SearchResultsPage = () => {
             <AnimatePresence mode="popLayout">
                 {results.map((item) => (
                     <motion.div 
-                        key={item.id}
+                        key={item._id || item.id}
                         layout
                         variants={itemVariants}
                         initial="hidden"
@@ -126,7 +130,7 @@ const SearchResultsPage = () => {
                             </div>
                         </div>
                         <div className="text-right">
-                            <p className="font-headline font-black text-primary text-sm">₹{item.totalPrice}</p>
+                            <p className="font-headline font-black text-primary text-sm">₹{servicePricing(item, { pricingFactor, allowDiscount, isExpress, expressMultiplier, isHeritage, heritageMultiplier }).price}</p>
                             <span className="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors text-lg">chevron_right</span>
                         </div>
                     </motion.div>

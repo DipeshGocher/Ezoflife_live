@@ -1,3 +1,4 @@
+import { servicePricing } from '../../../lib/servicePricing';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1627,15 +1628,16 @@ const ServiceSelectionView = ({ userId, onComplete }) => {
                 const mappedServices = (pricingData.data || [])
                     .filter(item => item.serviceId && item.isActive !== false)
                     .map(item => {
-                        const basePrice = item.basePrice || 0;
-                        const areaMultiplier = item.areaMultiplier !== undefined ? item.areaMultiplier : 1;
-                        const surgeMultiplier = item.surgeMultiplier !== undefined ? item.surgeMultiplier : 1;
-                        const heritageMultiplier = item.heritageMultiplier !== undefined ? item.heritageMultiplier : 1;
-
-                        const baseNormal = Math.round(basePrice * areaMultiplier);
-                        const baseExpress = Math.round(basePrice * areaMultiplier * surgeMultiplier);
-                        const heritageNormal = Math.round(basePrice * areaMultiplier * heritageMultiplier);
-                        const heritageExpress = Math.round(basePrice * areaMultiplier * heritageMultiplier * surgeMultiplier);
+                        const priceOptions = {
+                            pricingFactor: geoData.pricingFactor ?? 1,
+                            allowDiscount: geoData.allowDiscount !== false,
+                            expressMultiplier: geoData.expressMultiplier ?? 1,
+                            heritageMultiplier: geoData.heritageMultiplier ?? 1,
+                        };
+                        const baseNormal = servicePricing(item.serviceId, priceOptions).price;
+                        const baseExpress = servicePricing(item.serviceId, { ...priceOptions, isExpress: true }).price;
+                        const heritageNormal = servicePricing(item.serviceId, { ...priceOptions, isHeritage: true }).price;
+                        const heritageExpress = servicePricing(item.serviceId, { ...priceOptions, isHeritage: true, isExpress: true }).price;
 
                         return {
                             _id: item.serviceId._id,
@@ -1645,7 +1647,7 @@ const ServiceSelectionView = ({ userId, onComplete }) => {
                             tier: item.serviceId.tier || 'Essential',
                             category: item.categoryId?.mainCategory || '',
                             subCategory: item.categoryId?.subCategory || '',
-                            basePrice: item.finalPrice || item.basePrice || 0,
+                            basePrice: item.serviceId.basePrice ?? item.basePrice ?? 0,
                             baseNormal,
                             baseExpress,
                             heritageNormal,

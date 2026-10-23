@@ -352,9 +352,9 @@ test('pricing preview and area synchronization use configured GST and preserve z
             const inherited = response.body.find(row => row.serviceId === String(services[0]._id));
             const zero = response.body.find(row => row.serviceId === String(services[1]._id));
             assert.equal(inherited.gst, `${rate}%`);
-            assert.equal(inherited.finalPrice, Math.round(170 * (1 + rate / 100)));
+            assert.equal(inherited.finalPrice, Math.round(150 * (1 + rate / 100) * 100) / 100);
             assert.equal(zero.gst, '0%');
-            assert.equal(zero.finalPrice, Math.round(170 + 70 * rate / 100));
+            assert.equal(zero.finalPrice, Math.round((150 + 50 * rate / 100) * 100) / 100);
         }
     } finally {
         await configs.updateOne({ key: 'gst_percent' }, { $set: { value: 18 } });

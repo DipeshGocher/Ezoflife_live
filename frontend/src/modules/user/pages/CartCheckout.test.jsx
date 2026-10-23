@@ -2,6 +2,7 @@ import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+const priceState = vi.hoisted(() => ({}));
 
 vi.mock('../../../lib/api', () => ({
   BASE_URL: 'http://api.test',
@@ -13,7 +14,7 @@ vi.mock('../../../lib/api', () => ({
 }));
 vi.mock('../../../lib/shippingApi', () => ({ shippingConfigApi: { getConfig: vi.fn() } }));
 vi.mock('../../../shared/stores/locationStore', () => ({
-  useLocationStore: Object.assign(() => ({ pricingFactor: 1 }), { getState: () => ({ setZoneData: vi.fn() }) }),
+  useLocationStore: Object.assign(() => ({ pricingFactor: 1, ...priceState }), { getState: () => ({ setZoneData: vi.fn() }) }),
 }));
 vi.mock('../../../lib/socket', () => ({ default: { on: vi.fn(), off: vi.fn(), emit: vi.fn() } }));
 vi.mock('@react-google-maps/api', () => ({
@@ -40,6 +41,7 @@ const deferred = () => {
 };
 
 beforeEach(() => {
+  for (const key of Object.keys(priceState)) delete priceState[key];
   localStorage.clear();
   vi.clearAllMocks();
   masterServiceApi.getAll.mockResolvedValue([service]);
@@ -69,12 +71,22 @@ const renderCheckout = (customerType) => {
   localStorage.setItem('item_photos', JSON.stringify({ 'service-1': ['/garment.jpg'] }));
   localStorage.setItem('pickup_address', JSON.stringify(address));
   localStorage.setItem('selected_tier', 'Essential');
-  return render(<MemoryRouter initialEntries={['/user/cart']}><Routes>
+  return render(checkoutTree());
+};
+const checkoutTree = () => <MemoryRouter initialEntries={['/user/cart']}><Routes>
     <Route path="/user/cart" element={<CartPage />} />
     <Route path="/user/tracking/:id" element={<OrderTrackingPage />} />
     <Route path="/user/home" element={<p>Unexpected home page</p>} />
-  </Routes></MemoryRouter>);
-};
+  </Routes></MemoryRouter>;
+
+it('recalculates the displayed checkout total after the regional factor changes', async () => {
+  const view = renderCheckout('individual');
+  await screen.findByRole('button', { name: 'PAY NOW' });
+  await waitFor(() => expect(screen.getByText('Total Payable Amount').parentElement).toHaveTextContent('₹100.00'));
+  priceState.pricingFactor = 2;
+  view.rerender(checkoutTree());
+  await waitFor(() => expect(screen.getByText('Total Payable Amount').parentElement).toHaveTextContent('₹200.00'));
+});
 
 const openPayment = async () => {
   let options;

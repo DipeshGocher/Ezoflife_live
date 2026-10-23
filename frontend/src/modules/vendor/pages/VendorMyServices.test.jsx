@@ -31,7 +31,7 @@ beforeEach(() => {
 });
 
 it.each([
-  [true, ['₹200', '₹10', '₹11', '₹15', '₹17']],
+  [true, ['₹200', '₹10', '₹11', '₹15', '₹16.5']],
   [false, ['₹200', '₹200', '₹220', '₹300', '₹330']],
 ])('shows customer-facing regional prices with discounts enabled: %s', async (enabled, expected) => {
   discounts = enabled;

@@ -170,6 +170,41 @@ describe('customer orders: a payment pays for exactly one order', () => {
 });
 
 describe('customer orders: automatic refunds', () => {
+    test('full online collection ignores the legacy advance percentage and has no balance due', async () => {
+        const configs = mongoose.connection.collection('systemconfigs');
+        await configs.updateOne({ key: 'advance_percentage' }, { $set: { value: 5 } }, { upsert: true });
+        try {
+            const checkout = await openCheckout(customer.token);
+            const proof = gateway.pay(checkout.body.id);
+            const result = await placeOnline(customer.token, proof);
+            assert.equal(result.status, 201, JSON.stringify(result.body));
+            assert.equal(result.body.advanceAmount, checkout.body.payable);
+            assert.equal(result.body.dueAmount, 0);
+        } finally { await configs.deleteOne({ key: 'advance_percentage' }); }
+    });
+
+    test('a wallet-paid cancellation restores the amount once and completes cancellation', async () => {
+        const users = mongoose.connection.collection('users');
+        await users.updateOne({ _id: new mongoose.Types.ObjectId(otherCustomer.id) }, { $set: { walletBalance: 500 } });
+        const result = await api(env.baseUrl, '/api/orders', { token: otherCustomer.token, method: 'POST', body: orderPayload(otherCustomer.id, { ...cart(), useWallet: true }) });
+        assert.equal(result.status, 201, JSON.stringify(result.body));
+        const cancelled = await api(env.baseUrl, `/api/orders/cancel/${result.body._id}`, { token: otherCustomer.token, method: 'POST', body: {} });
+        assert.equal(cancelled.status, 200, JSON.stringify(cancelled.body));
+        assert.equal(cancelled.body.order.status, 'CANCELLED');
+        assert.equal(cancelled.body.order.walletRefundAmount, result.body.walletAmountDeducted);
+        assert.equal((await users.findOne({ _id: new mongoose.Types.ObjectId(otherCustomer.id) })).walletBalance, 500);
+        const again = await api(env.baseUrl, `/api/orders/cancel/${result.body._id}`, { token: otherCustomer.token, method: 'POST', body: {} });
+        assert.equal(again.status, 400);
+        assert.equal((await users.findOne({ _id: new mongoose.Types.ObjectId(otherCustomer.id) })).walletBalance, 500);
+    });
+
+    test('COD creation records no advance receipt before money is collected', async () => {
+        const result = await api(env.baseUrl, '/api/orders', { token: customer.token, method: 'POST', body: orderPayload(customer.id, cart()) });
+        assert.equal(result.status, 201);
+        assert.equal(result.body.paymentStatus, 'Pending');
+        assert.equal(result.body.advanceAmount, 0);
+        assert.equal(result.body.dueAmount, result.body.totalAmount - result.body.discountAmount);
+    });
     test('if the price changes after paying, the payment is refunded instead of accepted', async () => {
         const svc = await MasterService.create({ itemName: 'Price Change', categoryId: new mongoose.Types.ObjectId(), basePrice: 50, discountedPrice: 50, gst: 0, isActive: true });
         const order = cart({ items: [{ serviceId: svc._id.toString(), quantity: 1 }] });

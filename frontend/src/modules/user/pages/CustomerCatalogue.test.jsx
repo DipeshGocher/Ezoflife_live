@@ -2,6 +2,7 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+const pricingState = vi.hoisted(() => ({}));
 
 vi.mock('../../../lib/api', () => ({
   BASE_URL: 'http://api.test',
@@ -34,13 +35,14 @@ vi.mock('../../../lib/shippingApi', () => ({
   shippingConfigApi: { getConfig: vi.fn().mockResolvedValue({}) },
 }));
 vi.mock('../../../shared/stores/locationStore', () => ({
-  useLocationStore: () => ({ pricingFactor: 1, setZoneData: vi.fn() }),
+  useLocationStore: () => ({ pricingFactor: 1, setZoneData: vi.fn(), ...pricingState }),
 }));
 
 import { masterServiceApi, serviceApi, categoryApi, authApi, adApi, faqApi, orderApi, adminApi, notificationApi } from '../../../lib/api';
 import HomePage from './HomePage';
 import AllServicesPage from './AllServicesPage';
 import SearchResultsPage from './SearchResultsPage';
+import ServiceInfoPage from './ServiceInfoPage';
 import BottomNav from '../components/BottomNav';
 import MoreMenuPage from './MoreMenuPage';
 import UserProfilePage from './UserProfilePage';
@@ -68,6 +70,7 @@ const vendor = {
 };
 
 beforeEach(() => {
+  for (const key of Object.keys(pricingState)) delete pricingState[key];
   localStorage.clear();
   vi.clearAllMocks();
   // Model the API's exact serviceType matching: the retail catalogue is empty.
@@ -177,6 +180,25 @@ describe('normal customer entry and onboarding', () => {
 });
 
 const CurrentPath = () => <output data-testid="path">{useLocation().pathname}</output>;
+
+describe.each([
+  ['Home', HomePage], ['All Services', AllServicesPage], ['Search', SearchResultsPage], ['Service details', ServiceInfoPage],
+])('%s catalogue pricing', (_name, Page) => {
+  it.each([true, false])('respects service discount visibility (%s) with region and tier changes', async showDiscountPrice => {
+    const service = { ...master, id: master._id, title: 'Standard shirt wash', basePrice: 200, discountedPrice: 10, showDiscountPrice };
+    masterServiceApi.getAll.mockResolvedValue([service]);
+    serviceApi.getAll.mockResolvedValue([]);
+    Object.assign(pricingState, { allowDiscount: true, pricingFactor: 2, heritageMultiplier: 1.5, expressMultiplier: 1.1 });
+    localStorage.setItem('selected_tier', 'Heritage');
+    localStorage.setItem('is_express', 'true');
+    render(<MemoryRouter initialEntries={[{ pathname: '/preview', state: { selectedService: service } }]}><Page /></MemoryRouter>);
+    const expected = showDiscountPrice ? '₹33' : '₹660';
+    expect(await screen.findByText(text => text === expected || text.startsWith(`${expected}/`))).toBeInTheDocument();
+    if (!showDiscountPrice) {
+      expect(document.querySelector('.line-through')).toBeNull();
+    }
+  });
+});
 
 describe.each([
   ['individual', ''], ['retail', ''], ['retail', '23ABCDE1234F1Z5'], ['individual', '23ABCDE1234F1Z5'],

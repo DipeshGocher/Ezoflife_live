@@ -1,3 +1,4 @@
+import { servicePricing } from '../../../lib/servicePricing';
 import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -512,17 +513,12 @@ const CartPage = () => {
   const activeExpressMultiplier = zone ? (zoneExpressMultiplier !== undefined ? zoneExpressMultiplier : expressMultiplier) : expressMultiplier;
   const activeHeritageMultiplier = zone ? (zoneHeritageMultiplier !== undefined ? zoneHeritageMultiplier : 1) : 1;
 
-  const getItemPrice = (item) => {
-    // Priority: Respect showDiscountPrice or allowDiscount toggle from Master Service
-    const basePrice = item.basePrice || item.totalPrice || 0;
-    const discountedPrice = item.discountedPrice || basePrice;
-    
-    // If allowDiscount is false or showDiscountPrice is false, explicitly use basePrice
-    const sourcePrice = (allowDiscount === false || item.showDiscountPrice === false) ? basePrice : discountedPrice;
-    
-    const isHeritage = selectedTier === 'Heritage';
-    return Math.round(sourcePrice * (pricingFactor || 1) * (isHeritage ? (activeHeritageMultiplier || 1) : 1));
-  };
+  const getItemPrice = useCallback((item) => {
+    return servicePricing(item, {
+      pricingFactor, allowDiscount, isHeritage: selectedTier === 'Heritage',
+      heritageMultiplier: activeHeritageMultiplier,
+    }).normalPrice;
+  }, [pricingFactor, allowDiscount, selectedTier, activeHeritageMultiplier]);
 
   const areaMultiplier = 1; // Default to 1, can be linked to location later
   
@@ -546,7 +542,7 @@ const CartPage = () => {
     }
     
     return totalBase + expressSurcharge + platformFee;
-  }, [cartItems, quantities, areaMultiplier, currentExpressMultiplier, activePlatformRate, activeMinPlatformFee, activeMaxPlatformFee]);
+  }, [cartItems, quantities, areaMultiplier, currentExpressMultiplier, activePlatformRate, activeMinPlatformFee, activeMaxPlatformFee, getItemPrice]);
 
   const V = V_Items + normalLogisticsConfig;
   const taxAmount = useMemo(() => {
@@ -565,14 +561,15 @@ const CartPage = () => {
     const serviceValue = cartItems.reduce((sum, item) => sum + getItemPrice(item) * (quantities[item._id || item.id] || 0) * areaMultiplier * currentExpressMultiplier, 0);
     const customerFees = V_Items - serviceValue + normalLogisticsConfig;
     return itemsGst + customerFees * gstPercent / 100;
-  }, [cartItems, quantities, areaMultiplier, currentExpressMultiplier, selectedTier, V_Items, normalLogisticsConfig, gstPercent]);
+  }, [cartItems, quantities, areaMultiplier, currentExpressMultiplier, selectedTier, V_Items, normalLogisticsConfig, gstPercent, getItemPrice]);
 
   const grandTotal = V + taxAmount;
   
   const discount = useMemo(() => {
       if (!isPromoApplied || !appliedPromoData) return 0;
-      if (['Flat', 'FLAT_AMOUNT'].includes(appliedPromoData.discountType)) return Math.min(appliedPromoData.discountValue, grandTotal);
-      return (grandTotal * appliedPromoData.discountValue) / 100;
+      const value = Number(appliedPromoData.discountValue) || 0;
+      const amount = ['Flat', 'FLAT_AMOUNT'].includes(appliedPromoData.discountType) ? value : grandTotal * value / 100;
+      return Math.max(0, Math.min(amount, grandTotal));
   }, [isPromoApplied, appliedPromoData, grandTotal]);
 
   const finalTotal = useMemo(() => Math.max(0, grandTotal - discount), [grandTotal, discount]);
@@ -606,7 +603,7 @@ const CartPage = () => {
         logisticsFee: normalLogisticsConfig,
         gstAmount: taxAmount
     };
-  }, [cartItems, quantities, areaMultiplier, activePlatformRate, activeMinPlatformFee, activeMaxPlatformFee, currentExpressMultiplier, normalLogisticsConfig, taxAmount]);
+  }, [cartItems, quantities, areaMultiplier, activePlatformRate, activeMinPlatformFee, activeMaxPlatformFee, currentExpressMultiplier, normalLogisticsConfig, taxAmount, getItemPrice]);
 
   const subtotal = priceBreakdown.baseWithArea;
 
@@ -1187,24 +1184,24 @@ const CartPage = () => {
               <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 px-1">
                 <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-white/40">
                   <span>Service Price</span>
-                  <span className="text-white">₹{(priceBreakdown.baseWithArea + priceBreakdown.expressSurcharge).toFixed(0)}</span>
+                  <span className="text-white">₹{(priceBreakdown.baseWithArea + priceBreakdown.expressSurcharge).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-white/40">
                   <span>Platform Fee</span>
-                  <span className="text-white">₹{priceBreakdown.platformFee.toFixed(0)}</span>
+                  <span className="text-white">₹{priceBreakdown.platformFee.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-white/40">
                   <span>Logistic Fee</span>
-                  <span className="text-white">₹{priceBreakdown.logisticsFee.toFixed(0)}</span>
+                  <span className="text-white">₹{priceBreakdown.logisticsFee.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-white/40">
                   <span>GST</span>
-                  <span className="text-white">₹{priceBreakdown.gstAmount.toFixed(0)}</span>
+                  <span className="text-white">₹{priceBreakdown.gstAmount.toFixed(2)}</span>
                 </div>
                 {isPromoApplied && (
                   <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-widest text-emerald-400">
                     <span>Promo Discount</span>
-                    <span>-₹{discount.toFixed(0)}</span>
+                    <span>-₹{discount.toFixed(2)}</span>
                   </div>
                 )}
               </div>
@@ -1317,7 +1314,7 @@ const CartPage = () => {
                 {isPromoApplied && (
                   <p className="text-[9px] font-black text-emerald-400 uppercase mt-2 ml-2 tracking-[0.1em] flex items-center gap-2">
                     <span className="material-symbols-outlined text-sm">celebration</span>
-                    Promo applied! Saved ₹{discount.toFixed(0)}
+                    Promo applied! Saved ₹{discount.toFixed(2)}
                   </p>
                 )}
 
@@ -1327,7 +1324,7 @@ const CartPage = () => {
                       <span className="material-symbols-outlined text-lg text-emerald-400">account_balance_wallet</span>
                       <div className="text-left">
                         <p className="text-[9px] font-black uppercase tracking-widest text-white">Use Wallet Balance</p>
-                        <p className="text-[8px] font-bold text-white/40 uppercase tracking-wider">Available: ₹{walletBalance.toFixed(0)}</p>
+                        <p className="text-[8px] font-bold text-white/40 uppercase tracking-wider">Available: ₹{walletBalance.toFixed(2)}</p>
                       </div>
                     </div>
                     <input 
@@ -1345,10 +1342,10 @@ const CartPage = () => {
               <div className="flex flex-col">
                 <p className="text-[8px] font-black uppercase tracking-widest text-white/30">Total Payable Amount</p>
                 <div className="flex items-baseline gap-2">
-                    <p className="text-3xl font-black tracking-tighter text-white">₹{remainingPayable.toFixed(0)}</p>
+                    <p className="text-3xl font-black tracking-tighter text-white">₹{remainingPayable.toFixed(2)}</p>
                     {useWallet && (
                       <span className="text-[7px] font-black text-emerald-400 uppercase tracking-widest">
-                        (₹{Math.min(walletBalance, finalTotal).toFixed(0)} from wallet)
+                        (₹{Math.min(walletBalance, finalTotal).toFixed(2)} from wallet)
                       </span>
                     )}
                 </div>

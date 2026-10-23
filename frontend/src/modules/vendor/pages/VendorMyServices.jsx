@@ -1,3 +1,4 @@
+import { servicePricing } from '../../../lib/servicePricing';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -640,14 +641,13 @@ const VendorMyServices = () => {
                                                 const surgeMultiplier = pricingInfo.surgeMultiplier !== undefined ? pricingInfo.surgeMultiplier : 1;
                                                 const heritageMultiplier = pricingInfo.heritageMultiplier !== undefined ? pricingInfo.heritageMultiplier : 1;
  
-                                                const basePrice = Number(service.basePrice) || 0;
-                                                const customerPrice = pricingInfo.allowDiscount && service.showDiscountPrice !== false
-                                                    ? Number(service.discountedPrice) || basePrice : basePrice;
-                                                const baseNormal = Math.round(customerPrice * areaMultiplier);
-                                                const baseExpress = Math.round(customerPrice * areaMultiplier * surgeMultiplier);
-                                                const heritageNormal = Math.round(customerPrice * areaMultiplier * heritageMultiplier);
-                                                const heritageExpress = Math.round(customerPrice * areaMultiplier * heritageMultiplier * surgeMultiplier);
-                                                
+                                                const priceOptions = { pricingFactor: areaMultiplier,
+                                                    allowDiscount: pricingInfo.allowDiscount, expressMultiplier: surgeMultiplier, heritageMultiplier };
+                                                const baseNormal = servicePricing(service, priceOptions).price;
+                                                const baseExpress = servicePricing(service, { ...priceOptions, isExpress: true }).price;
+                                                const heritageNormal = servicePricing(service, { ...priceOptions, isHeritage: true }).price;
+                                                const heritageExpress = servicePricing(service, { ...priceOptions, isHeritage: true, isExpress: true }).price;
+
                                                 const isPending = service.approvalStatus === 'Pending';
                                                 const isRejected = service.approvalStatus === 'Rejected';
  

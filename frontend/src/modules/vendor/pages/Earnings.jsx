@@ -192,13 +192,13 @@ const Earnings = () => {
                 <section className="space-y-4">
                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Recent Revenue Items</h3>
                     <div className="space-y-2">
-                        {orders.filter(o => ['Ready', 'Delivered', 'Out for Delivery'].includes(o.status)).slice(0, 5).map(order => (
+                        {orders.filter(o => o.status === 'DELIVERED' && Number.isFinite(Number(o.ledger?.vendorNetPayout))).slice(0, 5).map(order => (
                              <div key={order._id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
                                  <div>
                                      <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight">{order.orderId}</p>
                                      <p className="text-[9px] text-slate-400 font-bold uppercase">{new Date(order.createdAt).toLocaleDateString()}</p>
                                  </div>
-                                 <p className="text-xs font-black text-slate-900">₹{((order.priceBreakdown?.baseWithArea || 0) + (order.priceBreakdown?.expressSurcharge || 0)).toFixed(0)}</p>
+                                 <p className="text-xs font-black text-slate-900">₹{Number(order.ledger.vendorNetPayout).toFixed(2)}</p>
                              </div>
                         ))}
                     </div>

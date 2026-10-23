@@ -125,7 +125,7 @@ const PricingPreview = () => {
                             <ArrowUpRight size={14} className="text-primary" /> Active Pricing Sheet
                         </h4>
                         <span className="px-3 py-1 bg-slate-100 text-slate-400 rounded-lg text-[9px] font-black uppercase tracking-widest">
-                            {previewData.length} Items Indexed
+                            {previewData.length} Items · One-item Normal orders, including GST and checkout fees
                         </span>
                     </div>
 

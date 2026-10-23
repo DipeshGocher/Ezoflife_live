@@ -73,10 +73,11 @@ const isPromoLive = (promo, now = new Date()) => {
  * @param {string} [input.promoApplied]  Promotion id
  * @param {boolean} [input.useWallet]
  * @param {object} input.customer        User document (for the wallet balance)
+ * @param {object} [options.resolvedArea] Internal admin preview only, separate from checkout request data.
  */
 export const priceCustomerOrder = async ({
     items, pickupLocation, deliveryMode, selectedTier, promoApplied, useWallet, customer
-}) => {
+}, { resolvedArea } = {}) => {
     if (!Array.isArray(items) || items.length === 0) throw new PricingError('Add at least one service to the order');
 
     const lines = items.map((item) => {
@@ -92,7 +93,7 @@ export const priceCustomerOrder = async ({
     const [masters, customs, area, configs, gstConfigs] = await Promise.all([
         MasterService.find({ _id: { $in: ids }, isActive: { $ne: false } }).lean(),
         Service.find({ _id: { $in: ids }, approvalStatus: 'Approved', status: { $in: ['Active', null] } }).lean(),
-        findServiceArea(pickupLocation),
+        resolvedArea === undefined ? findServiceArea(pickupLocation) : Promise.resolve(resolvedArea),
         SystemConfig.find({ key: { $in: ['express_multiplier', 'platform_fee_multiplier', 'normal_logistics_fee', 'advance_percentage'] } }).lean(),
         getGstConfigs()
     ]);
