@@ -3,6 +3,7 @@
 export const hasAdminPermission = (account, permission) => !account.adminRole || account.adminRole === 'Master Admin' || (account.adminPermissions || []).some(value => value.toLowerCase() === permission.toLowerCase());
 export const adminPermissionForRequest = req => {
     const path = req.originalUrl.split('?')[0];
+    if (['GET', 'HEAD'].includes(req.method) && /^\/api\/(categories|geofence\/areas)\/?$/.test(path)) return null;
     if (/^\/api\/admin\/(config|sidebar-counts|audit-events)(\/|$)/.test(path) && ['GET', 'HEAD'].includes(req.method)) return null;
     const rules = [
         [/^\/api\/admin\/(sub-admins|invite-sub-admin|users-clear-all|services-clear-all|orders-clear-all|force-clear-orders|diagnostic)/, 'Settings'],

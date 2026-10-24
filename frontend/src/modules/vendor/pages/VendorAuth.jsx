@@ -1,3 +1,4 @@
+import BrandLogo from '../../../shared/components/BrandLogo.jsx';
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -46,7 +47,7 @@ const VendorAuth = () => {
                     <div className="w-14 h-14 vendor-gradient rounded-[1.2rem] flex items-center justify-center mx-auto mb-3 shadow-2xl shadow-primary/30">
                         <span className="material-symbols-outlined text-white text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>local_laundry_service</span>
                     </div>
-                    <h1 className="font-headline font-black text-[2rem] text-primary leading-none tracking-tight mb-1">SPINZYT</h1>
+                    <BrandLogo className="h-28 w-auto mx-auto mb-1" />
 
                 </motion.div>
                 <div className="absolute bottom-0 w-full h-20 bg-gradient-to-t from-background to-transparent"></div>

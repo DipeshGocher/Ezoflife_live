@@ -1,3 +1,4 @@
+import BrandLogo from '../../../shared/components/BrandLogo.jsx';
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -111,7 +112,7 @@ const AuthPage = () => {
           transition={{ duration: 0.8 }}
           className="z-10 text-center px-8"
         >
-          <h1 className="font-headline font-black text-[2.5rem] md:text-[3.5rem] text-primary leading-none tracking-tight mb-2">SPINZYT</h1>
+          <BrandLogo className="h-36 md:h-40 w-auto mx-auto mb-2" />
 
         </motion.div>
         <div className="absolute bottom-0 w-full h-24 bg-gradient-to-t from-background to-transparent"></div>

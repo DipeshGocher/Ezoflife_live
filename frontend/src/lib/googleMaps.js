@@ -25,20 +25,28 @@ export const GOOGLE_MAPS_LOADER_OPTIONS = {
 };
 
 /**
- * Resolves once the Maps SDK is available on `window`.
+ * True once the SDK is usable, not merely present. `window.google.maps` is
+ * created by the bootstrap before the Geocoder and the `places` library are
+ * attached, so checking the namespace alone races the load and callers hit
+ * "Geocoder is not a constructor".
+ */
+const isMapsReady = () =>
+    typeof window.google?.maps?.Geocoder === 'function' && Boolean(window.google.maps.places);
+
+/**
+ * Resolves once the Maps SDK is ready on `window`.
  *
  * Geocoding and Places helpers can be called from effects that run before the
  * loader has finished, so they wait here rather than throwing on `window.google`
- * being undefined.
+ * being undefined or only partially loaded.
  */
 export const waitForGoogleMaps = (timeoutMs = 10000) => {
-    const ready = () => typeof window.google?.maps?.Geocoder === 'function';
-    if (ready()) return Promise.resolve(window.google.maps);
+    if (isMapsReady()) return Promise.resolve(window.google.maps);
 
     return new Promise((resolve, reject) => {
         const startedAt = Date.now();
         const poll = setInterval(() => {
-            if (ready()) {
+            if (isMapsReady()) {
                 clearInterval(poll);
                 resolve(window.google.maps);
             } else if (Date.now() - startedAt > timeoutMs) {

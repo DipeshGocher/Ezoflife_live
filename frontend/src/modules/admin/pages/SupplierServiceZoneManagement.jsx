@@ -1,4 +1,5 @@
 import MultiSelectFilter from '../components/common/MultiSelectFilter';
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supplierServiceZoneApi, adminApi } from '../../../lib/api';
 import { toast } from 'react-hot-toast';
@@ -9,6 +10,25 @@ import {
 } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 import DataGrid from '../components/tables/DataGrid';
+import FilterField from "../components/common/FilterLabel";
+
+const FEE_MODE_LABELS = {
+    DEFAULT: 'Global Default',
+    PERCENTAGE: '% of Goods',
+    FLAT: 'Flat / Order',
+    WAIVED: 'Waived'
+};
+
+// Human label for a zone's platform fee rule, e.g. "5% (min ₹10)" or "Global Default".
+const zoneFeeLabel = (z) => {
+    const mode = z?.platformFeeMode || 'DEFAULT';
+    if (mode === 'DEFAULT' || mode === 'WAIVED') return FEE_MODE_LABELS[mode];
+    const base = mode === 'FLAT' ? `₹${z.platformFeeValue || 0}/order` : `${z.platformFeeValue || 0}%`;
+    const limits = [];
+    if (Number(z.minSupplierPlatformFee) > 0) limits.push(`min ₹${z.minSupplierPlatformFee}`);
+    if (z.maxSupplierPlatformFee !== null && z.maxSupplierPlatformFee !== undefined && z.maxSupplierPlatformFee !== '') limits.push(`max ₹${z.maxSupplierPlatformFee}`);
+    return limits.length ? `${base} (${limits.join(', ')})` : base;
+};
 
 const SupplierServiceZoneManagement = () => {
     const [zones, setZones] = useState([]);
@@ -22,7 +42,8 @@ const SupplierServiceZoneManagement = () => {
         pincodes: '',
         deliveryCharges: '0',
         minOrderValue: '0',
-        supplierPlatformMultiplier: '1.0',
+        platformFeeMode: 'DEFAULT',
+        platformFeeValue: '0',
         minSupplierPlatformFee: '0',
         maxSupplierPlatformFee: '',
         isActive: true
@@ -78,7 +99,7 @@ const SupplierServiceZoneManagement = () => {
             toast.error('No service zones available to download');
             return;
         }
-        const headers = ['Zone ID', 'Zone Name', 'Supplier ID', 'Pincodes', 'Delivery Charges (INR)', 'Min Order Value (INR)', 'Platform Aggregator (x)', 'Min Platform Fee', 'Max Platform Fee', 'Status'];
+        const headers = ['Zone ID', 'Zone Name', 'Supplier ID', 'Pincodes', 'Delivery Charges (INR)', 'Min Order Value (INR)', 'Platform Fee Mode', 'Platform Fee Value', 'Min Platform Fee', 'Max Platform Fee', 'Status'];
         const rows = zones.map(z => [
             z.zoneId || '—',
             z.zoneName || '',
@@ -86,7 +107,8 @@ const SupplierServiceZoneManagement = () => {
             Array.isArray(z.pincodes) ? z.pincodes.join('; ') : '',
             z.deliveryCharges || 0,
             z.minOrderValue || 0,
-            z.supplierPlatformMultiplier || 1.0,
+            z.platformFeeMode || 'DEFAULT',
+            z.platformFeeValue || 0,
             z.minSupplierPlatformFee || 0,
             z.maxSupplierPlatformFee || '',
             z.isActive ? 'Active' : 'Inactive'
@@ -110,11 +132,11 @@ const SupplierServiceZoneManagement = () => {
 
     // Download a sample template the user can fill and re-upload
     const handleDownloadTemplate = () => {
-        const headers = ['zoneName', 'supplierId', 'pincodes', 'deliveryCharges', 'minOrderValue', 'supplierPlatformMultiplier', 'minSupplierPlatformFee', 'maxSupplierPlatformFee', 'isActive'];
+        const headers = ['zoneName', 'supplierId', 'pincodes', 'deliveryCharges', 'minOrderValue', 'platformFeeMode', 'platformFeeValue', 'minSupplierPlatformFee', 'maxSupplierPlatformFee', 'isActive'];
         const sample = [
-            ['North Zone', 'SUP-001', '452001,452010', '50', '300', '1.0', '10', '50', 'TRUE'],
-            ['South Zone', 'SUP-002', '452005,452015', '40', '250', '1.05', '0', '', 'TRUE'],
-            ['West Zone', 'SUP-001', '452020', '0', '500', '1.1', '5', '100', 'FALSE']
+            ['North Zone', 'SUP-001', '452001,452010', '50', '300', 'DEFAULT', '0', '0', '', 'TRUE'],
+            ['South Zone', 'SUP-002', '452005,452015', '40', '250', 'PERCENTAGE', '3', '10', '200', 'TRUE'],
+            ['West Zone', 'SUP-001', '452020', '0', '500', 'FLAT', '25', '0', '', 'FALSE']
         ];
         const ws = XLSX.utils.aoa_to_sheet([headers, ...sample]);
         const wb = XLSX.utils.book_new();
@@ -153,7 +175,9 @@ const SupplierServiceZoneManagement = () => {
                     const pincodesRaw = row['pincodes'] || row['Pincodes'] || row['pincode'] || '';
                     const deliveryCharges = row['deliveryCharges'] || row['Delivery Charges'] || 0;
                     const minOrderValue = row['minOrderValue'] || row['Min Order Value'] || 0;
-                    const supplierPlatformMultiplier = row['supplierPlatformMultiplier'] || row['Platform Aggregator'] || 1.0;
+                    const feeModeRaw = String(row['platformFeeMode'] || row['Platform Fee Mode'] || 'DEFAULT').trim().toUpperCase();
+                    const platformFeeMode = FEE_MODE_LABELS[feeModeRaw] ? feeModeRaw : 'DEFAULT';
+                    const platformFeeValue = row['platformFeeValue'] || row['Platform Fee Value'] || 0;
                     const minSupplierPlatformFee = row['minSupplierPlatformFee'] || row['Min Platform Fee'] || 0;
                     const maxSupplierPlatformFee = row['maxSupplierPlatformFee'] || row['Max Platform Fee'] || '';
                     const activeRaw = row['isActive'] ?? row['Is Active'] ?? row['status'] ?? row['Status'] ?? 'TRUE';
@@ -170,7 +194,8 @@ const SupplierServiceZoneManagement = () => {
                         pincodes: String(pincodesRaw).split(',').map(p => p.trim()).filter(Boolean),
                         deliveryCharges: Number(deliveryCharges) || 0,
                         minOrderValue: Number(minOrderValue) || 0,
-                        supplierPlatformMultiplier: Number(supplierPlatformMultiplier) || 1.0,
+                        platformFeeMode,
+                        platformFeeValue: Number(platformFeeValue) || 0,
                         minSupplierPlatformFee: Number(minSupplierPlatformFee) || 0,
                         maxSupplierPlatformFee: maxSupplierPlatformFee ? Number(maxSupplierPlatformFee) : null,
                         isActive,
@@ -251,7 +276,8 @@ const SupplierServiceZoneManagement = () => {
                 pincodes: Array.isArray(zone.pincodes) ? zone.pincodes.join(', ') : '',
                 deliveryCharges: String(zone.deliveryCharges || 0),
                 minOrderValue: String(zone.minOrderValue || 0),
-                supplierPlatformMultiplier: String(zone.supplierPlatformMultiplier || 1.0),
+                platformFeeMode: zone.platformFeeMode || 'DEFAULT',
+                platformFeeValue: String(zone.platformFeeValue || 0),
                 minSupplierPlatformFee: String(zone.minSupplierPlatformFee || 0),
                 maxSupplierPlatformFee: zone.maxSupplierPlatformFee !== null && zone.maxSupplierPlatformFee !== undefined ? String(zone.maxSupplierPlatformFee) : '',
                 isActive: zone.isActive !== undefined ? zone.isActive : true
@@ -264,7 +290,8 @@ const SupplierServiceZoneManagement = () => {
                 pincodes: '',
                 deliveryCharges: '0',
                 minOrderValue: '0',
-                supplierPlatformMultiplier: '0',
+                platformFeeMode: 'DEFAULT',
+                platformFeeValue: '0',
                 minSupplierPlatformFee: '0',
                 maxSupplierPlatformFee: '',
                 isActive: true
@@ -282,9 +309,10 @@ const SupplierServiceZoneManagement = () => {
                 pincodes: pincodesArr,
                 deliveryCharges: Number(formData.deliveryCharges) || 0,
                 minOrderValue: Number(formData.minOrderValue) || 0,
-                supplierPlatformMultiplier: Number(formData.supplierPlatformMultiplier) || 0,
-                minSupplierPlatformFee: Number(formData.minSupplierPlatformFee) || 0,
-                maxSupplierPlatformFee: formData.maxSupplierPlatformFee ? Number(formData.maxSupplierPlatformFee) : null
+                platformFeeValue: Number(formData.platformFeeValue) || 0,
+                // Min/max only bound a percentage fee; clear them so they can't clamp a flat fee.
+                minSupplierPlatformFee: formData.platformFeeMode === 'PERCENTAGE' ? Number(formData.minSupplierPlatformFee) || 0 : 0,
+                maxSupplierPlatformFee: formData.platformFeeMode === 'PERCENTAGE' && formData.maxSupplierPlatformFee !== '' ? Number(formData.maxSupplierPlatformFee) : null
             };
             if (editingZone) {
                 await supplierServiceZoneApi.update(editingZone._id, payload);
@@ -301,7 +329,7 @@ const SupplierServiceZoneManagement = () => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this service zone?')) {
+        if (await appDialog.confirm('Are you sure you want to delete this service zone?')) {
             try {
                 await supplierServiceZoneApi.delete(id);
                 toast.success('Service zone deleted');
@@ -346,29 +374,17 @@ const SupplierServiceZoneManagement = () => {
             )
         },
         {
-            header: 'Platform Aggregator',
-            key: 'supplierPlatformMultiplier',
-            render: (val) => (
-                <span className="font-bold text-slate-900 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-sm tabular-nums text-[11px] whitespace-nowrap">
-                    {val ? `${val}` : '0'}
-                </span>
-            )
-        },
-        {
-            header: 'Min Fee',
-            key: 'minSupplierPlatformFee',
-            render: (val) => (
-                <span className="font-bold text-slate-600 tabular-nums text-[11px]">
-                    ₹{val || 0}
-                </span>
-            )
-        },
-        {
-            header: 'Max Fee',
-            key: 'maxSupplierPlatformFee',
-            render: (val) => (
-                <span className="font-bold text-slate-600 tabular-nums text-[11px]">
-                    {val !== null && val !== undefined && val !== '' ? `₹${val}` : 'No Limit'}
+            header: 'Platform Fee',
+            key: 'platformFeeMode',
+            render: (val, row) => (
+                <span className={`font-bold border px-2 py-0.5 rounded-sm tabular-nums text-[11px] whitespace-nowrap ${
+                    (val || 'DEFAULT') === 'DEFAULT'
+                        ? 'text-slate-500 bg-slate-50 border-slate-200'
+                        : val === 'WAIVED'
+                            ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                            : 'text-slate-900 bg-slate-100 border-slate-200'
+                }`}>
+                    {zoneFeeLabel(row)}
                 </span>
             )
         },
@@ -409,8 +425,9 @@ const SupplierServiceZoneManagement = () => {
                     showFilter={false}
                     showSearch={false}
                     actions={
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+                        <div className="flex flex-col sm:flex-row sm:items-end gap-2 w-full">
                             <div className="flex items-center w-full sm:w-auto">
+                                <FilterField label="Zone name" info="Finds supplier service zones whose name contains this text.">
                                 <input
                                     type="text"
                                     placeholder="Search Zone Name"
@@ -418,8 +435,10 @@ const SupplierServiceZoneManagement = () => {
                                     onChange={(e) => handleFilterChange('zoneName', e.target.value)}
                                     className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-full sm:w-48 placeholder-slate-400 uppercase tracking-wider"
                                 />
+                                </FilterField>
                             </div>
                             <div className="flex items-center gap-2 w-full sm:w-auto">
+                                <FilterField label="Status" info="Active = the zone is used to match vendors with this supplier and apply its fees. Inactive = ignored.">
                                 <MultiSelectFilter
                                     value={filters.isActive}
                                     onChange={(e) => handleFilterChange('isActive', e.target.value)}
@@ -429,6 +448,7 @@ const SupplierServiceZoneManagement = () => {
                                     <option value="true">Active</option>
                                     <option value="false">Inactive</option>
                                 </MultiSelectFilter>
+                                </FilterField>
                                 {(filters.zoneName || filters.isActive !== '') && (
                                     <button 
                                         onClick={() => {
@@ -563,19 +583,40 @@ const SupplierServiceZoneManagement = () => {
                                     </div>
 
                                     <div className="space-y-1.5">
-                                        <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest block ml-1">Platform Aggregator (Multiplier)</label>
+                                        <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest block ml-1">Platform Fee (Vendor → Supplier Orders)</label>
+                                        <select
+                                            value={formData.platformFeeMode}
+                                            onChange={e => setFormData({...formData, platformFeeMode: e.target.value})}
+                                            className="w-full px-4 py-3 bg-white border border-slate-200 hover:border-slate-300 rounded-sm text-[11px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all outline-none uppercase tracking-wider cursor-pointer"
+                                        >
+                                            <option value="DEFAULT">Use Global Default</option>
+                                            <option value="PERCENTAGE">Percentage of Goods Value</option>
+                                            <option value="FLAT">Flat Fee per Order</option>
+                                            <option value="WAIVED">Waived (No Fee)</option>
+                                        </select>
+                                    </div>
+
+                                    {(formData.platformFeeMode === 'PERCENTAGE' || formData.platformFeeMode === 'FLAT') && (
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest block ml-1">
+                                            {formData.platformFeeMode === 'PERCENTAGE' ? 'Fee (% of Goods Value)' : 'Fee per Order (₹)'}
+                                        </label>
                                         <input 
                                             required
                                             type="number"
                                             min="0"
+                                            max={formData.platformFeeMode === 'PERCENTAGE' ? 100 : undefined}
                                             step="0.01"
-                                            value={formData.supplierPlatformMultiplier}
-                                            onChange={e => setFormData({...formData, supplierPlatformMultiplier: e.target.value})}
+                                            value={formData.platformFeeValue}
+                                            onChange={e => setFormData({...formData, platformFeeValue: e.target.value})}
                                             className="w-full px-4 py-3 bg-white border border-slate-200 hover:border-slate-300 rounded-sm text-[11px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all outline-none"
-                                            placeholder="e.g. 1.0 or 1.05"
+                                            placeholder={formData.platformFeeMode === 'PERCENTAGE' ? 'e.g. 3' : 'e.g. 25'}
                                         />
                                     </div>
+                                    )}
 
+                                    {formData.platformFeeMode === 'PERCENTAGE' && (
+                                    <>
                                     <div className="space-y-1.5">
                                         <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest block ml-1">Min Platform Fee (₹)</label>
                                         <input 
@@ -599,6 +640,8 @@ const SupplierServiceZoneManagement = () => {
                                             placeholder="Leave empty for No Limit"
                                         />
                                     </div>
+                                    </>
+                                    )}
 
                                     <div className="space-y-1.5">
                                         <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest block ml-1">Status</label>
@@ -664,7 +707,7 @@ const SupplierServiceZoneManagement = () => {
                                 <div className="flex items-center justify-between bg-slate-50 border border-slate-100 rounded-sm px-5 py-4">
                                     <div>
                                         <p className="text-[11px] font-black text-slate-900 uppercase tracking-widest">Download Template</p>
-                                        <p className="text-[9px] text-slate-400 font-bold mt-0.5">Fill columns: zoneName, supplierId, pincodes, deliveryCharges, minOrderValue, supplierPlatformMultiplier, isActive</p>
+                                        <p className="text-[9px] text-slate-400 font-bold mt-0.5">Fill columns: zoneName, supplierId, pincodes, deliveryCharges, minOrderValue, platformFeeMode (DEFAULT / PERCENTAGE / FLAT / WAIVED), platformFeeValue, isActive</p>
                                     </div>
                                     <button
                                         onClick={handleDownloadTemplate}
@@ -729,7 +772,7 @@ const SupplierServiceZoneManagement = () => {
                                                             <th className="px-4 py-2.5 uppercase tracking-widest font-black text-[8px]">Pincodes</th>
                                                             <th className="px-4 py-2.5 uppercase tracking-widest font-black text-[8px]">Delivery Charges</th>
                                                             <th className="px-4 py-2.5 uppercase tracking-widest font-black text-[8px]">Min Order Value</th>
-                                                            <th className="px-4 py-2.5 uppercase tracking-widest font-black text-[8px]">Platform Agg.</th>
+                                                            <th className="px-4 py-2.5 uppercase tracking-widest font-black text-[8px]">Platform Fee</th>
                                                             <th className="px-4 py-2.5 uppercase tracking-widest font-black text-[8px]">Min Fee</th>
                                                             <th className="px-4 py-2.5 uppercase tracking-widest font-black text-[8px]">Max Fee</th>
                                                             <th className="px-4 py-2.5 uppercase tracking-widest font-black text-[8px]">Active</th>
@@ -748,7 +791,7 @@ const SupplierServiceZoneManagement = () => {
                                                                 <td className="px-4 py-2 text-slate-500">{row.pincodes.join(', ') || <span className="text-rose-400">—</span>}</td>
                                                                 <td className="px-4 py-2 text-slate-500">₹{row.deliveryCharges}</td>
                                                                 <td className="px-4 py-2 text-slate-500">₹{row.minOrderValue}</td>
-                                                                <td className="px-4 py-2 text-slate-500">{row.supplierPlatformMultiplier}x</td>
+                                                                <td className="px-4 py-2 text-slate-500">{zoneFeeLabel(row)}</td>
                                                                 <td className="px-4 py-2 text-slate-500">₹{row.minSupplierPlatformFee}</td>
                                                                 <td className="px-4 py-2 text-slate-500">{row.maxSupplierPlatformFee !== null ? `₹${row.maxSupplierPlatformFee}` : 'No Limit'}</td>
                                                                 <td className="px-4 py-2">

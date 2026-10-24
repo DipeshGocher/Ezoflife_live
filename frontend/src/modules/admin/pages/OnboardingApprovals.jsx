@@ -1,6 +1,7 @@
 import { matchesFilter } from '../utils/filters';
 import FilterSearchParams from '../../../lib/FilterSearchParams';
 import MultiSelectFilter from '../components/common/MultiSelectFilter';
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useEffect, useState, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -30,6 +31,7 @@ import {
 import { adminApi } from '../../../lib/api';
 import * as XLSX from 'xlsx';
 import PageHeader from '../components/common/PageHeader';
+import FilterField from "../components/common/FilterLabel";
 
 export default function OnboardingApprovals() {
   const location = useLocation();
@@ -142,7 +144,7 @@ export default function OnboardingApprovals() {
       if (page > totalPages) setPage(totalPages);
     } catch (err) {
       console.error('Action Error:', err);
-      alert('Action failed. Try again.');
+      await appDialog.alert('Action failed. Try again.');
     } finally {
       setIsProcessing(null);
     }
@@ -241,7 +243,7 @@ export default function OnboardingApprovals() {
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
 
-  const handleExportFile = (format) => {
+  const handleExportFile = async (format) => {
     console.log(`Exporting ${format} for onboarding approvals (${activeTab})`);
     try {
       const headers = [
@@ -285,10 +287,10 @@ export default function OnboardingApprovals() {
       } else if (format === 'csv') {
         XLSX.writeFile(wb, `${activeTab}_Onboarding_Approvals_${new Date().getTime()}.csv`, { bookType: 'csv' });
       }
-      alert(`${format.toUpperCase()} export downloaded successfully`);
+      await appDialog.alert(`${format.toUpperCase()} export downloaded successfully`);
     } catch (err) {
       console.error(`Export ${format} error:`, err);
-      alert(`Error exporting to ${format}`);
+      await appDialog.alert(`Error exporting to ${format}`);
     }
   };
 
@@ -344,9 +346,10 @@ export default function OnboardingApprovals() {
         {/* Table Container */}
         <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
             {/* Grid Header Strip with Filters on the Right */}
-            <div className="px-8 py-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between bg-white gap-4">
+            <div className="px-8 py-5 border-b border-slate-100 flex flex-col md:flex-row md:items-end justify-between bg-white gap-4">
                 {/* Date & Text Search Filters on the Left */}
                 <div className="flex flex-wrap items-center gap-2">
+                  <FilterField label="Search" info="Finds applicants whose name, phone number, address or shop name contains this text.">
                   <div className="relative">
                     <input 
                       type="text"
@@ -362,10 +365,12 @@ export default function OnboardingApprovals() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                   </div>
+                  </FilterField>
                 </div>
 
                 {/* Dropdown Filters on the Right */}
-                <div className="flex flex-wrap items-center gap-2 justify-end">
+                <div className="flex flex-wrap items-end gap-2 justify-end">
+                    <FilterField label="Applicant" info="Shows only the application from this person.">
                     <MultiSelectFilter
                         value={selectedVendor}
                         onChange={(e) => setSelectedVendor(e.target.value)}
@@ -376,6 +381,8 @@ export default function OnboardingApprovals() {
                             <option key={name} value={name}>{name}</option>
                         ))}
                     </MultiSelectFilter>
+                    </FilterField>
+                    <FilterField label="Business" info="Shows only the application for this business / shop name.">
                     <MultiSelectFilter
                         value={selectedBusiness}
                         onChange={(e) => setSelectedBusiness(e.target.value)}
@@ -386,6 +393,8 @@ export default function OnboardingApprovals() {
                             <option key={name} value={name}>{name}</option>
                         ))}
                     </MultiSelectFilter>
+                    </FilterField>
+                    <FilterField label="Phone number" info="Shows only the application with this phone number.">
                     <MultiSelectFilter
                         value={selectedPhone}
                         onChange={(e) => setSelectedPhone(e.target.value)}
@@ -396,6 +405,8 @@ export default function OnboardingApprovals() {
                             <option key={phone} value={phone}>{phone}</option>
                         ))}
                     </MultiSelectFilter>
+                    </FilterField>
+                    <FilterField label="Verification" info="Pending = waiting for your review. Approved = accepted. Rejected = declined or sent back for changes.">
                     <MultiSelectFilter
                         value={selectedStatus}
                         onChange={(e) => {
@@ -409,6 +420,7 @@ export default function OnboardingApprovals() {
                         <option value="approved">Approved</option>
                         <option value="rejected">Rejected</option>
                     </MultiSelectFilter>
+                    </FilterField>
                     {(selectedVendor || selectedBusiness || selectedPhone || searchQuery || selectedStatus) && (
                         <button
                             onClick={() => {

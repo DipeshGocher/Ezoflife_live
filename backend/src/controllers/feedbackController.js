@@ -1,26 +1,62 @@
 import { filterCondition, dateFilter } from '../utils/queryFilters.js';
+import mongoose from 'mongoose';
 import Feedback from '../models/Feedback.js';
+import Order from '../models/Order.js';
 import User from '../models/User.js';
 import { sendError } from '../utils/errorResponse.js';
 
-// Submit new feedback
+const CATEGORIES = ['Service', 'App Experience', 'Rider', 'Pricing', 'Other'];
+
+/** Map what the app screens send onto the stored categories. */
+const normalizeCategory = (category, hasOrder) => {
+    if (CATEGORIES.includes(category)) return category;
+    const c = String(category || '').toLowerCase();
+    if (c === 'order' || c === 'service') return 'Service';
+    // General "tell us about your experience" feedback
+    if (c === 'detailed feedback' || c === 'app' || c === 'app experience') return hasOrder ? 'Service' : 'App Experience';
+    return hasOrder ? 'Service' : 'Other';
+};
+
+// Submit new feedback (customer). One review per order: submitting again updates it.
 export const submitFeedback = async (req, res) => {
     try {
-        const { userId, orderId, vendorId, rating, comment, category } = req.body;
-        console.log('📝 Feedback Submission Attempt:', { userId, orderId, vendorId, rating, category });
-        
-        // Basic validation for ObjectIds to prevent 500 errors
-        const isValidId = (id) => id && id.length === 24;
+        const { orderId, rating, comment, category } = req.body;
+        // Identity comes from the login token, never from the request body.
+        const userId = req.user.id;
+
+        const stars = Number(rating);
+        if (!Number.isInteger(stars) || stars < 1 || stars > 5) {
+            return res.status(400).json({ message: 'rating must be a whole number from 1 to 5' });
+        }
 
         const feedbackData = {
             user: userId,
-            rating,
-            comment,
-            category
+            rating: stars,
+            comment: typeof comment === 'string' ? comment.trim().slice(0, 2000) : '',
+            category: normalizeCategory(category, Boolean(orderId))
         };
 
-        if (isValidId(orderId)) feedbackData.order = orderId;
-        if (isValidId(vendorId)) feedbackData.vendor = vendorId;
+        // Order feedback: the order must be this customer's, and the vendor being
+        // rated is the one who handled it (not whatever vendorId the client sends).
+        if (orderId) {
+            if (!mongoose.isValidObjectId(orderId)) {
+                return res.status(400).json({ message: 'Invalid order' });
+            }
+            const order = await Order.findById(orderId).select('customer vendor').lean();
+            if (!order) return res.status(404).json({ message: 'Order not found' });
+            if (String(order.customer) !== String(userId)) {
+                return res.status(403).json({ message: 'You can only review your own orders' });
+            }
+            feedbackData.order = order._id;
+            if (order.vendor) feedbackData.vendor = order.vendor;
+
+            const existing = await Feedback.findOne({ user: userId, order: order._id });
+            if (existing) {
+                Object.assign(existing, feedbackData);
+                await existing.save();
+                return res.status(200).json({ message: 'Feedback updated', feedback: existing });
+            }
+        }
 
         const newFeedback = new Feedback(feedbackData);
         await newFeedback.save();

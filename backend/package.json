@@ -7,7 +7,7 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "seed-services": "node scratch/seed_vendor_services.js",
-    "test": "npm run test:unit && npm run test:api",
+    "test": "npm run test:unit && npm run test:api && npm run verify:gst",
     "test:unit": "node --test --test-reporter=spec tests/unit/*.test.js",
     "test:api": "node --test --test-reporter=spec --test-timeout=120000 --test-concurrency=1 tests/api/*.test.js",
     "test:watch": "node --test --watch tests/unit/*.test.js",
@@ -15,7 +15,10 @@
     "test:load:write": "node tests/load/loadTest.js --scenario write",
     "test:volume": "node tests/load/loadTest.js --scenario volume --orders 1500",
     "test:perf": "node tests/load/loadTest.js --scenario all",
-    "test:stress": "node tests/load/loadTest.js --scenario stress"
+    "test:stress": "node tests/load/loadTest.js --scenario stress",
+    "seed:gst-users": "node scripts/seedGstVerificationUsers.js",
+    "verify:gst": "node --test --test-reporter=spec --test-timeout=120000 --test-concurrency=1 tests/verification/gstBusinessRules.test.js tests/verification/gstDeepAudit.test.js",
+    "verify:gst:display": "node --test --test-reporter=spec tests/verification/gstInvoiceDisplay.test.js"
   },
   "keywords": [],
   "author": "",
@@ -44,6 +47,7 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.2",
+    "socket.io-client": "^4.8.3",
     "supertest": "^7.2.2"
   }
 }

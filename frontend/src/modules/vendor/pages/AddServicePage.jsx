@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -34,7 +35,7 @@ const AddServicePage = () => {
 
     const handleAdd = async () => {
         if (!serviceName || !price) {
-            alert('Please fill all fields');
+            await appDialog.alert('Please fill all fields');
             return;
         }
 
@@ -53,11 +54,11 @@ const AddServicePage = () => {
                 tags: tags.split(',').map(t => t.trim()).filter(Boolean)
             });
 
-            alert('Service created and submitted to Admin for approval!');
+            await appDialog.alert('Service created and submitted to Admin for approval!');
             navigate('/vendor/services');
         } catch (error) {
             console.error('Add Service Error:', error);
-            alert('Failed to submit service');
+            await appDialog.alert('Failed to submit service');
         } finally {
             setLoading(false);
         }

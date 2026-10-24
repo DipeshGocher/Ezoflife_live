@@ -1,9 +1,12 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
+import BrandLogo from '../../../shared/components/BrandLogo.jsx';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { b2bOrderApi, authApi } from '../../../lib/api';
 import toast from 'react-hot-toast';
 import useNotificationStore from '../../../shared/stores/notificationStore';
+import SupplierOrderDetailsModal from '../components/SupplierOrderDetailsModal';
 
 const SupplierDashboard = () => {
     const navigate = useNavigate();
@@ -348,7 +351,7 @@ const SupplierDashboard = () => {
             {/* Header */}
             <header className="px-6 pt-2 flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
-                    <h1 className="font-headline font-black text-xl text-primary tracking-tighter leading-none uppercase">SPINZYT</h1>
+                    <BrandLogo className="h-10 w-auto" />
                     <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1 animate-pulse"></div>
                 </div>
 
@@ -736,9 +739,9 @@ const SupplierDashboard = () => {
                                             {/* Actions for Completed Tab */}
                                             <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-slate-100">
                                                 <button 
-                                                    onClick={(e) => {
+                                                    onClick={async (e) => {
                                                         e.stopPropagation();
-                                                        alert('Invoice will be downloaded shortly.');
+                                                        await appDialog.alert('Invoice will be downloaded shortly.');
                                                     }}
                                                     className="w-full py-1.5 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"
                                                 >
@@ -789,60 +792,19 @@ const SupplierDashboard = () => {
                 </AnimatePresence>
             </main>
 
-            {/* Product Details Modal */}
-            <AnimatePresence>
-                {showModal && selectedOrder && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                        <motion.div 
-                            initial={{ opacity: 0 }} 
-                            animate={{ opacity: 1 }} 
-                            exit={{ opacity: 0 }}
-                            onClick={() => setShowModal(false)}
-                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
-                        />
-                        <motion.div 
-                            initial={{ scale: 0.95, opacity: 0, y: 20 }}
-                            animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                            className="bg-white w-full max-w-md rounded-[2.5rem] p-6 shadow-2xl relative z-10 flex flex-col gap-5 text-left border border-slate-100"
-                        >
-                            {/* Modal Title */}
-                            <div>
-                                <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 leading-none">
-                                    PRODUCT LIST
-                                </h3>
-                            </div>
-
-                            {/* Product List */}
-                            <div className="space-y-3 overflow-y-auto max-h-[50vh] pr-1">
-                                {selectedOrder.items?.map((item, idx) => (
-                                    <div 
-                                        key={idx} 
-                                        className="bg-[#F8FAFC] p-4.5 rounded-[1.5rem] border border-slate-100 flex items-center justify-between gap-4"
-                                    >
-                                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                                            {item.name}
-                                        </span>
-                                        <span className="bg-black text-white px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shrink-0 shadow-sm">
-                                            QTY: {item.quantity || 1}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Close Button */}
-                            <div className="flex justify-end mt-2">
-                                <button 
-                                    onClick={() => setShowModal(false)}
-                                    className="px-6 py-2.5 bg-black text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-neutral-800 transition-all shadow-md active:scale-95"
-                                >
-                                    CLOSE
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+            {/* Order Details Modal */}
+            <SupplierOrderDetailsModal
+                order={showModal ? selectedOrder : null}
+                statusLabel={selectedOrder && getStatusLabel(selectedOrder.status)}
+                onClose={() => setShowModal(false)}
+                accepting={updatingOrderId === selectedOrder?._id}
+                onAccept={selectedOrder && ['SUBMITTED', 'Confirmed', 'Open', 'Pending'].includes(selectedOrder.status)
+                    ? async () => {
+                        await handleStatusUpdate(selectedOrder._id, 'ACCEPTED');
+                        setShowModal(false);
+                    }
+                    : null}
+            />
 
             {/* Delivery Date Change Modal */}
             <AnimatePresence>

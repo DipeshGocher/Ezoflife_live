@@ -14,4 +14,7 @@ router.get('/:ticketId', verifyUser, getTicketDetails);
 router.put('/:ticketId', verifyUser, updateTicket);
 router.delete('/:ticketId', verifyAdmin, deleteTicket);
 router.post('/:ticketId/message', verifyUser, addMessage);
+router.post('/', verifyUser, createTicket);
+router.get('/', verifyAdmin, getAllTickets);
+router.post('/:ticketId/messages', verifyUser, addMessage);
 export default router;

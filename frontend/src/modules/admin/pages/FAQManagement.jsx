@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect } from 'react';
 import { faqApi } from '../../../lib/api';
 import PageHeader from '../components/common/PageHeader';
@@ -53,7 +54,7 @@ const FAQManagement = () => {
     const fetchFaqs = async () => {
         try {
             setLoading(true);
-            const data = await faqApi.getAll();
+            const data = await faqApi.getAllAdmin();
             setFaqs(data);
         } catch (error) {
             console.error('Fetch FAQs Error:', error);
@@ -105,7 +106,7 @@ const FAQManagement = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Delete this FAQ?')) return;
+        if (!await appDialog.confirm('Delete this FAQ?')) return;
         try {
             await faqApi.delete(id);
             fetchFaqs();

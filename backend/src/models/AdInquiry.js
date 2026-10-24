@@ -1,6 +1,13 @@
 import mongoose from 'mongoose';
 
 const adInquirySchema = new mongoose.Schema({
+    // Signed-in user who submitted it (null for anonymous submissions)
+    submittedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+        index: true
+    },
     brandName: {
         type: String,
         required: true

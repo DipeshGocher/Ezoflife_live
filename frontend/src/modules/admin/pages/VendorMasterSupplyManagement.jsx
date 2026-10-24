@@ -1,4 +1,5 @@
 import MultiSelectFilter from '../components/common/MultiSelectFilter';
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { vendorMasterSupplyApi, vendorSupplyCategoryApi, mediaApi } from '../../../lib/api';
 import { toast } from 'react-hot-toast';
@@ -9,6 +10,7 @@ import {
 } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 import DataGrid from '../components/tables/DataGrid';
+import FilterField from "../components/common/FilterLabel";
 
 const VendorMasterSupplyManagement = () => {
     const [supplies, setSupplies] = useState([]);
@@ -104,7 +106,7 @@ const VendorMasterSupplyManagement = () => {
             toast.error('No master supplies available to download');
             return;
         }
-        const headers = ['Zone', 'SKU ID', 'Category ID', 'HSN Code', 'GST', 'Brand', 'Material Name', 'Quantity', 'Wholesale Rate', 'Bulk Discount (%)', 'Bulk Threshold', 'Active', 'Delivery Frequency', 'MOV Free Delivery', 'Supplier ID', 'Supplier Facility Name', 'Platform Aggregator', 'Platform Fee Calc.'];
+        const headers = ['Zone', 'SKU ID', 'Category ID', 'HSN Code', 'GST', 'Brand', 'Material Name', 'Quantity', 'Wholesale Rate', 'Bulk Discount (%)', 'Bulk Threshold', 'Active', 'Delivery Frequency', 'MOV Free Delivery', 'Supplier ID', 'Supplier Facility Name', 'Platform Fee Rule', 'Platform Fee / Unit (est.)'];
         const rows = supplies.map(s => [
             s.zoneName || '—',
             s.skuId || '—',
@@ -122,8 +124,10 @@ const VendorMasterSupplyManagement = () => {
             s.movFreeDelivery || 0,
             s.supplierId || '-',
             s.supplierFacilityName || '-',
-            s.supplierPlatformMultiplier || 1.0,
-            ((s.wholesaleRate || 0) + ((s.wholesaleRate || 0) * (s.gst || 18) / 100)) * (s.supplierPlatformMultiplier || 1.0)
+            s.platformFeeLabel || 'No fee',
+            s.platformFeeRule?.type === 'PERCENTAGE'
+                ? ((s.wholesaleRate || 0) * (s.platformFeeRule.value || 0) / 100).toFixed(2)
+                : ''
         ]);
 
         const csvRows = [
@@ -402,7 +406,7 @@ const VendorMasterSupplyManagement = () => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this supply item?')) {
+        if (await appDialog.confirm('Are you sure you want to delete this supply item?')) {
             try {
                 await vendorMasterSupplyApi.delete(id);
                 toast.success('Supply item deleted');
@@ -597,31 +601,34 @@ const VendorMasterSupplyManagement = () => {
             )
         },
         {
-            header: 'Platform Aggregator',
-            key: 'supplierPlatformMultiplier',
+            header: 'Platform Fee',
+            key: 'platformFeeLabel',
             render: (val) => (
-                <span className="font-bold text-slate-900 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-sm tabular-nums text-[10px] whitespace-nowrap">
-                    {val ? `${val}x` : '1.0x'}
+                <span className="font-bold text-slate-900 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-sm text-[10px] whitespace-nowrap">
+                    {val || 'No fee'}
                 </span>
             )
         },
         {
-            header: 'Platform Fee Calc.',
+            header: 'Fee / Unit (est.)',
             key: 'calculatedFee',
             render: (val, row) => {
-                const price = parseFloat(row.wholesaleRate) || 0;
-                const gstPercent = parseFloat(row.gst) || 18;
-                const gstAmt = price * (gstPercent / 100);
-                const total = price + gstAmt;
-                const multiplier = parseFloat(row.supplierPlatformMultiplier) || 1.0;
-                const finalAmt = total * multiplier;
+                // Charged once per supplier order on goods value (excl. GST); min/max apply per order.
+                const rule = row.platformFeeRule;
+                if (!rule || rule.type === 'NONE') {
+                    return <span className="text-slate-400 font-bold text-[10px]">—</span>;
+                }
+                if (rule.type === 'FLAT') {
+                    return <span className="font-black text-slate-900 tabular-nums text-[11px]">₹{rule.value} / order</span>;
+                }
+                const rate = parseFloat(row.wholesaleRate) || 0;
                 return (
                     <div className="flex flex-col">
                         <span className="font-black text-slate-900 tabular-nums text-[11px]">
-                            ₹{finalAmt.toFixed(2)}
+                            ₹{(rate * (rule.value || 0) / 100).toFixed(2)}
                         </span>
                         <span className="text-slate-400 font-bold text-[8px]">
-                            (₹{total.toFixed(2)} × {multiplier}x)
+                            (₹{rate.toFixed(2)} × {rule.value}%)
                         </span>
                     </div>
                 );
@@ -657,8 +664,9 @@ const VendorMasterSupplyManagement = () => {
                     showFilter={false}
                     showSearch={false}
                     actions={
-                        <div className="flex flex-col md:flex-row gap-2 w-full ml-auto flex-wrap justify-end">
+                        <div className="flex flex-col md:flex-row md:items-end gap-2 w-full ml-auto flex-wrap justify-end">
                             <div className="flex items-center w-full md:w-auto">
+                                <FilterField label="Category" info="Shows only supply products in this category (main category — sub category).">
                                 <MultiSelectFilter
                                     value={filters.categoryId}
                                     onChange={(e) => handleFilterChange('categoryId', e.target.value)}
@@ -671,8 +679,10 @@ const VendorMasterSupplyManagement = () => {
                                         </option>
                                     ))}
                                 </MultiSelectFilter>
+                                </FilterField>
                             </div>
                             <div className="flex items-center w-full md:w-auto">
+                                <FilterField label="Supplier" info="Shows only products listed by this supplier (supplier code, e.g. SUP-1234).">
                                 <MultiSelectFilter
                                     value={filters.supplierId}
                                     onChange={(e) => handleFilterChange('supplierId', e.target.value)}
@@ -683,8 +693,10 @@ const VendorMasterSupplyManagement = () => {
                                         <option key={sup} value={sup}>{sup}</option>
                                     ))}
                                 </MultiSelectFilter>
+                                </FilterField>
                             </div>
                             <div className="flex items-center w-full md:w-auto">
+                                <FilterField label="Delivery frequency" info="Shows only products the supplier delivers on this schedule (e.g. Daily, Weekly, On-Demand).">
                                 <MultiSelectFilter
                                     value={filters.deliveryFrequency}
                                     onChange={(e) => handleFilterChange('deliveryFrequency', e.target.value)}
@@ -695,8 +707,10 @@ const VendorMasterSupplyManagement = () => {
                                         <option key={freq} value={freq}>{freq}</option>
                                     ))}
                                 </MultiSelectFilter>
+                                </FilterField>
                             </div>
                             <div className="flex items-center w-full md:w-auto">
+                                <FilterField label="Wholesale rate" info="Shows only products whose wholesale price per unit (before GST) is in this range.">
                                 <MultiSelectFilter
                                     value={filters.wholesaleRate}
                                     onChange={(e) => handleFilterChange('wholesaleRate', e.target.value)}
@@ -708,8 +722,10 @@ const VendorMasterSupplyManagement = () => {
                                     <option value="1000-5000">₹1000 - ₹5000</option>
                                     <option value="5000+">₹5000+</option>
                                 </MultiSelectFilter>
+                                </FilterField>
                             </div>
                             <div className="flex items-center gap-2 w-full md:w-auto">
+                                <FilterField label="Status" info="Active = visible to vendors for ordering. Inactive = hidden from the vendor catalog.">
                                 <MultiSelectFilter
                                     value={filters.isActive}
                                     onChange={(e) => handleFilterChange('isActive', e.target.value)}
@@ -719,6 +735,7 @@ const VendorMasterSupplyManagement = () => {
                                     <option value="y">Active (Y)</option>
                                     <option value="n">Inactive (N)</option>
                                 </MultiSelectFilter>
+                                </FilterField>
                                 {(filters.categoryId || filters.isActive !== '' || filters.supplierId !== '' || filters.deliveryFrequency !== '' || filters.wholesaleRate !== '') && (
                                     <button 
                                         onClick={() => {

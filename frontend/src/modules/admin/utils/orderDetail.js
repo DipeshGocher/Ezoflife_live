@@ -50,6 +50,6 @@ export function orderInvoiceView(raw) {
         priceBreakdown: raw.priceBreakdown || {},
         user: { ...(entity(raw.customer) || raw.customerSnapshot || {}), name: detail.user.name, displayName: detail.user.name },
         vendor: { ...(entity(raw.vendor) || raw.vendorSnapshot || {}), id: detail.vendor.id || 'Not recorded' },
-        items: detail.items.map(item => ({ ...item, quantity: undefined, unitPrice: item.price, price: item.lineTotal ?? 0 }))
+        items: raw.gstSnapshot || raw.invoices?.customerInvoice ? (raw.items || []) : detail.items.map(item => ({ ...item, quantity: undefined, unitPrice: item.price, price: item.lineTotal ?? 0 }))
     };
 }

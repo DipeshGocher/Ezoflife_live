@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 import DataGrid from '../components/tables/DataGrid';
+import FilterField from "../components/common/FilterLabel";
 
 const CategoryManagement = () => {
     const [categories, setCategories] = useState([]);
@@ -350,7 +351,8 @@ const CategoryManagement = () => {
                     showFilter={false}
                     showSearch={false}
                     actions={
-                        <div className="flex items-center flex-wrap gap-2 w-full">
+                        <div className="flex items-end flex-wrap gap-2 w-full">
+                            <FilterField label="Main category" info="Shows only service categories under this main category.">
                             <MultiSelectFilter
                                 value={filters.mainCategory}
                                 onChange={(e) => handleFilterChange('mainCategory', e.target.value)}
@@ -361,6 +363,8 @@ const CategoryManagement = () => {
                                     <option key={cat} value={cat}>{cat}</option>
                                 ))}
                             </MultiSelectFilter>
+                            </FilterField>
+                            <FilterField label="Sub category" info="Shows only this sub category.">
                             <MultiSelectFilter
                                 value={filters.subCategory}
                                 onChange={(e) => handleFilterChange('subCategory', e.target.value)}
@@ -371,6 +375,8 @@ const CategoryManagement = () => {
                                     <option key={sub} value={sub}>{sub}</option>
                                 ))}
                             </MultiSelectFilter>
+                            </FilterField>
+                            <FilterField label="Status" info="Active = shown to customers in the app. Inactive = hidden from customers.">
                             <MultiSelectFilter
                                 value={filters.isActive}
                                 onChange={(e) => handleFilterChange('isActive', e.target.value)}
@@ -380,6 +386,7 @@ const CategoryManagement = () => {
                                 <option value="true">Active</option>
                                 <option value="false">Inactive</option>
                             </MultiSelectFilter>
+                            </FilterField>
 
                             <button 
                                 onClick={handleDownload}

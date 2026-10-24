@@ -1,3 +1,4 @@
+import BrandLogo from '../../../shared/components/BrandLogo.jsx';
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -32,9 +33,7 @@ const SupplierHeader = () => {
             onClick={() => navigate('/supplier/dashboard')}
             className="flex items-center gap-2 cursor-pointer group"
           >
-            <h1 className="font-headline font-black text-xl text-slate-900 tracking-tight leading-none uppercase group-hover:text-primary transition-colors">
-              SPINZYT
-            </h1>
+            <BrandLogo className="h-10 w-auto" />
             <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold tracking-wider uppercase border border-slate-200/80">
               Supplier Hub
             </span>

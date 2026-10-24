@@ -3,7 +3,8 @@ import FAQ from '../models/FAQ.js';
 // Get all FAQs
 export const getAllFAQs = async (req, res) => {
     try {
-        const faqs = await FAQ.find().sort({ order: 1, createdAt: -1 });
+        // Public: hidden FAQs are never sent to the apps
+        const faqs = await FAQ.find({ isActive: { $ne: false } }).sort({ order: 1, createdAt: -1 });
         res.status(200).json(faqs);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching FAQs', error: error.message });
@@ -11,6 +12,16 @@ export const getAllFAQs = async (req, res) => {
 };
 
 // Create a new FAQ
+// Admin: every FAQ, including hidden ones
+export const getAllFAQsAdmin = async (req, res) => {
+    try {
+        const faqs = await FAQ.find().sort({ order: 1, createdAt: -1 });
+        res.status(200).json(faqs);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 export const createFAQ = async (req, res) => {
     try {
         const { question, answer, category, order, targetRole, youtubeUrl } = req.body;

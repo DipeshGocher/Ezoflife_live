@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import mongoose from 'mongoose';
 import Order from '../models/Order.js';
+import { finalizeDeliveredOrder } from '../services/invoiceFinalizationService.js';
 import { getLogisticsProvider, DeliveryStatus } from '../services/logistics/index.js';
 
 /**
@@ -110,6 +111,9 @@ export const handleLogisticsWebhook = async (req, res) => {
         const mappedStatus = ORDER_STATUS_FOR[leg]?.[parsed.status];
         if (mappedStatus) update.status = mappedStatus;
 
+        if (mappedStatus === 'DELIVERED') {
+            await finalizeDeliveredOrder(order._id, { set: update });
+        } else {
         // Record the actual transition atomically. Repeated provider callbacks
         // must not move the delivery timestamp and postpone unpaid alerts.
         const pipeline = [];
@@ -121,6 +125,8 @@ export const handleLogisticsWebhook = async (req, res) => {
         pipeline.push({ $set: Object.fromEntries(Object.entries(update).map(([key, value]) => [key, { $literal: value }])) });
         await Order.updateOne({ _id: order._id }, pipeline);
 
+        }
+
         // ── notify listeners ──
         try {
             const { getEventPublisher } = await import('../socket.js');
@@ -129,7 +135,9 @@ export const handleLogisticsWebhook = async (req, res) => {
                 const fresh = await Order.findById(order._id)
                     .populate('customer', 'displayName phone address')
                     .populate('vendor', 'shopDetails address location');
-                io.to(`order_${order._id}`).emit('order_status_update', fresh);
+                const safeOrder = fresh.toObject();
+                if (safeOrder.invoices) safeOrder.invoices = { customerInvoice: safeOrder.invoices.customerInvoice };
+                io.to(`order_${order._id}`).emit('order_status_update', safeOrder);
             }
         } catch (socketErr) {
             console.error('[WEBHOOK] socket emit failed:', socketErr.message);

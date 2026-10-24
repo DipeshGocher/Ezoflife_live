@@ -1,3 +1,5 @@
+> **Latest main merge:** See [main merge verification](MAIN_MERGE_VERIFICATION.md) for the combined local/GitHub source, updated test counts and remaining release limitations. Results below describe the earlier pre-merge verification and are retained as historical evidence. Production status remains HOLD.
+
 # Application production readiness verification
 
 Verified on 24 October 2026, India time.

@@ -137,7 +137,7 @@ test('supplier-code collisions and outside job applications cannot widen report 
     await MasterService.create([{ itemName: 'Active shared service', categoryId, basePrice: 10, isActive: true }, { itemName: 'Inactive shared service', categoryId, basePrice: 10, isActive: false }]);
     const res = await call(analyticsPath); assert.equal(res.status, 200);
     assert.equal(res.body.data.catalogB2B.totalProducts, 2); assert.equal(res.body.data.catalogB2B.inactiveProducts, 1);
-    assert.equal(res.body.data.catalogB2C.totalServices, 1); assert.equal(res.body.data.catalogB2C.inactiveServices, 1);
+    assert.equal(res.body.data.catalogB2C.totalServices, 2); assert.equal(res.body.data.catalogB2C.inactiveServices, 1);
     assert.ok(!('atsLaborExchange' in res.body.data));
     assert.ok(!('talentRequisitionIndex' in res.body.data.vendorPerformance));
     const unrestricted = await call(analyticsPath, admin);

@@ -1,7 +1,15 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { adApi, mediaApi, UPLOADS_URL } from '../../../lib/api';
+import { adApi, UPLOADS_URL } from '../../../lib/api';
 import toast from 'react-hot-toast';
+
+const AUDIENCE_LABELS = {
+    all: 'All apps',
+    customer: 'Customer app',
+    vendor: 'Vendor app',
+    supplier: 'Supplier app'
+};
 
 const AdminAdvertisementPage = () => {
     const [ads, setAds] = useState([]);
@@ -23,6 +31,9 @@ const AdminAdvertisementPage = () => {
     const [type, setType] = useState('image');
     const [category, setCategory] = useState('splash'); // 'splash' or 'home_banner'
     const [notes, setNotes] = useState('');
+    // Splash settings: how long it shows and which app shows it
+    const [durationSeconds, setDurationSeconds] = useState('3');
+    const [audience, setAudience] = useState('all');
     const [file, setFile] = useState(null);
     const [preview, setPreview] = useState(null);
 
@@ -32,7 +43,7 @@ const AdminAdvertisementPage = () => {
             const data = await adApi.getAll();
             setAds(data);
         } catch (error) {
-            toast.error('Failed to fetch advertisements');
+            toast.error(error.message || 'Failed to fetch advertisements');
         } finally {
             setLoading(false);
         }
@@ -80,11 +91,17 @@ const AdminAdvertisementPage = () => {
         formData.append('category', category);
         formData.append('media', file);
         formData.append('notes', notes);
+        if (category === 'splash') {
+            formData.append('durationSeconds', durationSeconds);
+            formData.append('audience', audience);
+        }
 
         try {
             setUploading(true);
             await adApi.create(formData);
-            toast.success('Advertisement published successfully!');
+            toast.success(category === 'splash'
+                ? `Splash is live on ${AUDIENCE_LABELS[audience].toLowerCase()} for ${durationSeconds}s`
+                : 'Advertisement published successfully!');
             
             // Reset form
             setTitle('');
@@ -96,7 +113,7 @@ const AdminAdvertisementPage = () => {
             
             fetchAds();
         } catch (error) {
-            toast.error('Upload failed');
+            toast.error(error.message || 'Upload failed');
         } finally {
             setUploading(false);
         }
@@ -104,22 +121,35 @@ const AdminAdvertisementPage = () => {
 
     const handleToggle = async (id) => {
         try {
-            await adApi.toggleStatus(id);
-            toast.success('Status updated');
+            const updated = await adApi.toggleStatus(id);
+            toast.success(updated.category === 'splash' && updated.isActive
+                ? 'Splash is live. Any other live splash for the same app was paused.'
+                : 'Status updated');
             fetchAds();
         } catch (error) {
-            toast.error('Update failed');
+            toast.error(error.message || 'Update failed');
+        }
+    };
+
+    const handleSplashSettings = async (ad, changes) => {
+        try {
+            await adApi.update(ad._id, changes);
+            toast.success('Splash settings saved');
+            fetchAds();
+        } catch (error) {
+            toast.error(error.message || 'Update failed');
+            fetchAds();
         }
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this ad?')) return;
+        if (!await appDialog.confirm('Are you sure you want to delete this ad?')) return;
         try {
             await adApi.delete(id);
             toast.success('Ad deleted');
             fetchAds();
         } catch (error) {
-            toast.error('Delete failed');
+            toast.error(error.message || 'Delete failed');
         }
     };
 
@@ -192,6 +222,42 @@ const AdminAdvertisementPage = () => {
                             </div>
                         </div>
 
+                        {category === 'splash' && (
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label htmlFor="splash-duration" className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2 px-1">Show for (seconds)</label>
+                                    <input
+                                        id="splash-duration"
+                                        type="number"
+                                        min="1"
+                                        max="30"
+                                        step="1"
+                                        required
+                                        value={durationSeconds}
+                                        onChange={(e) => setDurationSeconds(e.target.value)}
+                                        className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-primary/20 transition-all"
+                                    />
+                                </div>
+                                <div>
+                                    <label htmlFor="splash-audience" className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2 px-1">Show in</label>
+                                    <select
+                                        id="splash-audience"
+                                        value={audience}
+                                        onChange={(e) => setAudience(e.target.value)}
+                                        className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
+                                    >
+                                        {Object.entries(AUDIENCE_LABELS).map(([value, label]) => (
+                                            <option key={value} value={value}>{label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <p className="col-span-2 text-[10px] font-semibold text-slate-400 leading-relaxed">
+                                    Shown full-screen when the app is opened, before the login page, once per session
+                                    (again after the app is closed and reopened), with the title and notes as a caption.
+                                    Publishing replaces the current live splash for these apps.
+                                </p>
+                            </div>
+                        )}
                         <div>
                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2 px-1">Media Type</label>
                             <div className="flex gap-2 p-1 bg-slate-50 rounded-2xl">
@@ -323,6 +389,34 @@ const AdminAdvertisementPage = () => {
                                                 }`}>
                                                     {ad.category === 'home_banner' ? 'Home Banner' : 'Splash Ad'}
                                                 </span>
+                                                {ad.category === 'splash' && (
+                                                    <div className="mt-2 flex items-center gap-1.5">
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            max="30"
+                                                            aria-label={`Seconds to show ${ad.title}`}
+                                                            defaultValue={ad.durationSeconds ?? 3}
+                                                            onBlur={(e) => {
+                                                                const v = Number(e.target.value);
+                                                                if (v !== (ad.durationSeconds ?? 3)) handleSplashSettings(ad, { durationSeconds: v });
+                                                            }}
+                                                            onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                                            className="w-12 bg-slate-50 rounded-lg px-1.5 py-1 text-[11px] font-bold text-slate-700 text-center outline-none focus:ring-2 focus:ring-primary/20"
+                                                        />
+                                                        <span className="text-[9px] font-black text-slate-400 uppercase">sec</span>
+                                                        <select
+                                                            aria-label={`App for ${ad.title}`}
+                                                            value={ad.audience || 'all'}
+                                                            onChange={(e) => handleSplashSettings(ad, { audience: e.target.value })}
+                                                            className="bg-slate-50 rounded-lg px-1.5 py-1 text-[10px] font-bold text-slate-700 outline-none cursor-pointer"
+                                                        >
+                                                            {Object.entries(AUDIENCE_LABELS).map(([value, label]) => (
+                                                                <option key={value} value={value}>{label}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="px-8 py-6">
                                                 <p className="text-xs font-bold text-slate-600">{new Date(ad.createdAt).toLocaleDateString('en-GB')}</p>
@@ -335,7 +429,7 @@ const AdminAdvertisementPage = () => {
                                                         ad.isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-400 border-slate-200'
                                                     }`}
                                                 >
-                                                    {ad.isActive ? 'Active' : 'Paused'}
+                                                    {ad.isActive ? (ad.category === 'splash' ? 'Live' : 'Active') : 'Paused'}
                                                 </button>
                                             </td>
                                             <td className="px-8 py-6">

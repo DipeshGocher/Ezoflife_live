@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -94,7 +95,7 @@ export default function Vendors() {
     const avgRating = rated.length
       ? (rated.reduce((s, v) => s + Number(v.rating), 0) / rated.length).toFixed(2)
       : '—';
-    const totalOrders = vendors.reduce((s, v) => s + (Number(v.totalOrders) || 0), 0);
+    const totalOrders = vendors.reduce((s, v) => s + (Number(v.orders) || 0), 0);
 
     return [
       { label: 'Network Avg Rating', value: String(avgRating), icon: Star },
@@ -129,7 +130,7 @@ export default function Vendors() {
       render: (val) => (
         <div className="flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-600 rounded-sm border border-amber-100 w-fit group-hover:bg-amber-100 transition-colors">
           <Star size={10} fill="currentColor" />
-          <span className="text-[10px] font-bold tabular-nums tracking-widest">{val} <span className="opacity-40 text-[8px]">SCORE</span></span>
+          <span className="text-[10px] font-bold tabular-nums tracking-widest">{val ?? '—'} <span className="opacity-40 text-[8px]">{val == null ? 'NO REVIEWS' : 'SCORE'}</span></span>
         </div>
       )
     },
@@ -184,13 +185,13 @@ export default function Vendors() {
           <button 
             onClick={async (e) => { 
                 e.stopPropagation(); 
-                if (window.confirm(`CRITICAL: Are you sure you want to delete ${row.name}? This will permanently remove ALL their data including Jobs, Orders, and Promotions. This action cannot be undone.`)) {
+                if (await appDialog.confirm(`CRITICAL: Are you sure you want to delete ${row.name}? This will permanently remove ALL their data including Jobs, Orders, and Promotions. This action cannot be undone.`)) {
                     try {
                         await adminApi.deleteVendor(row.id);
-                        alert('Vendor and all associated data deleted successfully');
+                        await appDialog.alert('Vendor and all associated data deleted successfully');
                         fetchVendors();
                     } catch (err) {
-                        alert('Failed to delete vendor');
+                        await appDialog.alert('Failed to delete vendor');
                     }
                 }
             }}
@@ -210,16 +211,16 @@ export default function Vendors() {
     try {
       const response = await authApi.registerVendor(vendorForm);
       if (response.vendor) {
-        alert('Vendor registered successfully!');
+        await appDialog.alert('Vendor registered successfully!');
         setShowRegisterModal(false);
         setVendorForm({ name: '', mobile: '', email: '', gstNumber: '', password: '', address: '' });
         fetchVendors(); // Refresh the list
       } else {
-        alert(response.message || 'Registration failed');
+        await appDialog.alert(response.message || 'Registration failed');
       }
     } catch (error) {
       console.error('Registration Error:', error);
-      alert('Failed to connect to backend server');
+      await appDialog.alert('Failed to connect to backend server');
     } finally {
       setIsRegistering(false);
     }
@@ -434,7 +435,7 @@ export default function Vendors() {
                     <div className="mt-3 flex items-center gap-2">
                         <StatusBadge status={selectedVendorForView.status} />
                         <span className="text-[10px] font-bold text-slate-300">•</span>
-                        <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest">{selectedVendorForView.rating} RATING</span>
+                        <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest">{selectedVendorForView.rating ?? 'NO'} RATING</span>
                     </div>
                   </div>
                 </div>

@@ -1,5 +1,6 @@
 import { matchesFilter } from '../utils/filters';
 import MultiSelectFilter from '../components/common/MultiSelectFilter';
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { vendorSupplyCategoryApi } from '../../../lib/api';
 import { toast } from 'react-hot-toast';
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 import DataGrid from '../components/tables/DataGrid';
+import FilterField from "../components/common/FilterLabel";
 
 const VendorSupplyCategoryManagement = () => {
     const [categories, setCategories] = useState([]);
@@ -272,7 +274,7 @@ const VendorSupplyCategoryManagement = () => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this supply category?')) {
+        if (await appDialog.confirm('Are you sure you want to delete this supply category?')) {
             try {
                 await vendorSupplyCategoryApi.delete(id);
                 toast.success('Supply category deleted');
@@ -362,7 +364,8 @@ const VendorSupplyCategoryManagement = () => {
                     showFilter={false}
                     showSearch={false}
                     actions={
-                        <div className="flex items-center flex-wrap gap-2 w-full">
+                        <div className="flex items-end flex-wrap gap-2 w-full">
+                            <FilterField label="Main category" info="Shows only supply categories under this main category.">
                             <MultiSelectFilter
                                 value={filters.mainCategory}
                                 onChange={(e) => handleFilterChange('mainCategory', e.target.value)}
@@ -373,6 +376,8 @@ const VendorSupplyCategoryManagement = () => {
                                     <option key={cat} value={cat}>{cat}</option>
                                 ))}
                             </MultiSelectFilter>
+                            </FilterField>
+                            <FilterField label="Sub category" info="Shows only this sub category.">
                             <MultiSelectFilter
                                 value={filters.subCategory}
                                 onChange={(e) => handleFilterChange('subCategory', e.target.value)}
@@ -383,6 +388,8 @@ const VendorSupplyCategoryManagement = () => {
                                     <option key={sub} value={sub}>{sub}</option>
                                 ))}
                             </MultiSelectFilter>
+                            </FilterField>
+                            <FilterField label="Status" info="Active = vendors can order products in this category. Inactive = hidden from vendors.">
                             <MultiSelectFilter
                                 value={filters.isActive}
                                 onChange={(e) => handleFilterChange('isActive', e.target.value)}
@@ -392,6 +399,7 @@ const VendorSupplyCategoryManagement = () => {
                                 <option value="true">Active</option>
                                 <option value="false">Inactive</option>
                             </MultiSelectFilter>
+                            </FilterField>
 
                             <button 
                                 onClick={handleDownload}

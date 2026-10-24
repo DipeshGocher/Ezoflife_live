@@ -1,9 +1,22 @@
 import { filterCondition } from '../utils/queryFilters.js';
 import Media from '../models/Media.js';
 import AdInquiry from '../models/AdInquiry.js';
+import { findMyInquiries } from '../utils/myInquiries.js';
 import { sendInquiryConfirmation, sendAdminInquiryNotification } from '../utils/emailHelper.js';
 import { sendWhatsAppMessage, sendSMSMessage } from '../utils/communicationHelper.js';
 import { httpStatusForError } from '../utils/errorResponse.js';
+
+/**
+ * Real media kits. Records made before `purpose` existed are kits only if they
+ * are PDFs hosted on Cloudinary (legal PDFs are stored locally, chat/product
+ * uploads are images).
+ */
+const MEDIA_KIT_QUERY = {
+    $or: [
+        { purpose: 'media-kit' },
+        { purpose: { $in: [null, undefined] }, fileType: 'PDF', fileUrl: /^https?:\/\// }
+    ]
+};
 
 export const uploadMedia = async (req, res) => {
     console.log('--- POST Upload Media Kit Requested (Cloudinary) ---');
@@ -15,24 +28,21 @@ export const uploadMedia = async (req, res) => {
 
         console.log(`File uploaded to Cloudinary: ${req.file.originalname} at ${req.file.path}`);
         
-        // Cloudinary path is the URL
+        // Cloudinary path is the URL (or the local path for PDF documents)
         const fileUrl = req.file.path;
+        const fileType = req.file.mimetype && req.file.mimetype.includes('pdf') ? 'PDF' : 'IMAGE';
 
-        const newMedia = new Media({
-            fileName: req.file.originalname,
-            fileUrl: fileUrl,
-            fileType: req.file.mimetype && req.file.mimetype.includes('pdf') ? 'PDF' : 'IMAGE'
-        });
+        // Only an admin uploading from the Media Kit page creates a media-kit entry;
+        // chat photos, product images and legal PDFs share this endpoint and must
+        // not appear in the media kit history.
+        if (req.body?.purpose === 'media-kit' && req.user?.role === 'Admin') {
+            const newMedia = new Media({ fileName: req.file.originalname, fileUrl, fileType, purpose: 'media-kit' });
+            await newMedia.save();
+            return res.status(201).json({ ...newMedia.toObject(), url: fileUrl, fileUrl });
+        }
 
-        await newMedia.save();
-        console.log('Media Kit saved to DB successfully!');
-        
         // Return BOTH fileUrl (backend model structure) and url (frontend expectations)
-        res.status(201).json({
-            ...newMedia.toObject(),
-            url: fileUrl,
-            fileUrl: fileUrl
-        });
+        res.status(201).json({ fileName: req.file.originalname, fileType, url: fileUrl, fileUrl });
     } catch (err) {
         console.error('Upload Error in controller:', err);
         const errStr = String(err.message || err.stack || err);
@@ -58,7 +68,7 @@ export const uploadMultipleMedia = async (req, res) => {
 
 export const getMediaHistory = async (req, res) => {
     try {
-        const history = await Media.find().sort({ uploadedAt: -1 });
+        const history = await Media.find(MEDIA_KIT_QUERY).sort({ uploadedAt: -1 });
         res.status(200).json(history);
     } catch (err) {
         res.status(httpStatusForError(err)).json({ message: err.message });
@@ -69,7 +79,7 @@ export const getLatestMedia = async (req, res) => {
     console.log('--- GET Latest Media Kit Requested ---');
     try {
         // Explicitly sort by createdAt to get the absolute newest entry
-        const latest = await Media.findOne().sort({ createdAt: -1 });
+        const latest = await Media.findOne(MEDIA_KIT_QUERY).sort({ uploadedAt: -1 });
         if (!latest) {
             console.log('No Media Kit found in database.');
             return res.status(404).json({ message: 'No media kit found' });
@@ -84,7 +94,7 @@ export const getLatestMedia = async (req, res) => {
 export const submitInquiry = async (req, res) => {
     try {
         const { brandName, email, phone, location, budget, timeline } = req.body;
-        const inquiry = new AdInquiry({ brandName, email, phone, location, budget, timeline });
+        const inquiry = new AdInquiry({ brandName, email, phone, location, budget, timeline, submittedBy: req.user?.id || null });
         await inquiry.save();
 
         // Send confirmation email to Customer (with PDF)
@@ -214,11 +224,8 @@ export const updateInquiryNotes = async (req, res) => {
 
 export const getMyInquiries = async (req, res) => {
     try {
-        const { email } = req.query;
-        if (!email) {
-            return res.status(400).json({ message: 'Email query parameter is required' });
-        }
-        const inquiries = await AdInquiry.find({ email }).sort({ createdAt: -1 });
+        // Signed-in user's own inquiries only; previously any email could be looked up.
+        const inquiries = await findMyInquiries(AdInquiry, req.user.id);
         res.status(200).json(inquiries);
     } catch (err) {
         res.status(httpStatusForError(err)).json({ message: err.message });

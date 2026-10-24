@@ -1,6 +1,10 @@
 export const DEFAULT_INVOICE_SETTINGS = Object.freeze({
     businessName: 'SPINZYT',
     businessAddress: '',
+    registeredAddress: '',
+    platformSacCode: '998311',
+    logisticsSacCode: '996511',
+    promotionSacCode: '9983',
     contactEmail: 'support@spinzyt.com',
     contactPhone: '',
     website: 'www.spinzyt.com',
@@ -22,7 +26,7 @@ export const DEFAULT_INVOICE_SETTINGS = Object.freeze({
     accentColor: '#000000'
 });
 
-const limits = { businessName: 120, businessAddress: 500, contactEmail: 254, contactPhone: 40,
+const limits = { businessName: 120, businessAddress: 500, registeredAddress: 500, platformSacCode: 8, logisticsSacCode: 8, promotionSacCode: 8, contactEmail: 254, contactPhone: 40,
     website: 200, gstNumber: 15, logo: 2000, invoiceTitle: 60, customTerms: 2000,
     invoiceNote: 500, paymentInstructions: 1000, accentColor: 7 };
 
@@ -41,6 +45,8 @@ export function normalizeInvoiceSettings(value = {}, { validate = false } = {}) 
         settings[key] = typeof fallback === 'string' ? value[key].trim() : value[key];
         if (validate && limits[key] && settings[key].length > limits[key]) throw new Error(`${key} is too long (maximum ${limits[key]} characters).`);
     }
+    if (!settings.businessAddress && settings.registeredAddress) settings.businessAddress = settings.registeredAddress;
+    if (!settings.registeredAddress && settings.businessAddress) settings.registeredAddress = settings.businessAddress;
     if (validate && (!settings.businessName || !settings.invoiceTitle)) throw new Error('Business name and invoice title are required.');
     if (validate && settings.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(settings.contactEmail)) throw new Error('Enter a valid contact email.');
     if (settings.logo && !/^https?:\/\//i.test(settings.logo)) {

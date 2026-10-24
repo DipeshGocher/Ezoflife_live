@@ -1,11 +1,15 @@
 import { filterCondition } from '../utils/queryFilters.js';
 import SupplierServiceZone from '../models/SupplierServiceZone.js';
 import { httpStatusForError } from '../utils/errorResponse.js';
+import { validateZoneFeeFields } from '../utils/b2bPlatformFee.js';
 
 export const supplierServiceZoneController = {
     create: async (req, res) => {
         try {
             const { zoneName, supplierId, pincodes, deliveryCharges, minOrderValue, isActive } = req.body;
+
+            const feeError = validateZoneFeeFields(req.body);
+            if (feeError) return res.status(400).json({ message: feeError });
 
             // Auto-generate zoneId (Starts from SPZ-ZONE-001, SPZ-ZONE-002...)
             const lastZone = await SupplierServiceZone.findOne({ zoneId: { $regex: /^SPZ-ZONE-/ } }).sort({ zoneId: -1 });
@@ -26,6 +30,8 @@ export const supplierServiceZoneController = {
                 deliveryCharges: Number(deliveryCharges) || 0,
                 minOrderValue: Number(minOrderValue) || 0,
                 supplierPlatformMultiplier: Number(req.body.supplierPlatformMultiplier) || 0,
+                platformFeeMode: req.body.platformFeeMode || 'DEFAULT',
+                platformFeeValue: Number(req.body.platformFeeValue) || 0,
                 minSupplierPlatformFee: Number(req.body.minSupplierPlatformFee) || 0,
                 maxSupplierPlatformFee: req.body.maxSupplierPlatformFee ? Number(req.body.maxSupplierPlatformFee) : null,
                 isActive: isActive !== undefined ? isActive : true
@@ -86,6 +92,9 @@ export const supplierServiceZoneController = {
         try {
             const { id } = req.params;
             const updates = req.body;
+
+            const feeError = validateZoneFeeFields(updates);
+            if (feeError) return res.status(400).json({ message: feeError });
 
             // Ensure the zone has a zoneId if missing for some reason
             const existing = await SupplierServiceZone.findById(id);
@@ -155,6 +164,10 @@ export const supplierServiceZoneController = {
 
             for (const zoneData of zones) {
                 try {
+                    if (validateZoneFeeFields(zoneData)) {
+                        results.errors++;
+                        continue;
+                    }
                     // Check for duplicates by zoneName (case-insensitive)
                     const exists = await SupplierServiceZone.findOne({
                         zoneName: { $regex: new RegExp(`^${zoneData.zoneName}$`, 'i') }
@@ -183,6 +196,8 @@ export const supplierServiceZoneController = {
                         deliveryCharges: Number(zoneData.deliveryCharges) || 0,
                         minOrderValue: Number(zoneData.minOrderValue) || 0,
                         supplierPlatformMultiplier: Number(zoneData.supplierPlatformMultiplier) || 0,
+                        platformFeeMode: zoneData.platformFeeMode || 'DEFAULT',
+                        platformFeeValue: Number(zoneData.platformFeeValue) || 0,
                         minSupplierPlatformFee: Number(zoneData.minSupplierPlatformFee) || 0,
                         maxSupplierPlatformFee: zoneData.maxSupplierPlatformFee ? Number(zoneData.maxSupplierPlatformFee) : null,
                         isActive: zoneData.isActive !== undefined ? zoneData.isActive : true

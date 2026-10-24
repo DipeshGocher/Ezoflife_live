@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { b2bOrderApi, adminApi } from '../../../lib/api';
 import VendorHeader from '../components/VendorHeader';
 import B2BInvoicePrint from '../components/B2BInvoicePrint';
@@ -34,7 +34,7 @@ const B2BOrderHistory = () => {
     const vendorData = JSON.parse(vendorDataRaw);
     const vendorId = vendorData._id || vendorData.id || vendorData.user?._id || vendorData.user?.id;
 
-    const fetchOrders = async () => {
+    const fetchOrders = useCallback(async () => {
         try {
             const data = await b2bOrderApi.getVendorOrders(vendorId);
             setOrders(data);
@@ -45,9 +45,9 @@ const B2BOrderHistory = () => {
                 setLoading(false);
             }, 5000);
         }
-    };
+    }, [vendorId]);
 
-    const fetchInvoiceSettings = async () => {
+    const fetchInvoiceSettings = useCallback(async () => {
         try {
             const configs = await adminApi.getConfig();
             const config = configs.find(c => c.key === 'invoice_settings');
@@ -55,13 +55,13 @@ const B2BOrderHistory = () => {
         } catch (err) {
             console.error('Failed to fetch invoice settings:', err);
         }
-    };
+    }, []);
 
     useEffect(() => {
         if (!vendorId) return;
         fetchOrders();
         fetchInvoiceSettings();
-    }, [vendorId]);
+    }, [vendorId, fetchOrders, fetchInvoiceSettings]);
 
     const handlePrint = () => {
         const printContent = document.getElementById('b2b-invoice-content');
@@ -82,61 +82,6 @@ const B2BOrderHistory = () => {
     const openInvoice = (order) => {
         setSelectedOrder(order);
         setShowInvoice(true);
-    };
-
-    const loadRazorpay = () => {
-        return new Promise((resolve) => {
-            const script = document.createElement('script');
-            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-            script.onload = () => resolve(true);
-            script.onerror = () => resolve(false);
-            document.body.appendChild(script);
-        });
-    };
-
-    const handlePayment = async (order) => {
-        const res = await loadRazorpay();
-        if (!res) {
-            alert('Razorpay SDK failed to load. Check your internet connection.');
-            return;
-        }
-
-        try {
-            // Create Razorpay Order on server
-            const { rzpOrder } = await b2bOrderApi.initiateB2BPayment(order._id);
-            
-            const options = {
-                key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_placeholder', // Should be from backend or env
-                amount: rzpOrder.amount,
-                currency: rzpOrder.currency,
-                name: 'EzOfLife B2B',
-                description: `Payment for Order ${order.b2bOrderId}`,
-                order_id: rzpOrder.id,
-                handler: async (response) => {
-                    try {
-                        const verifyData = {
-                            ...response,
-                            orderId: order._id
-                        };
-                        await b2bOrderApi.verifyB2BPayment(verifyData);
-                        alert('Payment Successful! Funds held in Escrow.');
-                        fetchOrders();
-                    } catch (err) {
-                        alert('Payment Verification Failed');
-                    }
-                },
-                prefill: {
-                    name: vendorData.displayName,
-                    contact: vendorData.phone
-                },
-                theme: { color: '#0F172A' }
-            };
-
-            const paymentObject = new window.Razorpay(options);
-            paymentObject.open();
-        } catch (error) {
-            alert('Failed to initiate payment');
-        }
     };
 
     const b2bStatusMapVendor = {
@@ -163,7 +108,7 @@ const B2BOrderHistory = () => {
     const getStatusColor = (status) => b2bStatusMapVendor[status]?.color || 'bg-slate-500 text-white';
 
     return (
-        <motion.div 
+        <Motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="bg-[#F8FAFC] min-h-screen pb-32 font-sans"
@@ -208,7 +153,7 @@ const B2BOrderHistory = () => {
                     ) : orders.length > 0 ? (
                         <AnimatePresence>
                             {orders.map((order, i) => (
-                                <motion.div
+                                <Motion.div
                                     key={order._id}
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
@@ -259,6 +204,20 @@ const B2BOrderHistory = () => {
                                                 <span className="text-[10px] font-black text-slate-400 uppercase">Settlement Value</span>
                                                 <span className="text-md font-black text-slate-900 tracking-tighter italic">₹{order.totalAmount.toLocaleString()}</span>
                                             </div>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[10px] font-black text-slate-400 uppercase">
+                                                    Platform Fee
+                                                    {order.platformFee > 0 && order.status === 'PENDING_PAYMENT' && (
+                                                        <span className="ml-2 text-amber-600">(Unpaid)</span>
+                                                    )}
+                                                    {order.platformFee > 0 && order.status !== 'PENDING_PAYMENT' && (
+                                                        <span className="ml-2 text-emerald-600">(Paid)</span>
+                                                    )}
+                                                </span>
+                                                <span className="text-[11px] font-black text-slate-700 tabular-nums">
+                                                    {order.platformFee > 0 ? `₹${Number(order.platformFee).toLocaleString(undefined, { maximumFractionDigits: 2 })}` : 'Nil'}
+                                                </span>
+                                            </div>
                                         </div>
 
                                         {/* Timeline Footer & Actions */}
@@ -271,6 +230,14 @@ const B2BOrderHistory = () => {
                                             </div>
 
                                             <div className="flex items-center gap-2">
+                                                {['Delivered', 'DELIVERED', 'Settled', 'SETTLED'].includes(order.status) && order.supplier && (
+                                                    <button
+                                                        onClick={() => navigate(`/vendor/material-request/track/${order._id}`)}
+                                                        className="px-3 py-2.5 bg-amber-50 border border-amber-100 text-amber-700 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] flex items-center gap-1 hover:bg-amber-100 transition-all"
+                                                    >
+                                                        {order.supplierRating?.rating ? `★ ${order.supplierRating.rating} Rated` : 'Rate Supplier'}
+                                                    </button>
+                                                )}
                                                 {['Delivered', 'DELIVERED'].includes(order.status) && (
                                                     <button 
                                                         onClick={() => openInvoice(order)}
@@ -281,22 +248,10 @@ const B2BOrderHistory = () => {
                                                     </button>
                                                 )}
 
-                                                {['Delivered', 'DELIVERED'].includes(order.status) && order.paymentStatus === 'Pending' && (
-                                                    <button 
-                                                        onClick={() => handlePayment(order)}
-                                                        className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-[0.15em] shadow-lg shadow-slate-900/10 flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-all"
-                                                    >
-                                                        <span className="material-symbols-outlined text-sm">payments</span>
-                                                        Pay Now
-                                                    </button>
-                                                )}
-
-                                                {order.paymentStatus === 'Paid' && (
-                                                    <div className={`px-4 py-2 flex items-center gap-2 rounded-full text-[8px] font-black uppercase tracking-widest border ${order.escrowStatus === 'Held' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
-                                                        <span className="material-symbols-outlined text-sm">{order.escrowStatus === 'Held' ? 'lock_clock' : 'verified'}</span>
-                                                        {order.escrowStatus === 'Held' ? 'Escrow Held' : 'Settled'}
-                                                    </div>
-                                                )}
+                                                <div className="px-4 py-2 flex items-center gap-2 rounded-full text-[8px] font-black uppercase tracking-widest border bg-amber-50 text-amber-700 border-amber-100">
+                                                    <span className="material-symbols-outlined text-sm">handshake</span>
+                                                    Pay Supplier Directly
+                                                </div>
 
                                                 <button 
                                                     onClick={() => navigate(`/vendor/fulfillment`)}
@@ -307,7 +262,7 @@ const B2BOrderHistory = () => {
                                             </div>
                                         </div>
                                     </div>
-                                </motion.div>
+                                </Motion.div>
                             ))}
                         </AnimatePresence>
                     ) : (
@@ -333,12 +288,12 @@ const B2BOrderHistory = () => {
             <AnimatePresence>
                 {showInvoice && selectedOrder && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                        <motion.div 
+                        <Motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             onClick={() => setShowInvoice(false)}
                             className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
                         />
-                        <motion.div 
+                        <Motion.div
                             initial={{ scale: 0.95, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -385,11 +340,11 @@ const B2BOrderHistory = () => {
                                     </div>
                                 </div>
                             </div>
-                        </motion.div>
+                        </Motion.div>
                     </div>
                 )}
             </AnimatePresence>
-        </motion.div>
+        </Motion.div>
     );
 };
 

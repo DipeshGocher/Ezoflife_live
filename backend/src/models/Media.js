@@ -13,6 +13,12 @@ const mediaSchema = new mongoose.Schema({
         type: String,
         default: 'PDF'
     },
+    // 'media-kit' = uploaded from Admin → Media Kit. Other uploads (chat photos,
+    // legal PDFs, product images) are not recorded here.
+    purpose: {
+        type: String,
+        default: null
+    },
     uploadedAt: {
         type: Date,
         default: Date.now

@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import Service from '../models/Service.js';
 import MasterService from '../models/MasterService.js';
 import { PROFILE_FIELDS } from '../../../shared/profileFields.mjs';
@@ -6,8 +5,9 @@ import { safeProfile } from '../utils/profileData.js';
 import { requireProfileDestination } from '../middleware/profileAccess.js';
 import { canAccessAccount, isScopedAdmin } from '../utils/adminScope.js';
 import { httpStatusForError } from '../utils/errorResponse.js';
-import User from '../models/User.js';
+import User, { stripSecrets } from '../models/User.js';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { 
     sendVendorApplicationConfirmation, 
@@ -50,22 +50,27 @@ export const getVendorEarnings = async (req, res) => {
         // Vendor Earnings = baseWithArea + expressSurcharge from priceBreakdown
         const orders = await Order.find({ 
             vendor: vendorId,
-            status: { $in: ['Ready', 'Delivered', 'Out for Delivery'] }
-        }).select('priceBreakdown status orderId createdAt').lean();
+            status: { $in: ['READY_FOR_DISPATCH', 'DELIVERED', 'OUT_FOR_DELIVERY'] }
+        }).select('priceBreakdown status orderId createdAt ledger').lean();
         
         const totalEarnings = orders.reduce((acc, curr) => {
             const breakdown = curr.priceBreakdown || {};
-            return acc + (breakdown.baseWithArea || 0) + (breakdown.expressSurcharge || 0);
+            return acc + (Number.isFinite(curr.ledger?.vendorNetPayout) ? curr.ledger.vendorNetPayout : (breakdown.baseWithArea || 0) + (breakdown.expressSurcharge || 0));
         }, 0);
         
         // Total Paid by Admin to Vendor
-        const payouts = await Payout.find({ vendor: vendorId, status: 'Completed' }).select('amount paidAt').lean();
+        const allPayouts = await Payout.find({ vendor: vendorId, status: { $in: ['Completed', 'Pending'] } }).select('order amount paidAt status bankSettlementStatus').lean();
+        const payouts = allPayouts.filter(payout => payout.status === 'Completed');
         const totalPaid = payouts.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+        const pendingRouteAmount = allPayouts.filter(payout => payout.status === 'Pending').reduce((sum, payout) => sum + payout.amount, 0);
+        const bankPendingAmount = payouts.filter(payout => payout.order && payout.bankSettlementStatus !== 'SETTLED').reduce((sum, payout) => sum + payout.amount, 0);
         
-        const pendingBalance = totalEarnings - totalPaid;
+        const pendingBalance = totalEarnings - totalPaid - pendingRouteAmount;
 
         res.status(200).json({
             _id: vendorId,
+            pendingRouteAmount,
+            bankPendingAmount,
             displayName: vendor.displayName,
             shopName: vendor.shopDetails?.name || 'N/A',
             totalOrders: orders.length,
@@ -89,25 +94,13 @@ export const requestOtp = async (req, res) => {
         const requestedRole = req.body.role || 'Customer'; // Capitalized
         const whatsapp = getWhatsAppProvider();
 
-        // ADMIN BYPASS FOR TESTING
-        if (phone === '9999999994') {
-            let admin = await User.findOne({ phone });
-            if (!admin) {
-                return res.status(404).json({ message: 'Your number is not registered' });
+        // Warn when using demo OTP in production, but allow it when ALLOW_MOCK_OTP=true
+        if (whatsapp.name === 'mock' && process.env.NODE_ENV === 'production') {
+            if (String(process.env.ALLOW_MOCK_OTP || '').toLowerCase() !== 'true') {
+                console.error('❌ [OTP] Demo OTP in production — set ALLOW_MOCK_OTP=true on Render to allow, or configure WHATSAPP_ENABLED with real credentials.');
+                return res.status(503).json({ message: 'Login is temporarily unavailable. Please try again later.' });
             }
-            const bypassOtp = generateOTP();
-            admin.role = 'Admin';
-            admin.status = 'approved';
-            admin.otp = bypassOtp;
-            admin.otpExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-            await admin.save();
-            console.log(`🛡️ [ADMIN_BYPASS] Master Admin activated for ${phone}`);
-            // Best-effort delivery — this is a testing bypass, so it must not
-            // block or fail the response if WhatsApp is unreachable.
-            whatsapp.sendOtp(phone, bypassOtp).catch(err =>
-                console.error('Admin bypass OTP send failed:', err.message)
-            );
-            return res.status(200).json({ message: 'Admin OTP sent successfully', role: 'Admin', mock: whatsapp.name === 'mock' });
+            console.warn('⚠️  [OTP] ALLOW_MOCK_OTP=true — using demo OTP (123456) in production. Replace with real WhatsApp API before going live.');
         }
 
         if (!phone) {
@@ -123,6 +116,11 @@ export const requestOtp = async (req, res) => {
         // Admin Protection: Disable Signup for Admin
         if (requestedRole === 'Admin' && mode === 'signup') {
             return res.status(403).json({ message: 'Admin registration is disabled.' });
+        }
+
+        // Invited sub-admins cannot sign in until they accept the emailed invite
+        if (user && user.role === 'Admin' && user.status !== 'approved') {
+            return res.status(403).json({ message: 'Please accept the invitation sent to your email before logging in.' });
         }
 
         // UNIFIED LOGIN LOGIC
@@ -514,6 +512,10 @@ export const verifyOtp = async (req, res) => {
             return res.status(401).json({ message: 'Invalid or expired OTP' });
         }
 
+        if (user.role === 'Admin' && user.status !== 'approved') {
+            return res.status(403).json({ message: 'Please accept the invitation sent to your email before logging in.' });
+        }
+
         // Clear OTP
         user.otp = null;
         user.otpExpiry = null;
@@ -638,77 +640,6 @@ export const updateFcmToken = async (req, res) => {
     }
 };
 
-// Admin Login
-export const adminLogin = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-
-        // Hardcoded admin for now as per user request to not change too much
-        // In a real app, we would find the user in DB and compare hashed passwords
-        if (email === 'admin@ezoflife.com' && password === 'admin123') {
-            let user = await User.findOne({ phone: 'ADMIN_SYSTEM', role: 'Admin' });
-            if (!user) {
-                user = new User({ phone: 'ADMIN_SYSTEM', role: 'Admin', displayName: 'System Admin' });
-                await user.save();
-            }
-
-            const token = jwt.sign(
-                { id: user._id, role: user.role, phone: user.phone },
-                process.env.JWT_SECRET || 'ezoflife_secret_key_2026',
-                { expiresIn: '7d' }
-            );
-
-            return res.status(200).json({
-                message: 'Admin login successful',
-                token,
-                user: {
-                    id: user._id,
-                    phone: user.phone,
-                    role: user.role,
-                    displayName: user.displayName
-                }
-            });
-        }
-
-        // Dynamic Sub-Admin login checking
-        const subAdmin = await User.findOne({ email, role: 'Admin' });
-        if (subAdmin && subAdmin.password) {
-            if (subAdmin.status !== 'approved') {
-                return res.status(403).json({ message: `Your sub-admin account status is currently: ${subAdmin.status}.` });
-            }
-
-            const isMatch = await bcrypt.compare(password, subAdmin.password);
-            if (isMatch) {
-                const token = jwt.sign(
-                    { id: subAdmin._id, role: subAdmin.role, phone: subAdmin.phone },
-                    process.env.JWT_SECRET || 'ezoflife_secret_key_2026',
-                    { expiresIn: '7d' }
-                );
-
-                return res.status(200).json({
-                    message: 'Admin login successful',
-                    token,
-                    user: {
-                        id: subAdmin._id,
-                        phone: subAdmin.phone,
-                        role: subAdmin.role,
-                        displayName: subAdmin.displayName,
-                        email: subAdmin.email,
-                        adminRole: subAdmin.adminRole,
-                        adminPermissions: subAdmin.adminPermissions || [],
-                        adminAccessType: subAdmin.adminAccessType || 'Read/Write'
-                    }
-                });
-            }
-        }
-
-        return res.status(401).json({ message: 'Invalid admin credentials' });
-    } catch (err) {
-        console.error('Admin Login Error:', err);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-};
-
 // Profile Management
 export const getUserProfile = async (req, res) => {
     try {
@@ -824,17 +755,73 @@ export const getUserProfile = async (req, res) => {
     }
 };
 
+// Profile fields a user can never set through the profile endpoint: admin
+// access is managed by invitations, secrets by their own flows.
+const NEVER_EDITABLE_PROFILE_FIELDS = new Set([
+    'role', 'adminRole', 'adminPermissions', 'adminAccessType', 'geofenceRestrictions',
+    'inviteTokenHash', 'inviteSentAt', 'inviteAcceptedAt', 'inviteSendCount', 'invitedBy',
+    'otp', 'otpExpiry', 'password', 'payoutLockUntil', 'payoutLockToken', 'refundedWalletOrders'
+]);
+// Only an Admin may change these on someone's profile.
+const ADMIN_ONLY_PROFILE_FIELDS = new Set([
+    'status', 'rejectionReason', 'rejectionFlags', 'onboardingStage', 'isVerifiedSupplier',
+    'successfulDeliveries', 'walletBalance', 'bankVerification', 'tier', 'phone', 'razorpayLinkedAccountId', 'reversedPromotionOrders', 'creditedPromotionOrders'
+]);
+const IGNORED_PROFILE_FIELDS = new Set(['_id', 'id', '__v', 'createdAt', 'updatedAt']);
+
+const sameProfileValue = (key, current, next) => {
+    if (key === 'phone') {
+        const digits = v => String(v ?? '').replace(/\D/g, '').slice(-10);
+        return digits(current) === digits(next);
+    }
+    return JSON.stringify(current ?? null) === JSON.stringify(next ?? null);
+};
+
+/**
+ * A vendor's master-service approvals live in shopDetails.services, which the
+ * vendor app rewrites as a whole. Keep each existing entry's approval as
+ * stored; a new entry may only arrive approved if that service really is
+ * approved for this vendor, otherwise it waits for admin review.
+ */
+const keepServiceApprovals = async (user, updates) => {
+    const incoming = updates['shopDetails.services'] ?? updates.shopDetails?.services;
+    if (!Array.isArray(incoming)) return;
+
+    const stored = new Map((user.shopDetails?.services || []).map(svc => [String(svc.id), svc]));
+    const newIds = incoming.map(svc => String(svc?.id)).filter(id => !stored.has(id) && mongoose.isValidObjectId(id));
+    const Service = (await import('../models/Service.js')).default;
+    const approvedCustom = new Set((await Service.find({
+        _id: { $in: newIds }, vendorId: user._id, approvalStatus: 'Approved'
+    }).select('_id').lean()).map(svc => String(svc._id)));
+
+    for (const svc of incoming) {
+        if (!svc || typeof svc !== 'object') continue;
+        const before = stored.get(String(svc.id));
+        if (before) {
+            svc.status = before.status;
+            svc.rejectionReason = before.rejectionReason;
+        } else if (!(svc.status === 'approved' && approvedCustom.has(String(svc.id)))) {
+            svc.status = 'pending';
+        }
+    }
+};
+
 export const updateUserProfile = async (req, res) => {
     try {
         const { id } = req.params;
-        const updates = req.body;
-
         const user = await User.findById(id);
         if (!user) return res.status(404).json({ message: 'User not found' });
 
+        const updates = {};
         const isAdmin = req.user.role === 'Admin';
         const allowed = [...PROFILE_FIELDS, ...(isAdmin && user.role !== 'Admin' ? ['status'] : [])];
-        if (Object.keys(updates).some(key => !allowed.includes(key))) return res.status(400).json({ message: 'Profile contains protected or unsupported fields.' });
+        const currentProfile = safeProfile(user);
+        for (const [key, value] of Object.entries(req.body)) {
+            if (!isAdmin && key === 'phone' && !sameProfileValue(key, user.phone, value)) return res.status(403).json({ message: 'Phone changes require account verification.' });
+            if (allowed.includes(key)) updates[key] = value;
+            else if (IGNORED_PROFILE_FIELDS.has(key) || sameProfileValue(key, currentProfile[key], value)) continue;
+            else return res.status(403).json({ message: 'Profile contains protected or unsupported fields.' });
+        }
         const unsafeKeys = value => value && typeof value === 'object' && Object.entries(value).some(([key, child]) => key.includes('.') || key.startsWith('$') || ['__proto__', 'constructor', 'prototype'].includes(key) || unsafeKeys(child));
         if (unsafeKeys(updates)) return res.status(400).json({ message: 'Invalid profile field.' });
         if (updates.status !== undefined && !['approved', 'rejected'].includes(updates.status)) return res.status(400).json({ message: 'Use the approval workflow for onboarding status changes.' });
@@ -849,7 +836,7 @@ export const updateUserProfile = async (req, res) => {
                 const adminRate = previous?.adminRate ?? approved?.basePrice ?? master?.basePrice;
                 const status = previous?.status || (approved ? 'approved' : 'pending');
                 if ((service.adminRate !== undefined && service.adminRate !== adminRate) || (service.rejectionReason !== undefined && service.rejectionReason !== (previous?.rejectionReason || '')) || (service.status !== undefined && !['pending', 'offered', status].includes(service.status))) return res.status(403).json({ message: 'Service approval and admin prices cannot be edited here.' });
-                normalized.push({ ...service, ...(adminRate !== undefined ? { adminRate } : {}), status: service.status || status, rejectionReason: previous?.rejectionReason || '' });
+                normalized.push({ ...service, ...(adminRate !== undefined ? { adminRate } : {}), status, rejectionReason: previous?.rejectionReason || '' });
             }
             updates.shopDetails.services = normalized;
         }
@@ -1177,171 +1164,5 @@ export const lookupCustomerByPhone = async (req, res) => {
     } catch (err) {
         console.error('Lookup Phone Error:', err);
         res.status(500).json({ message: 'Error looking up customer' });
-    }
-};
-
-// Invite a new sub-admin (called by Master Admin)
-export const inviteSubAdmin = async (req, res) => {
-    try {
-        const { firstName, lastName, email, phone, role, accessType, geofences } = req.body;
-
-        if (!firstName || !lastName || !email || !phone || !role) {
-            return res.status(400).json({ message: 'All fields are required' });
-        }
-
-        // Check if phone or email already registered
-        const existingUser = await User.findOne({ $or: [{ phone }, { email }] });
-        if (existingUser) {
-            return res.status(400).json({ message: 'A user with this phone or email already exists' });
-        }
-
-        // Generate activation details
-        const activationToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit OTP
-        const otpExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-        // Map role permissions based on matrix
-        let permissions = [];
-        if (role === 'Master Admin') {
-            permissions = ['Dashboard', 'User Management', 'Registration Approval', 'Vendor Service Request', 'Supplier Product Request', 'Orders', 'Services & Pricing', 'Vendor Supply Pricing', 'Support Tickets', 'Notifications', 'FAQ Manager', 'Privacy Policy', 'Terms & Conditions', 'Splash Ads', 'Advertise', 'Referral Settings', 'Promotions', 'Partnerships', 'Customer Feedback', 'Career Center', 'Settings', 'Invoice Design'];
-        } else if (role === 'Global Auditor / Developer') {
-            permissions = ['Dashboard', 'User Management', 'Registration Approval', 'Vendor Service Request', 'Supplier Product Request', 'Orders', 'Services & Pricing', 'Vendor Supply Pricing', 'Support Tickets', 'Notifications', 'FAQ Manager', 'Privacy Policy', 'Terms & Conditions', 'Splash Ads', 'Advertise', 'Referral Settings', 'Promotions', 'Partnerships', 'Customer Feedback', 'Career Center', 'Settings', 'Invoice Design'];
-        } else if (role === 'Operations & Pricing Lead') {
-            permissions = ['Dashboard', 'Registration Approval', 'Vendor Service Request', 'Supplier Product Request', 'Orders'];
-        } else if (role === 'Customer Support Executive') {
-            permissions = ['User Management', 'Orders', 'Support Tickets', 'FAQ Manager'];
-        } else if (role === 'Logistics & Shipping Coordinator') {
-            permissions = ['Orders', 'Support Tickets', 'Notifications'];
-        } else if (role === 'Growth & Marketing Admin') {
-            permissions = ['Splash Ads', 'Advertise', 'Referral Settings', 'Promotions', 'Partnerships'];
-        } else if (role === 'HR') {
-            permissions = ['User Management', 'Support Tickets', 'FAQ Manager', 'Career Center', 'Invoice Design', 'Customer Feedback'];
-        } else {
-            // Custom role
-            permissions = req.body.permissions || [];
-        }
-
-        // Save placeholder sub-admin to DB
-        const newAdmin = new User({
-            phone,
-            email,
-            role: 'Admin',
-            displayName: `${firstName} ${lastName}`,
-            status: 'pending',
-            adminRole: role,
-            adminPermissions: permissions,
-            adminAccessType: accessType || 'Read/Write',
-            geofenceRestrictions: geofences || [],
-            otp,
-            otpExpiry,
-            activationToken
-        });
-        
-        await newAdmin.save();
-
-        // Generate activation link
-        const activationLink = `http://localhost:5173/admin/activate?token=${activationToken}`;
-
-        // 1. Send Whatsapp Message Mock to backend terminal
-        console.log('\n----------------------------------------');
-        console.log('🟢 [WHATSAPP MOCK] Sub-Admin Invitation');
-        console.log(`📱 Phone: +91 ${phone}`);
-        console.log(`👤 Name: ${firstName} ${lastName}`);
-        console.log(`🔑 Verification OTP: ${otp}`);
-        console.log(`🔗 Link: ${activationLink}`);
-        console.log('----------------------------------------\n');
-
-        // 2. Send email using helper
-        try {
-            const { sendSubAdminActivationEmail } = await import('../utils/emailHelper.js');
-            await sendSubAdminActivationEmail(email, firstName, activationLink, otp);
-            console.log(`📧 [EMAIL] Sent sub-admin invitation email to ${email}`);
-        } catch (emailErr) {
-            console.error('❌ Failed to send sub-admin activation email:', emailErr.message);
-        }
-
-        res.status(201).json({
-            success: true,
-            message: 'Sub-admin invited successfully. Check terminal for WhatsApp mock and email logs.',
-            activationLink,
-            otp
-        });
-
-    } catch (err) {
-        console.error('Invite Sub-Admin Error:', err);
-        res.status(500).json({ message: 'Internal server error', error: err.message });
-    }
-};
-
-// Fetch sub-admin activation details by token (Public GET)
-export const getSubAdminActivationDetails = async (req, res) => {
-    try {
-        const { token } = req.query;
-
-        if (!token) {
-            return res.status(400).json({ message: 'Token is required' });
-        }
-
-        const user = await User.findOne({ activationToken: token, role: 'Admin' });
-        if (!user) {
-            return res.status(404).json({ message: 'Invalid or expired invitation link' });
-        }
-
-        res.status(200).json({
-            email: user.email,
-            phone: user.phone,
-            displayName: user.displayName,
-            adminRole: user.adminRole
-        });
-    } catch (err) {
-        console.error('Get Activation Details Error:', err);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-};
-
-// Activate sub-admin (sets password and verifies via OTP) (Public POST)
-export const activateSubAdmin = async (req, res) => {
-    try {
-        const { token, password, otp } = req.body;
-
-        if (!token || !password || !otp) {
-            return res.status(400).json({ message: 'Token, password, and OTP are required' });
-        }
-
-        const user = await User.findOne({ activationToken: token, role: 'Admin' });
-        if (!user) {
-            return res.status(404).json({ message: 'Invalid or expired activation token' });
-        }
-
-        // Verify OTP
-        if (user.otp !== otp) {
-            return res.status(400).json({ message: 'Invalid verification OTP' });
-        }
-
-        if (new Date() > user.otpExpiry) {
-            return res.status(400).json({ message: 'Verification OTP has expired' });
-        }
-
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Update user status and credentials
-        user.password = hashedPassword;
-        user.status = 'approved';
-        user.otp = null;
-        user.otpExpiry = null;
-        user.activationToken = null;
-
-        await user.save();
-
-        console.log(`🔓 [SUB_ADMIN] Account activated successfully for: ${user.email}`);
-
-        res.status(200).json({
-            success: true,
-            message: 'Account activated successfully! You can now log in using your password.'
-        });
-    } catch (err) {
-        console.error('Activate Sub-Admin Error:', err);
-        res.status(500).json({ message: 'Internal server error' });
     }
 };

@@ -215,7 +215,7 @@ test('new admin modal searches and retains multiple geofence restrictions', asyn
     await page.route('**/api/admin/sub-admins', route => route.fulfill({ json: [] }));
     await page.route('**/api/geofence/areas', route => route.fulfill({ json: Array.from({ length: 80 }, (_, index) => ({ _id: `zone-${index}`, areaName: `Location ${String(index + 1).padStart(2, '0')}` })) }));
     await page.goto('/admin/users/roles');
-    await page.getByRole('button', { name: 'Create New Admin' }).click();
+    await page.getByRole('button', { name: 'Add New Role' }).click();
     const trigger = page.getByRole('button', { name: 'Geofence restrictions' });
     await expect(page.getByRole('checkbox', { name: 'Location 01', exact: true })).toHaveCount(0);
     await trigger.click();

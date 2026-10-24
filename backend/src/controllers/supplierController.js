@@ -5,6 +5,8 @@ import Notification from '../models/Notification.js';
 import { getEventPublisher } from '../socket.js';
 import axios from 'axios';
 import { sendError, httpStatusForError } from '../utils/errorResponse.js';
+import { resolveActorId } from '../middleware/authMiddleware.js';
+import { razorpayApiBaseUrl } from '../utils/razorpayClient.js';
 
 export const verifyGst = async (req, res) => {
     try {
@@ -45,60 +47,143 @@ export const verifyGst = async (req, res) => {
     }
 };
 
+/**
+ * Bank account verification through RazorpayX Fund Account Validation (a real
+ * "penny drop"): RazorpayX sends ₹1 to the account and reports whether it is
+ * active and the account holder's name registered with the bank. Nothing about
+ * the check is returned to, or typed in by, the user — the result comes from
+ * RazorpayX only.
+ *
+ * Needs RAZORPAYX_API_KEY, RAZORPAYX_API_SECRET and RAZORPAYX_ACCOUNT_NUMBER.
+ */
+const razorpayXRequest = async (method, path, body) => {
+    const auth = Buffer.from(`${process.env.RAZORPAYX_API_KEY}:${process.env.RAZORPAYX_API_SECRET}`).toString('base64');
+    const response = await fetch(`${razorpayApiBaseUrl()}${path}`, {
+        method,
+        headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined,
+        signal: AbortSignal.timeout(15000)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        const error = new Error(data?.error?.description || `RazorpayX request failed (${response.status})`);
+        error.status = response.status;
+        throw error;
+    }
+    return data;
+};
+
+const isRazorpayXConfigured = () => Boolean(
+    process.env.RAZORPAYX_API_KEY && process.env.RAZORPAYX_API_SECRET && process.env.RAZORPAYX_ACCOUNT_NUMBER
+);
+
+const IFSC_PATTERN = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+
+/** The account being verified belongs to the logged-in user (Admins may pass one). */
+const verificationTarget = (req) => resolveActorId(req, 'userId');
+
 export const initiateBankVerification = async (req, res) => {
     try {
-        const { userId, accountNumber, ifscCode } = req.body;
-        console.log(`🏦 [RAZORPAYX] Initiating Penny Drop for User: ${userId}`);
+        const userId = verificationTarget(req);
+        const accountNumber = String(req.body.accountNumber || '').replace(/\s/g, '');
+        const ifscCode = String(req.body.ifscCode || '').trim().toUpperCase();
+        if (!/^\d{6,18}$/.test(accountNumber)) return res.status(400).json({ message: 'Enter a valid bank account number' });
+        if (!IFSC_PATTERN.test(ifscCode)) return res.status(400).json({ message: 'Enter a valid IFSC code' });
 
-        // 1. Generate a random amount between 1.00 and 2.00 (e.g. 1.15)
-        const randomAmount = parseFloat((Math.random() * (2.0 - 1.0) + 1.0).toFixed(2));
-        
-        // 2. Simulate RazorpayX Payout (In production, use axios to call RazorpayX)
-        // Note: We send amount in paise to RazorpayX
-        const amountInPaise = Math.round(randomAmount * 100);
-        console.log(`💸 [RAZORPAYX] Sending ₹${randomAmount} (${amountInPaise} paise) to ${accountNumber}`);
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
 
-        // 3. Update User with the secret amount
-        await User.findByIdAndUpdate(userId, {
-            'bankVerification.amount': randomAmount,
-            'bankVerification.isVerified': false,
-            'bankVerification.lastRequested': new Date()
+        if (!isRazorpayXConfigured()) {
+            return res.status(503).json({
+                message: 'Instant bank verification is unavailable right now. You can still submit; our team will verify your account during review.'
+            });
+        }
+
+        const holderName = String(req.body.accountHolderName || user.supplierDetails?.businessName
+            || user.shopDetails?.name || user.displayName || 'Account Holder').slice(0, 120);
+
+        const validation = await razorpayXRequest('POST', '/v1/fund_accounts/validations', {
+            account_number: process.env.RAZORPAYX_ACCOUNT_NUMBER,
+            fund_account: {
+                account_type: 'bank_account',
+                bank_account: { name: holderName, ifsc: ifscCode, account_number: accountNumber },
+                contact: {
+                    name: holderName,
+                    contact: user.phone || undefined,
+                    email: user.email || undefined,
+                    type: user.role === 'Supplier' ? 'vendor' : 'customer',
+                    reference_id: String(user._id)
+                }
+            },
+            amount: 100,
+            currency: 'INR',
+            notes: { userId: String(user._id) }
         });
 
-        res.json({ 
-            success: true, 
-            message: `Penny Drop Generated (Demo Mode): ₹${randomAmount}. Please enter ${randomAmount} below to confirm.`,
-            demoAmount: randomAmount,
-            demoNote: `[DEMO MODE]: Generated Penny Drop Amount is ₹${randomAmount}`
+        user.bankVerification = {
+            validationId: validation.id,
+            status: 'pending',
+            isVerified: false,
+            accountLast4: accountNumber.slice(-4),
+            ifsc: ifscCode,
+            registeredName: '',
+            lastRequested: new Date()
+        };
+        await user.save();
+
+        res.json({
+            success: true,
+            status: 'pending',
+            message: 'We are sending ₹1 to this account to verify it. This usually takes under a minute.'
         });
     } catch (error) {
-        console.error('❌ [RAZORPAYX] Payout Error:', error.message);
-        res.status(500).json({ message: 'Failed to initiate bank verification' });
+        console.error('❌ [RAZORPAYX] Bank verification request failed:', error.message);
+        res.status(error.status === 400 ? 400 : 502).json({ message: `Could not start bank verification. ${error.status === 400 ? error.message : 'Please try again.'}` });
     }
 };
 
+/** Checks the RazorpayX result for the user's latest verification request. */
 export const completeBankVerification = async (req, res) => {
     try {
-        const { userId, amountEntered } = req.body;
-        const user = await User.findById(userId);
-
-        if (!user || !user.bankVerification.amount) {
+        const user = await User.findById(verificationTarget(req));
+        const pending = user?.bankVerification;
+        if (!user || !pending?.validationId) {
             return res.status(400).json({ message: 'No active verification request found' });
         }
-
-        const actualAmount = user.bankVerification.amount;
-        console.log(`🧐 [VERIFY] User Entered: ${amountEntered}, Actual: ${actualAmount}`);
-
-        // Match with 0.01 tolerance just in case of float issues
-        if (Math.abs(parseFloat(amountEntered) - actualAmount) < 0.01) {
-            user.bankVerification.isVerified = true;
-            await user.save();
-            res.json({ success: true, message: 'Bank Account Verified Successfully!' });
-        } else {
-            res.status(400).json({ success: false, message: 'Incorrect amount. Please try again.' });
+        if (pending.isVerified) {
+            return res.json({ success: true, status: 'verified', registeredName: pending.registeredName });
         }
+        if (!isRazorpayXConfigured()) {
+            return res.status(503).json({ message: 'Instant bank verification is unavailable right now.' });
+        }
+
+        const validation = await razorpayXRequest('GET', `/v1/fund_accounts/validations/${encodeURIComponent(pending.validationId)}`);
+        if (validation.status !== 'completed') {
+            return res.status(202).json({ success: false, status: 'pending', message: 'Verification is still in progress.' });
+        }
+
+        const active = validation.results?.account_status === 'active';
+        user.bankVerification.status = active ? 'verified' : 'failed';
+        user.bankVerification.isVerified = active;
+        user.bankVerification.registeredName = validation.results?.registered_name || '';
+        await user.save();
+
+        if (!active) {
+            return res.status(400).json({
+                success: false,
+                status: 'failed',
+                message: 'The bank reported this account as invalid or inactive. Check the account number and IFSC.'
+            });
+        }
+        res.json({
+            success: true,
+            status: 'verified',
+            registeredName: user.bankVerification.registeredName,
+            message: 'Bank Account Verified Successfully!'
+        });
     } catch (error) {
-        res.status(500).json({ message: 'Verification failed' });
+        console.error('❌ [RAZORPAYX] Verification status check failed:', error.message);
+        res.status(502).json({ message: 'Could not check the verification status. Please try again.' });
     }
 };
 
@@ -135,6 +220,8 @@ export const submitApplication = async (req, res) => {
         if (req.body.ownerAadhaar && typeof req.body.ownerAadhaar === 'string' && req.body.ownerAadhaar.startsWith('http')) {
             docs.push({ type: 'Aadhaar Document', url: req.body.ownerAadhaar });
         }
+
+        const newApplication = await SupplierApplication.create(applicationData);
 
         // Sync bank details and business info to User model immediately
         await User.findByIdAndUpdate(userId, {

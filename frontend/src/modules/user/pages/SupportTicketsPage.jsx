@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -117,7 +118,7 @@ const SupportTicketsPage = () => {
 
     const handleDeleteTicket = async (tid, e) => {
         e.stopPropagation();
-        if (!window.confirm('Are you sure you want to delete this ticket?')) return;
+        if (!await appDialog.confirm('Are you sure you want to delete this ticket?')) return;
         try {
             setIsDeleting(true);
             await ticketApi.deleteTicket(tid);

@@ -124,9 +124,7 @@ const RegisterAsSupplierPage = () => {
   const [isBankVerifying, setIsBankVerifying] = useState(false);
   const [isBankVerified, setIsBankVerified] = useState(false);
   const [showAmountInput, setShowAmountInput] = useState(false);
-  const [amountEntered, setAmountEntered] = useState('');
   const [demoNote, setDemoNote] = useState('');
-  const [demoAmount, setDemoAmount] = useState('');
 
   const { isLoaded } = useLoadScript(GOOGLE_MAPS_LOADER_OPTIONS);
 
@@ -407,6 +405,37 @@ const RegisterAsSupplierPage = () => {
     }
   };
 
+  // Bank verification (RazorpayX penny drop): the server asks RazorpayX to send
+  // ₹1 to the account, then we poll until the bank confirms the account.
+  const pollBankVerification = async (attempt = 0) => {
+    try {
+        const response = await fetch(`${BASE_URL}/supplier/complete-bank-verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        const result = await response.json().catch(() => ({}));
+        if (response.status === 202 && attempt < 20) {
+            setTimeout(() => pollBankVerification(attempt + 1), 3000);
+            return;
+        }
+        setIsBankVerifying(false);
+        setShowAmountInput(false);
+        if (response.ok && result.status === 'verified') {
+            setIsBankVerified(true);
+            setDemoNote(result.registeredName ? `Registered name: ${result.registeredName}` : '');
+            toast.success('Bank Account Verified!');
+        } else if (response.status === 202) {
+            toast('Verification is taking longer than usual. Tap Verify Account again in a minute.');
+        } else {
+            toast.error(result.message || 'Bank verification failed');
+        }
+    } catch {
+        setIsBankVerifying(false);
+        toast.error('Could not check the verification status');
+    }
+  };
+
   const handleBankVerifyInitiate = async () => {
     if (!formData.accountNumber || !formData.ifscCode) {
         toast.error('Please enter account number and IFSC');
@@ -414,74 +443,25 @@ const RegisterAsSupplierPage = () => {
     }
 
     setIsBankVerifying(true);
-    const loadingToast = toast.loading('Initiating bank transfer...');
-    
+    setDemoNote('');
     try {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        const userId = user._id || user.id;
         const response = await fetch(`${BASE_URL}/supplier/initiate-bank-verify`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                userId, 
+            body: JSON.stringify({
                 accountNumber: formData.accountNumber,
-                ifscCode: formData.ifscCode
+                ifscCode: formData.ifscCode,
+                accountHolderName: formData.registeredBusinessName || formData.ownerName || ''
             })
         });
-
-        const result = await response.json();
-        if (response.ok) {
-            toast.success(result.message, { id: loadingToast, duration: 6000 });
-            setShowAmountInput(true);
-            if (result.demoNote || result.demoAmount) {
-                const note = result.demoNote || `[DEMO MODE]: Generated Penny Drop Amount is ₹${result.demoAmount}`;
-                setDemoNote(note);
-                if (result.demoAmount) {
-                    setDemoAmount(String(result.demoAmount));
-                    setAmountEntered(String(result.demoAmount));
-                }
-            }
-        } else {
-            throw new Error(result.message);
-        }
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.message || 'Could not start bank verification');
+        toast(result.message, { duration: 5000 });
+        setShowAmountInput(true); // shows the "verifying" state
+        pollBankVerification();
     } catch (error) {
-        toast.error(error.message, { id: loadingToast });
-    } finally {
         setIsBankVerifying(false);
-    }
-  };
-
-  const handleBankVerifyComplete = async () => {
-    if (!amountEntered) {
-        toast.error('Please enter the received amount');
-        return;
-    }
-
-    setIsBankVerifying(true);
-    try {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        const userId = user._id || user.id;
-        const response = await fetch(`${BASE_URL}/supplier/complete-bank-verify`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                userId, 
-                amountEntered: amountEntered 
-            })
-        });
-
-        const result = await response.json();
-        if (response.ok) {
-            toast.success('Bank Account Verified!');
-            setIsBankVerified(true);
-            setShowAmountInput(false);
-        } else {
-            toast.error(result.message);
-        }
-    } catch (error) {
-        toast.error('Verification failed');
-    } finally {
-        setIsBankVerifying(false);
+        toast.error(error.message);
     }
   };
 
@@ -1361,54 +1341,18 @@ const RegisterAsSupplierPage = () => {
                             </div>
                             
                             {showAmountInput && !isBankVerified && (
-                                <motion.div 
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: 'auto', opacity: 1 }}
-                                    className="mt-4 p-4 bg-primary/5 rounded-2xl border border-primary/10 space-y-3"
-                                >
-                                    {demoNote && (
-                                        <div className="bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-between shadow-sm">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-sm">💡</span>
-                                                <span>{demoNote}</span>
-                                            </div>
-                                            {demoAmount && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setAmountEntered(String(demoAmount))}
-                                                    className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[8px] font-black uppercase tracking-widest transition-all shadow-sm cursor-pointer shrink-0 ml-2"
-                                                >
-                                                    Auto-Fill ₹{demoAmount}
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    <label className="text-[9px] font-black uppercase tracking-widest text-primary block ml-0.5">Enter Exact Amount Received (₹)</label>
-                                    <div className="flex gap-2">
-                                        <input 
-                                            type="number"
-                                            step="0.01"
-                                            value={amountEntered}
-                                            onChange={(e) => setAmountEntered(e.target.value)}
-                                            placeholder="e.g. 1.44"
-                                            className="flex-1 bg-white border border-primary/20 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-primary"
-                                        />
-                                        <button 
-                                            type="button"
-                                            onClick={handleBankVerifyComplete}
-                                            className="px-6 bg-primary text-white rounded-xl font-black text-[9px] uppercase tracking-widest active:scale-95 transition-all shadow-md shadow-primary/20 cursor-pointer"
-                                        >
-                                            Confirm
-                                        </button>
-                                    </div>
-                                </motion.div>
+                                <div className="mt-4 p-4 bg-primary/5 rounded-2xl border border-primary/10 flex items-center gap-3">
+                                    <span className="material-symbols-outlined text-primary animate-spin text-base">progress_activity</span>
+                                    <p className="text-[10px] font-black uppercase tracking-wider text-primary">
+                                        Verifying with your bank — sending ₹1 to this account…
+                                    </p>
+                                </div>
                             )}
                             
                             <p className="text-[8px] font-bold text-slate-400 italic mt-1 ml-1">
                                 {isBankVerified 
-                                    ? "* This bank account is verified and ready for settlements."
-                                    : "* Demo Mode: Enter any test bank account & IFSC code (e.g. BSRNR04F4). Click Verify Account to generate your demo penny transfer amount."
+                                    ? `* This bank account is verified and ready for settlements.${demoNote ? ` ${demoNote}` : ''}`
+                                    : "* We verify the account by sending ₹1 to it (RazorpayX). You can also submit without it; our team will verify during review."
                                 }
                             </p>
                             </FieldHighlight>

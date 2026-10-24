@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheck, XCircle, MapPin, FileText, CheckCircle2, RotateCw, Factory, Eye, ExternalLink, UserCheck, ShieldX, Trash2 } from 'lucide-react';
@@ -31,7 +32,7 @@ export default function Suppliers() {
   };
 
   const handleAction = async (id, status) => {
-    if(!window.confirm(`Are you sure you want to ${status} this supplier?`)) return;
+    if(!await appDialog.confirm(`Are you sure you want to ${status} this supplier?`)) return;
     
     setIsProcessing(id);
     try {
@@ -51,7 +52,7 @@ export default function Suppliers() {
   };
 
   const handleDelete = async (id) => {
-    if(!window.confirm('CRITICAL: Are you sure you want to PERMANENTLY DELETE this supplier? This action cannot be undone.')) return;
+    if(!await appDialog.confirm('CRITICAL: Are you sure you want to PERMANENTLY DELETE this supplier? This action cannot be undone.')) return;
     try {
         await adminApi.deleteSupplier(id);
         toast.success('Supplier removed from ecosystem');

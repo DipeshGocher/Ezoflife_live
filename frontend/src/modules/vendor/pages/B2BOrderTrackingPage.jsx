@@ -16,6 +16,74 @@ const defaultCenter = {
   lng: 75.8577
 };
 
+const RATEABLE = ['DELIVERED', 'Delivered', 'SETTLED', 'Settled'];
+
+/** Lets the ordering vendor rate the supplier once the order is delivered. */
+const SupplierRatingCard = ({ order, onSaved }) => {
+  const existing = order?.supplierRating?.rating || 0;
+  const [rating, setRating] = useState(existing);
+  const [comment, setComment] = useState(order?.supplierRating?.comment || '');
+  const [saving, setSaving] = useState(false);
+
+  if (!order?.supplier || !RATEABLE.includes(order.status)) return null;
+
+  const save = async () => {
+    if (!rating) return toast.error('Pick a rating from 1 to 5 stars');
+    setSaving(true);
+    try {
+      const res = await b2bOrderApi.rateSupplier(order._id, { rating, comment });
+      toast.success(res.message || 'Rating saved');
+      onSaved(res.supplierRating);
+    } catch (err) {
+      toast.error(err.message || 'Could not save rating');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="bg-white border border-slate-100 shadow-sm rounded-[2rem] p-6 space-y-4 text-left">
+      <div>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rate Supplier</p>
+        <h3 className="text-sm font-black text-slate-900 mt-1">
+          How was {order.supplier?.supplierDetails?.businessName || order.supplier?.displayName || 'this supplier'}?
+        </h3>
+      </div>
+      <div className="flex gap-1.5" role="radiogroup" aria-label="Supplier rating">
+        {[1, 2, 3, 4, 5].map(n => (
+          <button
+            key={n}
+            type="button"
+            role="radio"
+            aria-checked={rating === n}
+            aria-label={`${n} star${n > 1 ? 's' : ''}`}
+            onClick={() => setRating(n)}
+            className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-colors ${n <= rating ? 'bg-amber-50 border-amber-200 text-amber-500' : 'bg-slate-50 border-slate-100 text-slate-300'}`}
+          >
+            <span className="material-symbols-outlined text-xl" style={{ fontVariationSettings: n <= rating ? "'FILL' 1" : "'FILL' 0" }}>star</span>
+          </button>
+        ))}
+      </div>
+      <textarea
+        value={comment}
+        onChange={e => setComment(e.target.value)}
+        maxLength={500}
+        rows={2}
+        placeholder="Optional: quality, packaging, delivery time…"
+        className="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs font-semibold outline-none focus:bg-white focus:border-slate-300"
+      />
+      <button
+        type="button"
+        onClick={save}
+        disabled={saving || !rating}
+        className="w-full py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-40"
+      >
+        {saving ? 'Saving…' : existing ? 'Update Rating' : 'Submit Rating'}
+      </button>
+    </section>
+  );
+};
+
 const B2BOrderTrackingPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -429,12 +497,22 @@ const B2BOrderTrackingPage = () => {
                       <span>Shipping Address</span>
                       <span className="text-slate-900 text-right max-w-[200px] truncate">{order?.shippingAddress}</span>
                   </div>
+                  <div className="flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
+                      <span>Platform Fee{order?.platformFee > 0 && order?.status === 'PENDING_PAYMENT' ? ' (Unpaid)' : ''}</span>
+                      <span className="text-slate-900">{order?.platformFee > 0 ? `₹${order.platformFee}` : 'Nil'}</span>
+                  </div>
                   <div className="flex justify-between items-center pt-4 border-t border-slate-50">
                       <p className="text-xs font-black text-slate-900 uppercase tracking-widest">Total Amount</p>
                       <p className="font-black text-slate-900 text-2xl tracking-tighter">₹{order?.totalAmount}</p>
                   </div>
               </div>
           </motion.section>
+
+          <SupplierRatingCard
+            key={`${order?._id || 'loading'}-${order?.supplierRating?.ratedAt || ''}`}
+            order={order}
+            onSaved={(supplierRating) => setOrder(prev => ({ ...prev, supplierRating }))}
+          />
 
           {/* OTP Verification Card */}
           {order?.status?.toUpperCase() === 'DISPATCHED' && (

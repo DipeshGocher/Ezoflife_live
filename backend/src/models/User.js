@@ -61,6 +61,7 @@ const userSchema = new mongoose.Schema({
         address: { type: String, default: '' },
         pincode: { type: String, default: '' },
         city: { type: String, default: '' },
+        state: { type: String, default: '' },
         gst: { type: String, default: '' },
         services: [{
             id: { type: String },
@@ -92,6 +93,7 @@ const userSchema = new mongoose.Schema({
         businessName: { type: String, default: '' },
         address: { type: String, default: '' },
         city: { type: String, default: '' },
+        state: { type: String, default: '' },
         pincode: { type: String, default: '' },
         gst: { type: String, default: '' },
         supplyCategories: [{ type: String }],
@@ -112,9 +114,14 @@ const userSchema = new mongoose.Schema({
         ifscCode: { type: String, default: '' },
         bankName: { type: String, default: '' }
     },
+    // RazorpayX Fund Account Validation result (see supplierController).
     bankVerification: {
-        amount: { type: Number, default: 0 },
+        validationId: { type: String, default: null },
+        status: { type: String, enum: ['none', 'pending', 'verified', 'failed'], default: 'none' },
         isVerified: { type: Boolean, default: false },
+        registeredName: { type: String, default: '' },
+        accountLast4: { type: String, default: '' },
+        ifsc: { type: String, default: '' },
         lastRequested: { type: Date }
     },
     isVerifiedSupplier: { type: Boolean, default: false },
@@ -190,6 +197,14 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    // Idempotency keys for vendor-funded promotion credits. The conditional
+    // update that adds one of these keys also increments walletBalance.
+    refundedWalletOrders: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Order' }],
+    payoutLockUntil: Date,
+    payoutLockToken: String,
+    reversedPromotionOrders: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Order' }],
+    razorpayLinkedAccountId: { type: String, default: '' },
+    creditedPromotionOrders: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Order' }],
     upiId: {
         type: String,
         default: ''
@@ -219,8 +234,30 @@ const userSchema = new mongoose.Schema({
     adminPermissions: [{ type: String }],
     adminAccessType: { type: String, default: 'Read/Write' },
     geofenceRestrictions: [{ type: String }],
-    activationToken: { type: String, default: null }
-}, { timestamps: true });
+    // Sub-admin invitation. Only a SHA-256 of the emailed token is stored; it
+    // is kept after acceptance so a reused link can say "already accepted".
+    inviteTokenHash: { type: String, default: null, select: false, index: true },
+    inviteSentAt: { type: Date, default: null },
+    inviteAcceptedAt: { type: Date, default: null },
+    inviteSendCount: { type: Number, default: 0 },
+    invitedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
+}, {
+    timestamps: true,
+    // Never send login secrets to a client, whichever endpoint returns a user
+    toJSON: {
+        transform: (doc, ret) => stripSecrets(ret)
+    }
+});
+
+/** Removes OTP, password hash and invite token hash from a plain user object. */
+export const stripSecrets = (user) => {
+    if (!user) return user;
+    delete user.otp;
+    delete user.otpExpiry;
+    delete user.password;
+    delete user.inviteTokenHash;
+    return user;
+};
 
 const User = mongoose.model('User', userSchema);
 

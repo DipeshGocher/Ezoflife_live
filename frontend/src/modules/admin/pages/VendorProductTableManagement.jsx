@@ -1,4 +1,5 @@
 import MultiSelectFilter from '../components/common/MultiSelectFilter';
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { vendorMasterSupplyApi, vendorSupplyCategoryApi, mediaApi } from '../../../lib/api';
 import { toast } from 'react-hot-toast';
@@ -9,6 +10,7 @@ import {
 } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 import DataGrid from '../components/tables/DataGrid';
+import FilterField from "../components/common/FilterLabel";
 
 const VendorProductTableManagement = () => {
     const [supplies, setSupplies] = useState([]);
@@ -382,7 +384,7 @@ const VendorProductTableManagement = () => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this supply item?')) {
+        if (await appDialog.confirm('Are you sure you want to delete this supply item?')) {
             try {
                 await vendorMasterSupplyApi.delete(id);
                 toast.success('Supply item deleted');
@@ -551,8 +553,9 @@ const VendorProductTableManagement = () => {
                     showFilter={false}
                     showSearch={false}
                     actions={
-                        <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
+                        <div className="flex flex-col sm:flex-row sm:items-end w-full sm:w-auto gap-2">
                             <div className="w-full sm:w-auto">
+                                <FilterField label="Category" info="Shows only products in this category and sub category.">
                                 <MultiSelectFilter
                                     value={filters.categoryId}
                                     onChange={(e) => handleFilterChange('categoryId', e.target.value)}
@@ -565,8 +568,10 @@ const VendorProductTableManagement = () => {
                                         </option>
                                     ))}
                                 </MultiSelectFilter>
+                                </FilterField>
                             </div>
-                            <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-2">
+                            <div className="flex w-full sm:w-auto items-end justify-between sm:justify-start gap-2">
+                                <FilterField label="Status" info="Active (Y) = available to vendors. Inactive (N) = hidden from vendors.">
                                 <MultiSelectFilter
                                     value={filters.isActive}
                                     onChange={(e) => handleFilterChange('isActive', e.target.value)}
@@ -576,6 +581,7 @@ const VendorProductTableManagement = () => {
                                     <option value="y">Active (Y)</option>
                                     <option value="n">Inactive (N)</option>
                                 </MultiSelectFilter>
+                                </FilterField>
                                 
                                 <div className="flex items-center gap-2">
                                     {(filters.categoryId || filters.isActive !== '') && (

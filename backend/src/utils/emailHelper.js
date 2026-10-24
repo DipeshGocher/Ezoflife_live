@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { appendFileSync } from 'fs';
 import PDFDocument from 'pdfkit';
 import { Stream } from 'stream';
 
@@ -534,11 +535,30 @@ export const sendAdminJobApplicationNotification = async (application, jobTitle,
     return transporter.sendMail(mailOptions);
 };
 
+const escapeHtml = (value) => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 /**
- * Sends sub-admin activation email
+ * Transport for transactional mail. When EMAIL_OUTBOX_FILE is set (tests),
+ * messages are appended to that file as JSON lines instead of going to SMTP.
  */
-export const sendSubAdminActivationEmail = async (email, firstName, activationLink, otp) => {
-    const transporter = nodemailer.createTransport({
+const createMailTransport = () => {
+    if (process.env.EMAIL_OUTBOX_FILE) {
+        return {
+            sendMail: async (message) => {
+                appendFileSync(process.env.EMAIL_OUTBOX_FILE, JSON.stringify(message) + '\n');
+                return { messageId: `outbox-${Date.now()}` };
+            }
+        };
+    }
+    if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER) {
+        throw new Error('Email is not configured (EMAIL_HOST / EMAIL_USER missing)');
+    }
+    return nodemailer.createTransport({
         host: process.env.EMAIL_HOST,
         port: process.env.EMAIL_PORT,
         secure: process.env.EMAIL_PORT == 465,
@@ -547,32 +567,34 @@ export const sendSubAdminActivationEmail = async (email, firstName, activationLi
             pass: process.env.EMAIL_PASS,
         },
     });
-
-    const mailOptions = {
-        from: `"Spinzyt System" <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: 'Invitation to Join Spinzyt Admin Panel',
-        text: `Hi ${firstName},\n\nYou have been invited to join the Spinzyt Admin Panel.\n\nPlease activate your account and set up your password using the link below:\n${activationLink}\n\nTo verify your registration, you will need to enter the following OTP:\n${otp}\n\nBest regards,\nThe Spinzyt Team`,
-        html: `
-            <div style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 30px;">
-                <h2 style="color: #0f172a; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">Welcome to Spinzyt Admin!</h2>
-                <p>Hi <strong>${firstName}</strong>,</p>
-                <p>You have been invited to join the Spinzyt Admin Panel as a sub-admin.</p>
-                <p>Please click the button below to set up your password and activate your account:</p>
-                <div style="text-align: center; margin: 30px 0;">
-                    <a href="${activationLink}" style="background-color: #0f172a; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Activate Account</a>
-                </div>
-                <p>During the activation process, you will also be required to enter this Verification OTP:</p>
-                <div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; border-radius: 6px; font-size: 20px; font-weight: bold; text-align: center; color: #0f172a; letter-spacing: 2px; margin: 20px 0;">
-                    ${otp}
-                </div>
-                <p style="font-size: 13px; color: #64748b; margin-top: 25px;">If the button above does not work, copy and paste this link in your browser:<br/>${activationLink}</p>
-                <br />
-                <p>Best regards,<br /><strong>The Spinzyt Team</strong></p>
-            </div>
-        `
-    };
-
-    return transporter.sendMail(mailOptions);
 };
 
+/**
+ * Sends the admin-panel invitation for a sub-admin role.
+ */
+export const sendAdminInviteEmail = async ({ email, firstName, roleName, inviteLink }) => {
+    const transporter = createMailTransport();
+    const name = escapeHtml(firstName);
+    const role = escapeHtml(roleName);
+
+    return transporter.sendMail({
+        from: `"Spinzyt" <${process.env.EMAIL_USER || 'no-reply@spinzyt.com'}>`,
+        to: email,
+        subject: `You're invited to join Spinzyt as ${roleName}`,
+        text: `Hi ${firstName},\n\nYou are invited to join the Spinzyt admin panel as ${roleName}.\n\nPlease accept this invitation to log in:\n${inviteLink}\n\nAfter accepting, sign in at the admin login page with your registered mobile number.\n\nThe Spinzyt Team`,
+        html: `
+            <div style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 30px;">
+                <h2 style="color: #0f172a; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">You're invited to Spinzyt</h2>
+                <p>Hi <strong>${name}</strong>,</p>
+                <p>You are invited to join the Spinzyt admin panel as <strong>${role}</strong>.</p>
+                <p>Please accept this invitation to log in.</p>
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="${escapeHtml(inviteLink)}" style="background-color: #0f172a; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Accept Invitation</a>
+                </div>
+                <p>After accepting, sign in at the admin login page with your registered mobile number.</p>
+                <p style="font-size: 13px; color: #64748b; margin-top: 25px;">If the button does not work, copy this link into your browser:<br/>${escapeHtml(inviteLink)}</p>
+                <p>The Spinzyt Team</p>
+            </div>
+        `
+    });
+};

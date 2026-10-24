@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState } from 'react';
 import { 
     Package, 
@@ -17,6 +18,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { materialApi } from '../../../lib/api';
 import { useEffect } from 'react';
+import FilterField from "../components/common/FilterLabel";
 
 export default function MaterialConfig() {
     const [searchQuery, setSearchQuery] = useState('');
@@ -46,18 +48,18 @@ export default function MaterialConfig() {
             setShowAddModal(false);
         } catch (error) {
             console.error('Add Material Error:', error);
-            alert('Failed to add material');
+            await appDialog.alert('Failed to add material');
         }
     };
 
     const handleDelete = async (id) => {
-        if (!confirm('Are you sure you want to delete this material?')) return;
+        if (!await appDialog.confirm('Are you sure you want to delete this material?')) return;
         try {
             await materialApi.delete(id);
             fetchMaterials();
         } catch (error) {
             console.error('Delete Material Error:', error);
-            alert('Failed to delete material');
+            await appDialog.alert('Failed to delete material');
         }
     };
 
@@ -133,6 +135,7 @@ export default function MaterialConfig() {
 
             {/* Search and Filters */}
             <div className="bg-white p-2 rounded-sm border border-slate-100 shadow-sm flex flex-col md:flex-row items-center gap-2">
+                <FilterField label="Search catalog" info="Shows only materials whose name or category contains this text." className="flex-1 w-full px-2 pt-1">
                 <div className="relative flex-1 group">
                     <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors" />
                     <input 
@@ -143,6 +146,7 @@ export default function MaterialConfig() {
                         className="w-full pl-12 pr-6 py-3 bg-transparent border-none focus:ring-0 text-[11px] font-bold text-slate-900 uppercase placeholder:text-slate-300"
                     />
                 </div>
+                </FilterField>
                 <div className="h-6 w-px bg-slate-100 hidden md:block" />
                 <button className="flex items-center gap-2 px-6 py-2 text-slate-500 hover:text-slate-900 transition-colors font-bold text-[10px] uppercase tracking-widest">
                     <Filter size={14} />

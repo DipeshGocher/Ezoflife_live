@@ -1,3 +1,4 @@
+import { downloadFinalizedInvoice } from '../../../lib/finalizedInvoicePdf';
 import { normalizeInvoiceSettings, drawInvoiceBusinessName, drawInvoiceContactDetails, drawInvoiceFooter } from '../../../lib/invoiceSettings';
 import FilterSearchParams from '../../../lib/FilterSearchParams';
 import MultiSelectFilter from '../components/common/MultiSelectFilter';
@@ -235,8 +236,12 @@ export default function Orders() {
     };
   };
 
-  const handleDownloadCustomerInvoice = (order) => {
+  const handleDownloadCustomerInvoice = async (order) => {
     try {
+      if (order.gstSnapshot || order.invoiceFinalizationStatus === 'FINALIZED') {
+        const record = await adminApi.getOrderDetail(order._id);
+        return downloadFinalizedInvoice(record.order || record, 'customer');
+      }
       const calc = getCustomerInvoiceCalculations(order);
       const doc = new jsPDF();
       
@@ -335,8 +340,12 @@ export default function Orders() {
     }
   };
 
-  const handleDownloadVendorInvoice = (order) => {
+  const handleDownloadVendorInvoice = async (order) => {
     try {
+      if (order.gstSnapshot || order.invoiceFinalizationStatus === 'FINALIZED') {
+        const record = await adminApi.getOrderDetail(order._id);
+        return downloadFinalizedInvoice(record.order || record, 'platform_vendor');
+      }
       const customerCalc = getCustomerInvoiceCalculations(order);
       const calc = getVendorInvoiceCalculations(order, customerCalc);
       const doc = new jsPDF();

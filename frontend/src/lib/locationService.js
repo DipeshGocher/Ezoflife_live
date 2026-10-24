@@ -54,12 +54,16 @@ const geocode = async (request) => {
     });
 };
 
-const safeFetch = (...args) => Promise.resolve().then(() => fetch(...args));
+/**
+ * Run a lookup so that any failure, including a synchronous throw (e.g.
+ * AbortSignal.timeout missing on Safari < 16), resolves to null instead of rejecting.
+ */
+const safeLookup = (fn) => Promise.resolve().then(fn).catch(() => null);
 
-/** Fast parallel IP-based geolocation fallback */
+/** Fast parallel IP-based geolocation fallback. Never rejects. */
 const getFallbackCoordinatesFromIP = async () => {
     const fetchers = [
-        safeFetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(2000) })
+        safeLookup(() => fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(2000) })
             .then(res => res.ok ? res.json() : null)
             .then(data => data && data.latitude != null && data.longitude != null && Number.isFinite(Number(data.latitude)) && Number.isFinite(Number(data.longitude)) ? {
                 lat: Number(data.latitude),
@@ -70,9 +74,8 @@ const getFallbackCoordinatesFromIP = async () => {
                 pincode: data.postal || '',
                 fullAddress: [data.city, data.region, data.country_name].filter(Boolean).join(', '),
                 isFromIP: true
-            } : null)
-            .catch(() => null),
-        safeFetch('https://freeipapi.com/api/json', { signal: AbortSignal.timeout(2000) })
+            } : null)),
+        safeLookup(() => fetch('https://freeipapi.com/api/json', { signal: AbortSignal.timeout(2000) })
             .then(res => res.ok ? res.json() : null)
             .then(data => data && data.latitude != null && data.longitude != null && Number.isFinite(Number(data.latitude)) && Number.isFinite(Number(data.longitude)) ? {
                 lat: Number(data.latitude),
@@ -83,8 +86,7 @@ const getFallbackCoordinatesFromIP = async () => {
                 pincode: data.zipCode || '',
                 fullAddress: [data.cityName, data.regionName, data.countryName].filter(Boolean).join(', '),
                 isFromIP: true
-            } : null)
-            .catch(() => null)
+            } : null))
     ];
 
     try {
@@ -103,8 +105,10 @@ export const locationService = {
         // 1. Launch IP lookup in parallel immediately
         const ipPromise = getFallbackCoordinatesFromIP();
 
-        // 2. Launch browser geolocation with 5-minute cache and 1.8s timeout
-        let browserGeoPromise = Promise.resolve(null);
+        // 2. Launch browser geolocation with 5-minute cache and 1.8s timeout.
+        //    Stays null when unsupported; an eagerly-created Promise.reject here
+        //    was replaced but never handled, logging an unhandled rejection on every call.
+        let browserGeoPromise = null;
         if (typeof navigator !== 'undefined' && navigator.geolocation) {
             browserGeoPromise = new Promise((resolve, reject) => {
                 navigator.geolocation.getCurrentPosition(
@@ -130,7 +134,7 @@ export const locationService = {
 
         // Give browser GPS up to 1.8s; if it resolves, prefer it!
         try {
-            const gpsCoords = await browserGeoPromise;
+            const gpsCoords = browserGeoPromise ? await browserGeoPromise : null;
             if (gpsCoords) return gpsCoords;
         } catch {
             // Browser GPS timed out or failed, continue to IP

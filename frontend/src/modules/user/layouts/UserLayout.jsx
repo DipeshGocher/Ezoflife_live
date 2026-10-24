@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { appDialog } from '../../../shared/stores/appDialogStore';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import UserHeader from '../components/UserHeader';
@@ -198,7 +199,7 @@ const UserLayout = () => {
       clearIncomingRequest();
       navigate('/vendor/dashboard');
     } catch (err) {
-      alert('Order already taken or error occurred.');
+      await appDialog.alert('Order already taken or error occurred.');
     } finally {
       setAcceptingId(null);
     }
@@ -230,6 +231,8 @@ const UserLayout = () => {
     '/user/verification',
     '/user/land',
     '/user/referral',
+    '/user/become-vendor',
+    '/user/become-supplier',
     '/land',
     '/vendor'
   ];

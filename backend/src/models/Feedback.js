@@ -20,9 +20,10 @@ const feedbackSchema = new mongoose.Schema({
         min: 1,
         max: 5
     },
+    // A star rating on its own is valid feedback; the comment is optional.
     comment: {
         type: String,
-        required: true,
+        default: '',
         trim: true
     },
     category: {

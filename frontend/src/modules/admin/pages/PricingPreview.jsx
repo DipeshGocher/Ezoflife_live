@@ -7,6 +7,7 @@ import {
     Filter, ArrowUpRight, ShieldCheck, Zap
 } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
+import { FilterLabel } from "../components/common/FilterLabel";
 
 const PricingPreview = () => {
     const [areas, setAreas] = useState([]);
@@ -66,7 +67,7 @@ const PricingPreview = () => {
             {/* Simulation Controls */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-12">
                 <div className="lg:col-span-2 space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Simulate Zone</label>
+                    <FilterLabel label="Simulate zone" className="mb-1 ml-1" info="Pick a service area to preview the prices customers there would see, using that area's price multipliers." />
                     <div className="relative group">
                         <MapPin size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-primary group-hover:scale-110 transition-transform" />
                         <select 
@@ -83,7 +84,7 @@ const PricingPreview = () => {
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Filter Category</label>
+                    <FilterLabel label="Category" className="mb-1 ml-1" info="Limits the price preview to services in this category." />
                     <div className="relative group">
                         <Filter size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors" />
                         <select 
@@ -124,7 +125,7 @@ const PricingPreview = () => {
                             <ArrowUpRight size={14} className="text-primary" /> Active Pricing Sheet
                         </h4>
                         <span className="px-3 py-1 bg-slate-100 text-slate-400 rounded-lg text-[9px] font-black uppercase tracking-widest">
-                            {previewData.length} Items Indexed
+                            {previewData.length} Items · One-item Normal orders, including GST and checkout fees
                         </span>
                     </div>
 

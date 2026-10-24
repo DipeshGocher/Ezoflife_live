@@ -1,8 +1,9 @@
 import { matchesFilter } from '../utils/filters';
 import MultiSelectFilter from '../components/common/MultiSelectFilter';
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { jobApi, UPLOADS_URL } from "../../../lib/api";
+import { jobApi, adminApi, UPLOADS_URL } from "../../../lib/api";
 import toast from "react-hot-toast";
 import * as XLSX from "xlsx";
 import {
@@ -25,6 +26,7 @@ import {
 } from "lucide-react";
 import PageHeader from "../components/common/PageHeader";
 import DataGrid from "../components/tables/DataGrid";
+import FilterField from "../components/common/FilterLabel";
 
 const CareerModeration = ({ creatorFilter = "Admin" }) => {
   const [jobs, setJobs] = useState([]);
@@ -48,17 +50,19 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
   const [appFilterRole, setAppFilterRole] = useState("");
 
   // Admin configuration profiles
+  // Loaded from the database (SystemConfig 'company_profile', set in Admin Settings)
   const [adminAddresses, setAdminAddresses] = useState([]);
-  const [adminCompany, setAdminCompany] = useState("EzOfLife Corporate");
+  const [adminCompany, setAdminCompany] = useState("");
+  const [defaultJobLocation, setDefaultJobLocation] = useState("");
 
   // Admin direct posting form
   const [form, setForm] = useState({
     title: "",
-    companyName: "EzOfLife Corporate",
+    companyName: "",
     description: "",
     requirements: "",
     experience: "1-2 Years",
-    location: "Gurgaon (HQ)",
+    location: "",
     type: "Full-time",
     salary: "As per Industry",
     skills: ["Punctual"],
@@ -86,59 +90,32 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
     }
   };
 
-  const loadAdminConfigs = () => {
-    // Load addresses from settings
-    let defaultLocation = "";
-    const savedAddresses = localStorage.getItem("admin_addresses");
-    if (savedAddresses) {
-      try {
-        const parsed = JSON.parse(savedAddresses);
-        setAdminAddresses(parsed);
-        if (parsed && parsed.length > 0) {
-          const firstAddr = parsed[0].address || "";
-          defaultLocation = firstAddr.split(",")[0].trim();
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    } else {
-      setAdminAddresses([
-        { id: "1", type: "HQ", address: "Gurgaon (HQ)" },
-        { id: "2", type: "Branch", address: "Delhi NCR" },
-        { id: "3", type: "Branch", address: "Noida Hub" },
-      ]);
-    }
-    // Load company name from settings
-    const savedProfile = localStorage.getItem("admin_profile");
-    if (savedProfile) {
-      const profile = JSON.parse(savedProfile);
-      if (profile.companyName) {
-        setAdminCompany(profile.companyName);
-        setForm((prev) => ({ ...prev, companyName: profile.companyName }));
-      }
-    }
+  // City part of an address, e.g. "Indore" from "12 MG Road, Indore, MP"
+  const cityFromAddress = (addr) => {
+    const parts = String(addr || "").split(",").map((p) => p.trim()).filter(Boolean);
+    return parts.length > 1 ? parts[parts.length - 2] : parts[0] || "";
+  };
 
-    // Resolve city name (from settings addresses, or profile, or default to Gurgaon)
-    if (!defaultLocation) {
-      const adminRaw =
-        localStorage.getItem("adminData") ||
-        localStorage.getItem("user") ||
-        localStorage.getItem("userData") ||
-        "{}";
-      try {
-        const adminData = JSON.parse(adminRaw);
-        defaultLocation =
-          adminData.city ||
-          adminData.shopDetails?.city ||
-          adminData.supplierDetails?.city ||
-          "";
-      } catch (e) {
-        console.error(e);
-      }
-    }
+  const loadAdminConfigs = async () => {
+    try {
+      const configs = await adminApi.getConfig();
+      const company =
+        (Array.isArray(configs) ? configs : []).find((c) => c.key === "company_profile")?.value || {};
+      const addresses = Array.isArray(company.addresses) ? company.addresses : [];
+      const primary = addresses.find((a) => a.isDefault) || addresses[0];
+      const location = primary ? cityFromAddress(primary.address) : "";
 
-    const city = defaultLocation || "Gurgaon";
-    setForm((prev) => ({ ...prev, location: city }));
+      setAdminAddresses(addresses);
+      setAdminCompany(company.companyName || "");
+      setDefaultJobLocation(location);
+      setForm((prev) => ({
+        ...prev,
+        companyName: prev.companyName || company.companyName || "",
+        location: prev.location || location,
+      }));
+    } catch (error) {
+      console.error("Failed to load company profile:", error);
+    }
   };
 
   const fetchJobs = async () => {
@@ -202,35 +179,13 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
       await fetchJobs();
       setIsCreating(false);
       toast.success("Corporate Job Posted Successfully");
-      let defaultLocation = "";
-      const savedAddresses = localStorage.getItem("admin_addresses");
-      if (savedAddresses) {
-        try {
-          const parsed = JSON.parse(savedAddresses);
-          if (parsed && parsed.length > 0) {
-            const firstAddr = parsed[0].address || "";
-            defaultLocation = firstAddr.split(",")[0].trim();
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      }
-      if (!defaultLocation) {
-        const cityRaw =
-          adminData.city ||
-          adminData.shopDetails?.city ||
-          adminData.supplierDetails?.city ||
-          "";
-        defaultLocation = cityRaw;
-      }
-      const city = defaultLocation || "Gurgaon";
       setForm({
         title: "",
         companyName: adminCompany,
         description: "",
         requirements: "",
         experience: "1-2 Years",
-        location: city,
+        location: defaultJobLocation,
         type: "Full-time",
         salary: "As per Industry",
         skills: ["Punctual"],
@@ -244,13 +199,13 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
     setEditingJob(job);
     setForm({
       title: job.title,
-      companyName: job.companyName || "EzOfLife Corporate",
+      companyName: job.companyName || adminCompany,
       description: job.description,
       requirements: Array.isArray(job.requirements)
         ? job.requirements.join(", ")
         : job.requirements || "",
       experience: job.experience || "1-2 Years",
-      location: job.location || "Gurgaon (HQ)",
+      location: job.location || defaultJobLocation,
       type: job.type || "Full-time",
       salary: job.salary || "As per Industry",
       skills: job.skills || [],
@@ -304,7 +259,7 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
 
   const handleDeleteJob = async (id) => {
     if (
-      confirm(
+      await appDialog.confirm(
         "Are you sure you want to permanently delete this job posting? This action will also delete all candidate applications linked to it.",
       )
     ) {
@@ -320,7 +275,7 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
   };
 
   const handleDeleteApplication = async (id) => {
-    if (confirm("Are you sure you want to delete this application record?")) {
+    if (await appDialog.confirm("Are you sure you want to delete this application record?")) {
       try {
         await jobApi.deleteApplication(id);
         await fetchApplications();
@@ -686,6 +641,12 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
   return (
     <div className="admin-theme flex flex-col min-h-screen bg-slate-50/50 pb-20">
       {/* Header Strip */}
+      {/* Office cities saved in Admin Settings (database), offered as job locations */}
+      <datalist id="company-office-locations">
+        {Array.from(new Set(adminAddresses.map((a) => cityFromAddress(a.address)).filter(Boolean))).map((c) => (
+          <option key={c} value={c} />
+        ))}
+      </datalist>
       <PageHeader
         title={`${creatorFilter} Posts`}
         actions={
@@ -705,6 +666,7 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
       {/* Main Content Area */}
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
         {/* Switch Tabs */}
+        <FilterField label="Show" info="Jobs lists the career posts. Applications lists the candidates who applied to them. The numbers are how many match the current filters.">
         <div className="flex items-center justify-between border-b border-slate-200 pb-3">
           <div className="bg-slate-100/80 p-1 rounded-xl flex items-center shadow-sm w-fit border border-slate-200/50">
             <button
@@ -738,6 +700,7 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
             <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
           </button>
         </div>
+        </FilterField>
 
         {/* Render Table views */}
         {viewMode === "Jobs" ? (
@@ -750,8 +713,9 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
             showSearch={false}
             onDownload={handleDownloadJobs}
             actions={
-              <div className="flex items-center gap-2">
+              <div className="flex items-end gap-2">
                 {/* Role Filter */}
+                <FilterField label="Role" info="Shows only job posts for this role (e.g. Ironing Specialist).">
                 <MultiSelectFilter
                   value={jobFilterRole}
                   onChange={(e) => setJobFilterRole(e.target.value)}
@@ -763,6 +727,7 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
                     </option>
                   ))}
                 </MultiSelectFilter>
+                </FilterField>
               </div>
             }
           />
@@ -776,7 +741,7 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
             showSearch={false}
             onDownload={handleDownloadApps}
             actions={
-              <div className="flex items-center gap-2">
+              <div className="flex items-end gap-2">
                 {selectedJobIdForApps && (
                   <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 text-indigo-700 px-2.5 py-1 rounded-sm text-[9px] font-black uppercase tracking-wider">
                     <span>
@@ -794,6 +759,7 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
                   </div>
                 )}
                 {/* Job Title Filter */}
+                <FilterField label="Position" info="Shows only applications made for this job position.">
                 <MultiSelectFilter
                   value={appFilterRole}
                   onChange={(e) => setAppFilterRole(e.target.value)}
@@ -805,8 +771,10 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
                     </option>
                   ))}
                 </MultiSelectFilter>
+                </FilterField>
 
                 {/* Candidate Status Filter */}
+                <FilterField label="Candidate status" info="Shows only applicants at this hiring stage, from Submitted through Offer Extended, or Rejected / Withdrew.">
                 <MultiSelectFilter
                   value={appFilterStatus}
                   onChange={(e) => setAppFilterStatus(e.target.value)}
@@ -827,6 +795,7 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
                   <option value="Rejected">Rejected</option>
                   <option value="Candidate Withdrew">Candidate Withdrew</option>
                 </MultiSelectFilter>
+                </FilterField>
               </div>
             }
           />
@@ -980,6 +949,8 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
                   </label>
                   <input
                     required
+                    list="company-office-locations"
+                    placeholder="City of the job"
                     value={form.location}
                     onChange={(e) =>
                       setForm({ ...form, location: e.target.value })
@@ -1204,6 +1175,8 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
                   </label>
                   <input
                     required
+                    list="company-office-locations"
+                    placeholder="City of the job"
                     value={form.location}
                     onChange={(e) =>
                       setForm({ ...form, location: e.target.value })

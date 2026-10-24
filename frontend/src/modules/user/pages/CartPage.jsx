@@ -1,3 +1,5 @@
+import { servicePricing } from '../../../lib/servicePricing';
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,6 +18,7 @@ const CartPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const selectedService = location.state?.selectedService;
+  const placedOrderRef = useRef(null);
 
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -78,6 +81,24 @@ const CartPage = () => {
   // Combined Address/Map States
   const [mapLocation, setMapLocation] = useState(defaultCenter);
   const [mapAddress, setMapAddress] = useState('');
+  const [promosLoading, setPromosLoading] = useState(false);
+
+  const fetchApplicablePromos = useCallback(async (vId = null) => {
+    try {
+      setPromosLoading(true);
+      const data = await promotionApi.getApplicablePromos({
+        vendorId: vId || detectedVendorId || undefined,
+        lat: mapLocation?.lat,
+        lng: mapLocation?.lng
+      });
+      console.log('🎁 CartPage: Fetched Admin Platform Promos:', data);
+      if (Array.isArray(data)) setApplicablePromos(data);
+    } catch (err) {
+      console.error('❌ CartPage: Promo Fetch Error:', err);
+    } finally {
+      setPromosLoading(false);
+    }
+  }, [detectedVendorId, mapLocation]);
 
   useEffect(() => {
     const detectAndFetchPromos = async () => {
@@ -143,9 +164,26 @@ const CartPage = () => {
             } catch (err) {
                 console.error('❌ CartPage: Promo Fetch Error:', err);
             }
+            setDetectedVendorId(vId);
         } else {
             setDetectedVendorId(null);
             console.warn('⚠️ CartPage: No Vendor ID detected (even after fallback) for promo fetching');
+        }
+
+        // Fetch Admin Platform Promos unconditionally for customer checkout
+        try {
+            setPromosLoading(true);
+            const data = await promotionApi.getApplicablePromos({
+                vendorId: vId || undefined,
+                lat: mapLocation?.lat,
+                lng: mapLocation?.lng
+            });
+            console.log('🎁 CartPage: Fetched Admin Promos on mount/update:', data);
+            if (Array.isArray(data)) setApplicablePromos(data);
+        } catch (err) {
+            console.error('❌ CartPage: Promo Fetch Error:', err);
+        } finally {
+            setPromosLoading(false);
         }
     };
 
@@ -164,18 +202,41 @@ const CartPage = () => {
       setBillingUnits(u);
     }
   }, [cartItems]);
+
+  const configuredWeight = useMemo(() => {
+    if (cartItems.length === 0) return null;
+
+    let total = 0;
+    for (const item of cartItems) {
+      const itemId = item._id || item.id;
+      const quantity = Number(quantities[itemId]) || 0;
+      if (quantity <= 0) continue;
+
+      const unit = billingUnits[itemId] || item.unit || '';
+      if (/kg/i.test(unit)) {
+        total += quantity;
+        continue;
+      }
+
+      const itemWeight = Number(item.avgWeight);
+      if (!Number.isFinite(itemWeight) || itemWeight <= 0) return null;
+      total += itemWeight * quantity;
+    }
+
+    return total > 0 ? Math.round(total * 100) / 100 : null;
+  }, [billingUnits, cartItems, quantities]);
   
   useEffect(() => {
     localStorage.setItem('cart_quantities', JSON.stringify(quantities));
   }, [quantities]);
 
   useEffect(() => {
-    if (!loading && cartItems.length === 0) {
+    if (!placedOrderRef.current && !loading && cartItems.length === 0) {
       navigate('/user/home');
     }
   }, [loading, cartItems, navigate]);
   
-  const [expressMultiplier, setExpressMultiplier] = useState(1);
+  const [expressMultiplier, setExpressMultiplier] = useState(1.5); // same default as the server
   const [platformMultiplier, setPlatformMultiplier] = useState(1);
   const [gstPercent, setGstPercent] = useState(18);
   const [normalLogisticsConfig, setNormalLogisticsConfig] = useState(0);
@@ -452,17 +513,12 @@ const CartPage = () => {
   const activeExpressMultiplier = zone ? (zoneExpressMultiplier !== undefined ? zoneExpressMultiplier : expressMultiplier) : expressMultiplier;
   const activeHeritageMultiplier = zone ? (zoneHeritageMultiplier !== undefined ? zoneHeritageMultiplier : 1) : 1;
 
-  const getItemPrice = (item) => {
-    // Priority: Respect showDiscountPrice or allowDiscount toggle from Master Service
-    const basePrice = item.basePrice || item.totalPrice || 0;
-    const discountedPrice = item.discountedPrice || basePrice;
-    
-    // If allowDiscount is false or showDiscountPrice is false, explicitly use basePrice
-    const sourcePrice = (allowDiscount === false || item.showDiscountPrice === false) ? basePrice : discountedPrice;
-    
-    const isHeritage = selectedTier === 'Heritage';
-    return Math.round(sourcePrice * (pricingFactor || 1) * (isHeritage ? (activeHeritageMultiplier || 1) : 1));
-  };
+  const getItemPrice = useCallback((item) => {
+    return servicePricing(item, {
+      pricingFactor, allowDiscount, isHeritage: selectedTier === 'Heritage',
+      heritageMultiplier: activeHeritageMultiplier,
+    }).normalPrice;
+  }, [pricingFactor, allowDiscount, selectedTier, activeHeritageMultiplier]);
 
   const areaMultiplier = 1; // Default to 1, can be linked to location later
   
@@ -486,7 +542,7 @@ const CartPage = () => {
     }
     
     return totalBase + expressSurcharge + platformFee;
-  }, [cartItems, quantities, areaMultiplier, currentExpressMultiplier, activePlatformRate, activeMinPlatformFee, activeMaxPlatformFee]);
+  }, [cartItems, quantities, areaMultiplier, currentExpressMultiplier, activePlatformRate, activeMinPlatformFee, activeMaxPlatformFee, getItemPrice]);
 
   const V = V_Items + normalLogisticsConfig;
   const taxAmount = useMemo(() => {
@@ -496,21 +552,24 @@ const CartPage = () => {
       const taxableValue = itemBase + expressSurcharge;
       
       const itemGstPercent = selectedTier === 'Heritage' 
-        ? (item.heritageGst !== undefined && item.heritageGst !== null ? item.heritageGst : 18)
-        : (item.gst !== undefined && item.gst !== null ? item.gst : 5);
+        ? (item.heritageGst !== undefined && item.heritageGst !== null ? item.heritageGst : gstPercent)
+        : (item.gst !== undefined && item.gst !== null ? item.gst : gstPercent);
         
       return acc + (taxableValue * (itemGstPercent / 100));
     }, 0);
 
-    return itemsGst;
-  }, [cartItems, quantities, areaMultiplier, currentExpressMultiplier, selectedTier]);
+    const serviceValue = cartItems.reduce((sum, item) => sum + getItemPrice(item) * (quantities[item._id || item.id] || 0) * areaMultiplier * currentExpressMultiplier, 0);
+    const customerFees = V_Items - serviceValue + normalLogisticsConfig;
+    return itemsGst + customerFees * gstPercent / 100;
+  }, [cartItems, quantities, areaMultiplier, currentExpressMultiplier, selectedTier, V_Items, normalLogisticsConfig, gstPercent, getItemPrice]);
 
   const grandTotal = V + taxAmount;
   
   const discount = useMemo(() => {
       if (!isPromoApplied || !appliedPromoData) return 0;
-      if (appliedPromoData.discountType === 'Flat') return Math.min(appliedPromoData.discountValue, grandTotal);
-      return (grandTotal * appliedPromoData.discountValue) / 100;
+      const value = Number(appliedPromoData.discountValue) || 0;
+      const amount = ['Flat', 'FLAT_AMOUNT'].includes(appliedPromoData.discountType) ? value : grandTotal * value / 100;
+      return Math.max(0, Math.min(amount, grandTotal));
   }, [isPromoApplied, appliedPromoData, grandTotal]);
 
   const finalTotal = useMemo(() => Math.max(0, grandTotal - discount), [grandTotal, discount]);
@@ -544,7 +603,7 @@ const CartPage = () => {
         logisticsFee: normalLogisticsConfig,
         gstAmount: taxAmount
     };
-  }, [cartItems, quantities, areaMultiplier, activePlatformRate, activeMinPlatformFee, activeMaxPlatformFee, currentExpressMultiplier, normalLogisticsConfig, taxAmount]);
+  }, [cartItems, quantities, areaMultiplier, activePlatformRate, activeMinPlatformFee, activeMaxPlatformFee, currentExpressMultiplier, normalLogisticsConfig, taxAmount, getItemPrice]);
 
   const subtotal = priceBreakdown.baseWithArea;
 
@@ -558,11 +617,13 @@ const CartPage = () => {
         setPromoError('Vendor context missing. Please refresh cart.');
         return;
     }
+    setPromoError('');
 
     try {
         const response = await promotionApi.validate({
             code: targetCode,
             vendorId,
+            vendorId: detectedVendorId || undefined,
             orderValue: subtotal
         });
 
@@ -578,6 +639,7 @@ const CartPage = () => {
         }
     } catch (err) {
         setPromoError('Invalid or Expired Code');
+        setPromoError(err?.message || 'Invalid or Expired Code');
         setIsPromoApplied(false);
         setAppliedPromoData(null);
     }
@@ -589,7 +651,7 @@ const CartPage = () => {
     try {
       const userData = JSON.parse(localStorage.getItem('user') || '{}');
       const userId = userData._id || userData.id; 
-      if (!userId) return alert('Please login');
+      if (!userId) return await appDialog.alert('Please login');
 
       // Enforce photo presence validation
       for (const item of cartItems) {
@@ -602,7 +664,7 @@ const CartPage = () => {
         }
       }
 
-      const amountToPay = Math.round(remainingPayable);
+      const amountToPay = Math.round(remainingPayable * 100) / 100;
 
       if (paymentMethod === 'Online' && amountToPay > 0) {
         const loadScript = (src) => {
@@ -617,27 +679,46 @@ const CartPage = () => {
 
         const res = await loadScript('https://checkout.razorpay.com/v1/checkout.js');
         if (!res) {
-          alert('Razorpay SDK failed to load');
+          await appDialog.alert('Razorpay SDK failed to load');
           return;
         }
 
-        const rzpOrder = await orderApi.createRazorpayOrder({
-          amount: amountToPay
-        });
-
-        console.log('📦 [CART] Razorpay Order received from backend:', rzpOrder);
-
-        if (!rzpOrder || !rzpOrder.id) {
-          console.error('❌ [CART] Razorpay order creation failed:', rzpOrder);
-          alert('Failed to create Razorpay order. Check your backend configuration.');
+        // The server prices the cart itself and opens the checkout for that
+        // amount; the amount shown here is never what decides the charge.
+        let rzpOrder;
+        try {
+          rzpOrder = await orderApi.createRazorpayOrder({
+            purpose: 'CUSTOMER_ORDER',
+            order: {
+              items: cartItems.map(item => {
+                const itemId = item._id || item.id;
+                return { serviceId: itemId, quantity: quantities[itemId] };
+              }),
+              pickupLocation: selectedPickupAddress?.location || defaultCenter,
+              deliveryMode: isExpress ? 'Express' : 'Normal',
+              selectedTier,
+              promoApplied: isPromoApplied ? appliedPromoData?._id : null,
+              useWallet
+            }
+          });
+        } catch (err) {
+          toast.error(err.message || 'Could not start the payment');
           return;
+        }
+
+        if (Math.abs((rzpOrder.payable || 0) - amountToPay) > 1) {
+          const proceed = await appDialog.confirm(
+            `The final amount for this order is ₹${rzpOrder.payable} (the cart showed ₹${amountToPay}). Continue and pay ₹${rzpOrder.payable}?`
+          );
+          if (!proceed) return;
         }
 
         const options = {
           key: rzpOrder.keyId,
           amount: rzpOrder.amount,
           currency: rzpOrder.currency,
-          name: 'EzOfLife',
+          name: 'Spinzyt',
+          image: `${window.location.origin}/logo-mark.png`,
           description: `Full Payment`,
           order_id: rzpOrder.id,
           handler: async function (response) {
@@ -650,17 +731,23 @@ const CartPage = () => {
             email: userData.email || '',
             contact: userData.phone || ''
           },
-          theme: { color: '#000000' }
+          theme: { color: '#000000' },
+          modal: {
+            ondismiss: () => toast('Payment cancelled. Your cart is saved.')
+          }
         };
 
         const paymentObject = new window.Razorpay(options);
+        paymentObject.on('payment.failed', (response) => {
+          toast.error(response?.error?.description || 'Payment failed. No money was taken for this attempt.');
+        });
         paymentObject.open();
       } else {
         const actualMethod = amountToPay === 0 ? 'Online' : 'COD';
         await finalizeOrder(userId, null, actualMethod);
       }
     } catch (err) {
-      alert('Error initiating order');
+      await appDialog.alert('Error initiating order');
     }
   };
 
@@ -676,7 +763,7 @@ const CartPage = () => {
       });
 
       const mergedPhotos = Array.from(new Set([...garmentPhotos, ...allItemPhotos]));
-      const amountToPay = Math.round(remainingPayable);
+      const amountToPay = Math.round(remainingPayable * 100) / 100;
 
       const orderData = {
         customerId: userId,
@@ -720,6 +807,8 @@ const CartPage = () => {
 
       const response = await orderApi.createOrder(orderData);
       if (response._id) {
+        // Clearing a confirmed cart must never trigger the empty-cart Home redirect.
+        placedOrderRef.current = response._id;
         // 1. Thoroughly remove all cart, scheduling, and draft items from localStorage
         const keysToRemove = [
           'cart_quantities',
@@ -742,27 +831,23 @@ const CartPage = () => {
         setItemPhotos({});
         setSpecialInstructions('');
 
-        // 3. Clear draft cart in backend database
-        try {
-          if (userId) {
-            await authApi.updateDraftCart(userId, {});
-          }
-        } catch (_) {}
-
-        // 4. Dispatch storage and custom events so Header, Home, & GlobalCartButton reset immediately
+        // 3. Dispatch storage and custom events so Header, Home, & GlobalCartButton reset immediately
         window.dispatchEvent(new Event('storage'));
         window.dispatchEvent(new CustomEvent('cart-cleared'));
 
-        // 5. Navigate to order tracking
-        navigate(`/user/tracking/${response._id}`);
+        // 4. Show vendor search immediately; draft cleanup must not delay this transition.
+        navigate(`/user/tracking/${response._id}`, { replace: true, state: { order: response } });
+        try {
+          if (userId) await authApi.updateDraftCart(userId, {});
+        } catch (_) {}
       } else {
         // The server rejected the order — most often a payment it could not verify.
-        alert(response.message || 'Order could not be placed. Please try again.');
+        await appDialog.alert(response.message || 'Order could not be placed. Please try again.');
       }
     } catch (err) {
-      alert('Error finalizing order');
+      await appDialog.alert('Error finalizing order');
     } finally {
-      setLoading(false);
+      if (!placedOrderRef.current) setLoading(false);
     }
   };
 
@@ -1074,7 +1159,20 @@ const CartPage = () => {
               </div>
             </div>
           </div>
-            
+
+            {/* Read-only estimate from admin-configured service weights */}
+            <div className="bg-slate-950 text-white px-6 pt-5 pb-1">
+              <div className="flex items-center justify-between gap-4 rounded-xl bg-white/5 border border-white/10 px-4 py-3">
+                <div>
+                  <p className="text-[8px] font-black text-white/40 uppercase tracking-widest">Estimated total weight</p>
+                  <p className="mt-1 text-[9px] font-semibold text-white/35">Calculated automatically from the selected items</p>
+                </div>
+                <span className="text-sm font-black text-white tabular-nums whitespace-nowrap">
+                  {configuredWeight === null ? '—' : `~${configuredWeight} kg`}
+                </span>
+              </div>
+            </div>
+
             {/* 2. PRICE BREAKDOWN / PAYMENT BOX */}
             <div className="bg-slate-950 text-white rounded-b-[2rem] p-6 shadow-2xl space-y-4 relative overflow-hidden group">
             <div className="absolute right-0 top-0 p-8 opacity-[0.02] rotate-12 pointer-events-none group-hover:opacity-[0.04] transition-opacity">
@@ -1086,24 +1184,24 @@ const CartPage = () => {
               <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 px-1">
                 <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-white/40">
                   <span>Service Price</span>
-                  <span className="text-white">₹{(priceBreakdown.baseWithArea + priceBreakdown.expressSurcharge).toFixed(0)}</span>
+                  <span className="text-white">₹{(priceBreakdown.baseWithArea + priceBreakdown.expressSurcharge).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-white/40">
                   <span>Platform Fee</span>
-                  <span className="text-white">₹{priceBreakdown.platformFee.toFixed(0)}</span>
+                  <span className="text-white">₹{priceBreakdown.platformFee.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-white/40">
                   <span>Logistic Fee</span>
-                  <span className="text-white">₹{priceBreakdown.logisticsFee.toFixed(0)}</span>
+                  <span className="text-white">₹{priceBreakdown.logisticsFee.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-white/40">
                   <span>GST</span>
-                  <span className="text-white">₹{priceBreakdown.gstAmount.toFixed(0)}</span>
+                  <span className="text-white">₹{priceBreakdown.gstAmount.toFixed(2)}</span>
                 </div>
                 {isPromoApplied && (
                   <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-widest text-emerald-400">
                     <span>Promo Discount</span>
-                    <span>-₹{discount.toFixed(0)}</span>
+                    <span>-₹{discount.toFixed(2)}</span>
                   </div>
                 )}
               </div>
@@ -1120,6 +1218,12 @@ const CartPage = () => {
                         setShowPromoDropdown(true);
                       }}
                       onFocus={() => setShowPromoDropdown(true)}
+                      onFocus={() => {
+                        setShowPromoDropdown(true);
+                        if (applicablePromos.length === 0 && !promosLoading) {
+                          fetchApplicablePromos();
+                        }
+                      }}
                       className="w-full bg-white/10 border border-white/10 rounded-2xl px-5 py-4 text-[10px] font-black uppercase tracking-widest outline-none focus:bg-white/20 transition-all text-white placeholder:text-white/30 pr-24 shadow-inner"
                     />
                     
@@ -1140,7 +1244,7 @@ const CartPage = () => {
                 </div>
 
                 <AnimatePresence>
-                  {showPromoDropdown && applicablePromos.length > 0 && (
+                  {showPromoDropdown && (
                     <>
                       <motion.div 
                         initial={{ opacity: 0 }}
@@ -1157,28 +1261,49 @@ const CartPage = () => {
                       >
                         <div className="px-4 py-3 border-b border-white/5 flex justify-between items-center">
                           <span className="text-[8px] font-black text-white/40 uppercase tracking-widest">Available Offers</span>
-                          <span className="text-[8px] font-black text-emerald-400 uppercase">{applicablePromos.length} Found</span>
+                          <span className="text-[8px] font-black text-emerald-400 uppercase">
+                            {promosLoading ? 'Loading...' : `${applicablePromos.length} Found`}
+                          </span>
                         </div>
                         <div className="max-h-48 overflow-y-auto custom-scrollbar">
-                          {applicablePromos.map(p => (
-                            <button
-                              key={p._id}
-                              onClick={() => {
-                                setPromoCode(p.code);
-                                handleApplyPromo(p.code);
-                                setShowPromoDropdown(false);
-                              }}
-                              className="w-full px-5 py-4 text-left hover:bg-white/5 transition-all border-b border-white/5 last:border-0 flex items-center justify-between group"
-                            >
-                              <div className="flex flex-col gap-0.5">
-                                <span className="text-[10px] font-black text-white group-hover:text-emerald-400 transition-colors">{p.code}</span>
-                                <p className="text-[7px] font-bold text-white/40 uppercase line-clamp-1">{p.description || 'Special discount'}</p>
-                              </div>
-                              <span className="text-[9px] font-black text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-lg">
-                                {p.discountType === 'Flat' ? `₹${p.discountValue}` : `${p.discountValue}%`} OFF
-                              </span>
-                            </button>
-                          ))}
+                          {promosLoading ? (
+                            <div className="p-6 text-center text-white/40 text-[9px] font-bold uppercase tracking-widest flex items-center justify-center gap-2">
+                              <div className="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                              Loading available offers...
+                            </div>
+                          ) : applicablePromos.length > 0 ? (
+                            applicablePromos.map(p => (
+                              <button
+                                key={p._id}
+                                onClick={() => {
+                                  setPromoCode(p.code);
+                                  handleApplyPromo(p.code);
+                                  setShowPromoDropdown(false);
+                                }}
+                                className="w-full px-5 py-4 text-left hover:bg-white/5 transition-all border-b border-white/5 last:border-0 flex items-center justify-between group"
+                              >
+                                <div className="flex flex-col gap-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-black text-white group-hover:text-emerald-400 transition-colors tracking-wider">{p.code}</span>
+                                    <span className="text-[7px] font-black bg-white/10 text-white/70 px-1.5 py-0.5 rounded tracking-widest uppercase">Admin Offer</span>
+                                  </div>
+                                  <p className="text-[8px] font-bold text-white/50 uppercase line-clamp-1">{p.title || p.description || 'Special Platform Offer'}</p>
+                                  {(p.minOrderValue > 0 || p.min_order_value > 0) && (
+                                    <span className="text-[7px] text-white/30 font-bold uppercase tracking-wider">
+                                      Min Order ₹{p.minOrderValue || p.min_order_value}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[9px] font-black text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2.5 py-1 rounded-lg group-hover:bg-emerald-400 group-hover:text-white transition-all">
+                                  {['Flat', 'FLAT_AMOUNT'].includes(p.discountType) ? `₹${p.discountValue}` : `${p.discountValue}%`} OFF
+                                </span>
+                              </button>
+                            ))
+                          ) : (
+                            <div className="p-6 text-center text-white/40 text-[9px] font-bold uppercase tracking-widest">
+                              No active platform offers available right now. You can still enter an admin promo code above.
+                            </div>
+                          )}
                         </div>
                       </motion.div>
                     </>
@@ -1189,7 +1314,7 @@ const CartPage = () => {
                 {isPromoApplied && (
                   <p className="text-[9px] font-black text-emerald-400 uppercase mt-2 ml-2 tracking-[0.1em] flex items-center gap-2">
                     <span className="material-symbols-outlined text-sm">celebration</span>
-                    Promo applied! Saved ₹{discount.toFixed(0)}
+                    Promo applied! Saved ₹{discount.toFixed(2)}
                   </p>
                 )}
 
@@ -1199,7 +1324,7 @@ const CartPage = () => {
                       <span className="material-symbols-outlined text-lg text-emerald-400">account_balance_wallet</span>
                       <div className="text-left">
                         <p className="text-[9px] font-black uppercase tracking-widest text-white">Use Wallet Balance</p>
-                        <p className="text-[8px] font-bold text-white/40 uppercase tracking-wider">Available: ₹{walletBalance.toFixed(0)}</p>
+                        <p className="text-[8px] font-bold text-white/40 uppercase tracking-wider">Available: ₹{walletBalance.toFixed(2)}</p>
                       </div>
                     </div>
                     <input 
@@ -1217,10 +1342,10 @@ const CartPage = () => {
               <div className="flex flex-col">
                 <p className="text-[8px] font-black uppercase tracking-widest text-white/30">Total Payable Amount</p>
                 <div className="flex items-baseline gap-2">
-                    <p className="text-3xl font-black tracking-tighter text-white">₹{remainingPayable.toFixed(0)}</p>
+                    <p className="text-3xl font-black tracking-tighter text-white">₹{remainingPayable.toFixed(2)}</p>
                     {useWallet && (
                       <span className="text-[7px] font-black text-emerald-400 uppercase tracking-widest">
-                        (₹{Math.min(walletBalance, finalTotal).toFixed(0)} from wallet)
+                        (₹{Math.min(walletBalance, finalTotal).toFixed(2)} from wallet)
                       </span>
                     )}
                 </div>
@@ -1273,7 +1398,7 @@ const CartPage = () => {
                       </div>
                       <div className="flex flex-col items-end shrink-0">
                         <p className="text-[11px] font-black text-slate-900 tracking-tighter">
-                          ₹{Math.round(totalPrice + (totalPrice * ((selectedTier === 'Heritage' ? (item.heritageGst !== undefined && item.heritageGst !== null ? item.heritageGst : 18) : (item.gst !== undefined && item.gst !== null ? item.gst : 5)) / 100)))}
+                          ₹{Math.round(totalPrice + (totalPrice * ((selectedTier === 'Heritage' ? (item.heritageGst !== undefined && item.heritageGst !== null ? item.heritageGst : gstPercent) : (item.gst !== undefined && item.gst !== null ? item.gst : gstPercent)) / 100)))}
                         </p>
                       </div>
                     </div>
@@ -1396,8 +1521,8 @@ const CartPage = () => {
                         </button>
                         <button 
                           type="button"
-                          onClick={() => {
-                            if (window.confirm("Delete all photos for this item?")) {
+                          onClick={async () => {
+                            if (await appDialog.confirm("Delete all photos for this item?")) {
                               setItemPhotos(prev => {
                                 const { [activePhotoService.id]: _, ...rest } = prev;
                                 localStorage.setItem('item_photos', JSON.stringify(rest));

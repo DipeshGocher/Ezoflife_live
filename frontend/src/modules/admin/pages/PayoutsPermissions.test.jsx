@@ -3,9 +3,9 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Payments from './Payouts';
 import { adminApi } from '../../../lib/api';
-vi.mock('../../../lib/api', () => ({ adminApi: { getCustomerPayments: vi.fn(), getVendorPayments: vi.fn(), recordVendorPayout: vi.fn() } }));
+vi.mock('../../../lib/api', () => ({ BASE_URL: 'http://api.test', b2bOrderApi: { getAdminEscrowOrders: vi.fn(async () => []) }, adminApi: { getRefunds: vi.fn(async () => ({ refunds: [], summary: {} })), getCustomerPayments: vi.fn(), getVendorPayments: vi.fn(), recordVendorPayout: vi.fn() } }));
 vi.mock('../components/cards/MetricRow', () => ({ default: () => null }));
-vi.mock('../components/tables/DataGrid', () => ({ default: ({ data, loading }) => loading ? <p>Loading reports</p> : <div>{data.map(row => <span key={row.id}>{row.customer}</span>)}</div> }));
+vi.mock('../components/tables/DataGrid', () => ({ default: ({ data, loading }) => loading ? <p>Loading reports</p> : <div>{data.map(row => <span key={row.id}>{row.displayName}</span>)}</div> }));
 const customer = { _id: 'customer-1', displayName: 'Visible customer', phone: '9999999991', totalSpent: 150, totalAdvancePaid: 10, totalCodPaid: 0, pendingBalance: 140 };
 beforeEach(() => { adminApi.getCustomerPayments.mockReset(); adminApi.getVendorPayments.mockReset(); });
 describe('independent payment report permissions', () => {

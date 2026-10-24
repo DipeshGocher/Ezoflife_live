@@ -1,4 +1,5 @@
 import MultiSelectFilter from '../components/common/MultiSelectFilter';
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo } from 'react';
 import { feedbackApi } from '../../../lib/api';
 import PageHeader from '../components/common/PageHeader';
@@ -6,6 +7,7 @@ import DataGrid from '../components/tables/DataGrid';
 import { Trash2, Star, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
+import FilterField from "../components/common/FilterLabel";
 
 const FeedbackManagement = () => {
     const [feedbacks, setFeedbacks] = useState([]);
@@ -61,7 +63,7 @@ const FeedbackManagement = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this feedback?')) return;
+        if (!await appDialog.confirm('Are you sure you want to delete this feedback?')) return;
         try {
             await feedbackApi.delete(id);
             toast.success('Feedback deleted successfully');
@@ -201,7 +203,8 @@ const FeedbackManagement = () => {
                     showFilter={false}
                     showSearch={false}
                     actions={
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-end gap-2 flex-wrap">
+                            <FilterField label="Customer" info="Shows only feedback from this customer.">
                             <MultiSelectFilter
                                 value={filters.userName}
                                 onChange={(e) => handleFilterChange('userName', e.target.value)}
@@ -212,6 +215,8 @@ const FeedbackManagement = () => {
                                     <option key={name} value={name}>{name}</option>
                                 ))}
                             </MultiSelectFilter>
+                            </FilterField>
+                            <FilterField label="Email" info="Shows only feedback sent from this email address.">
                             <MultiSelectFilter
                                 value={filters.email}
                                 onChange={(e) => handleFilterChange('email', e.target.value)}
@@ -222,6 +227,8 @@ const FeedbackManagement = () => {
                                     <option key={email} value={email}>{email}</option>
                                 ))}
                             </MultiSelectFilter>
+                            </FilterField>
+                            <FilterField label="Category" info="Shows only feedback of this type (the topic the customer picked).">
                             <MultiSelectFilter
                                 value={filters.category}
                                 onChange={(e) => handleFilterChange('category', e.target.value)}
@@ -232,6 +239,8 @@ const FeedbackManagement = () => {
                                     <option key={cat} value={cat}>{cat}</option>
                                 ))}
                             </MultiSelectFilter>
+                            </FilterField>
+                            <FilterField label="Rating" info="Shows only feedback with exactly this star rating.">
                             <MultiSelectFilter
                                 value={filters.rating}
                                 onChange={(e) => handleFilterChange('rating', e.target.value)}
@@ -242,6 +251,8 @@ const FeedbackManagement = () => {
                                     <option key={rating} value={rating}>{rating} Star{rating > 1 ? 's' : ''}</option>
                                 ))}
                             </MultiSelectFilter>
+                            </FilterField>
+                            <FilterField label="Submitted on" info="Shows only feedback submitted on this date.">
                             <MultiSelectFilter
                                 value={filters.submitted}
                                 onChange={(e) => handleFilterChange('submitted', e.target.value)}
@@ -252,6 +263,7 @@ const FeedbackManagement = () => {
                                     <option key={date} value={date}>{new Date(date).toLocaleDateString('en-GB')}</option>
                                 ))}
                             </MultiSelectFilter>
+                            </FilterField>
                             {(filters.userName || filters.email || filters.category || filters.rating || filters.submitted) && (
                                 <button 
                                     onClick={handleResetFilters}

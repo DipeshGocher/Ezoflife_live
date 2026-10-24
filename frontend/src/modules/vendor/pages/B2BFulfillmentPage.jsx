@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { materialApi, jobApi, laborApi, b2bOrderApi } from '../../../lib/api';
+import { materialApi, jobApi, b2bOrderApi } from '../../../lib/api';
 import toast from 'react-hot-toast';
 
 const B2BFulfillmentPage = () => {

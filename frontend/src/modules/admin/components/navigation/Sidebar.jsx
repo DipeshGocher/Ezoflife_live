@@ -1,3 +1,4 @@
+import BrandLogo from '../../../../shared/components/BrandLogo.jsx';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -114,6 +115,12 @@ const navItems = [
             },
 
 
+            { icon: CreditCard, label: 'Payments', path: '/admin/payments', subItems: [
+                { label: 'Customer Payments', path: '/admin/payments?tab=customer' },
+                { label: 'Vendor Payouts', path: '/admin/payments?tab=vendor' },
+                { label: 'Supplier Payouts', path: '/admin/payments?tab=supplier' },
+                { label: 'Refunds', path: '/admin/payments?tab=refunds' }
+            ] },
             { 
                 icon: MessageSquare, 
                 label: 'Support Tickets', 
@@ -182,7 +189,58 @@ const navItems = [
     }
 ];
 
+/** Asks before ending the admin session. */
+function LogoutConfirmDialog({ onCancel, onConfirm }) {
+  const cancelRef = React.useRef(null);
+  useEffect(() => {
+    cancelRef.current?.focus(); // safe default: Enter won't log out by accident
+    const onKey = (e) => { if (e.key === "Escape") onCancel(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  return (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onCancel} />
+      <motion.div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="logout-title"
+        aria-describedby="logout-desc"
+        initial={{ opacity: 0, scale: 0.95, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-100 p-6">
+        <div className="w-11 h-11 rounded-full bg-red-50 text-red-600 flex items-center justify-center mb-4">
+          <LogOut size={18} />
+        </div>
+        <h2 id="logout-title" className="text-base font-black text-slate-900">
+          Log out of the admin panel?
+        </h2>
+        <p id="logout-desc" className="text-sm text-slate-500 mt-1.5">
+          You will need to verify your phone number with an OTP to sign in again.
+        </p>
+        <div className="flex gap-3 mt-6">
+          <button
+            ref={cancelRef}
+            type="button"
+            onClick={onCancel}
+            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="flex-1 py-2.5 rounded-xl bg-red-600 text-sm font-bold text-white hover:bg-red-700 transition-colors">
+            Log out
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 export default function Sidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }) {
+    const [confirmLogout, setConfirmLogout] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
     const [expandedMenu, setExpandedMenu] = useState(null);
@@ -333,19 +391,15 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobileOpen, set
                 <div className="h-14 flex items-center justify-between px-6 border-b border-slate-100 shrink-0">
                     {!isCollapsed ? (
                         <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 bg-slate-900 rounded-sm flex items-center justify-center">
-                                <span className="text-white font-bold text-sm">E</span>
-                            </div>
+
                             <div className="flex flex-col">
-                                <span className="font-bold text-[13px] tracking-tight text-slate-900 leading-none uppercase">SPINZYT</span>
+                                <BrandLogo className="h-9 w-auto" />
                                 <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">Admin Panel</span>
                             </div>
                         </div>
                     ) : (
                         <div className="w-full flex justify-center">
-                            <div className="w-7 h-7 bg-slate-900 rounded-sm flex items-center justify-center">
-                                <span className="text-white font-bold text-sm">E</span>
-                            </div>
+
                         </div>
                     )}
 
@@ -550,11 +604,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobileOpen, set
                 {/* Tactical Footer */}
                 <div className="p-3 border-t border-slate-100 bg-slate-50/50 shrink-0">
                     <button
-                        onClick={() => {
-                            localStorage.clear();
-                            navigate('/user/auth');
-                            setIsMobileOpen(false);
-                        }}
+                        onClick={() => setConfirmLogout(true)}
                         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all group ${(isCollapsed && !isMobileOpen) && "justify-center"}`}
                     >
                         <LogOut size={16} />
@@ -570,6 +620,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobileOpen, set
                     {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                 </button>
             </aside>
+            {confirmLogout && <LogoutConfirmDialog onCancel={() => setConfirmLogout(false)} onConfirm={() => { setConfirmLogout(false); localStorage.clear(); setIsMobileOpen(false); navigate('/admin/login', { replace: true }); }} />}
         </>
     );
 }

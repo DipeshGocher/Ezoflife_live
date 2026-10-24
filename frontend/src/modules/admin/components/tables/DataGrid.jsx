@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { MoreHorizontal, ArrowUpDown, ChevronRight, Search, Download, Filter } from 'lucide-react';
+import { MoreHorizontal, ArrowUpDown, ChevronRight, Search, Download } from 'lucide-react';
+import FilterField from '../common/FilterLabel';
 
 export default function DataGrid({
     columns = [],
@@ -9,14 +10,14 @@ export default function DataGrid({
     onAction,
     title,
     actions,
-    footer,
     density = 'compact', // compact, standard
     stickyHeader = true,
     loading = false,
     pagination,
     onPageChange,
-    showFilter = true,
     showSearch = true,
+    searchLabel = 'Search this page',
+    searchInfo = 'Shows only the rows on this page that contain the text you type, in any column. It does not search other pages — use the filters above the table for that.',
     showHeader = true,
     onDownload,
     minWidth = '800px',
@@ -64,18 +65,21 @@ export default function DataGrid({
                         )}
                         {leftContent}
                     </div>
-                    <div className="flex items-center flex-wrap gap-2 w-full sm:w-auto">
+                    <div className="flex items-end flex-wrap gap-2 w-full sm:w-auto">
                         {showSearch && (
-                            <div className="relative group lg:block hidden">
-                                <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within/search:text-slate-900 transition-all" />
-                                <input 
-                                     type="text" 
-                                     value={searchTerm}
-                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                     placeholder="Filter records..." 
-                                     className="pl-8 pr-4 py-1.5 bg-slate-50 border border-slate-100 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-300 transition-all outline-none w-48"
-                                />
-                            </div>
+                            <FilterField label={searchLabel} info={searchInfo} className="lg:flex hidden">
+                                <div className="relative group">
+                                    <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-slate-900 transition-all" />
+                                    <input
+                                         type="text"
+                                         value={searchTerm}
+                                         onChange={(e) => setSearchTerm(e.target.value)}
+                                         placeholder="Type to filter rows..."
+                                         aria-label={searchLabel}
+                                         className="pl-8 pr-4 py-1.5 bg-slate-50 border border-slate-100 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-300 transition-all outline-none w-48"
+                                    />
+                                </div>
+                            </FilterField>
                         )}
                         {actions}
                         {onDownload && (
@@ -85,11 +89,6 @@ export default function DataGrid({
                                     <Download size={14} />
                                 </button>
                             </>
-                        )}
-                        {showFilter && (
-                            <button className="p-2 hover:bg-slate-50 text-slate-400 hover:text-slate-900 rounded-sm">
-                                <Filter size={14} />
-                            </button>
                         )}
                     </div>
                 </div>

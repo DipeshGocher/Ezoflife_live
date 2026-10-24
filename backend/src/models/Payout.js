@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 
 const payoutSchema = new mongoose.Schema({
+    order: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', unique: true, sparse: true },
     vendor: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
@@ -34,6 +35,10 @@ const payoutSchema = new mongoose.Schema({
         default: 'Completed'
     },
     notes: String,
+    bankSettlementStatus: { type: String, enum: ['UNKNOWN', 'PENDING', 'ON_HOLD', 'SETTLED', 'REVIEW'], default: 'UNKNOWN' },
+    recipientSettlementId: { type: String, default: '' },
+    providerTransferStatus: { type: String, default: '' },
+    bankSettlementCheckedAt: Date,
     paidAt: {
         type: Date,
         default: Date.now

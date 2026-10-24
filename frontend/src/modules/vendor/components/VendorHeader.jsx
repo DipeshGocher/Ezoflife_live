@@ -1,3 +1,4 @@
+import BrandLogo from '../../../shared/components/BrandLogo.jsx';
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -26,7 +27,7 @@ const VendorHeader = () => {
         {/* 1. App Logo (Left) */}
         <div className="flex items-center gap-4">
           <div onClick={() => navigate('/vendor/dashboard')} className="cursor-pointer">
-            <h1 className="font-headline font-black text-xl text-primary tracking-tighter leading-none uppercase">SPINZYT</h1>
+            <BrandLogo className="h-10 w-auto" />
           </div>
         </div>
 

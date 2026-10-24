@@ -41,6 +41,14 @@ const vendorMasterSupplySchema = new mongoose.Schema({
         required: true,
         default: 0
     },
+    // Supplier-private unit cost used for profit analytics. Never exposed in the
+    // vendor live catalog.
+    costPrice: {
+        type: Number,
+        default: 0,
+        min: 0,
+        select: false
+    },
     bulkDiscount: {
         type: Number, // Percentage discount, e.g. 5 for 5%
         default: 0

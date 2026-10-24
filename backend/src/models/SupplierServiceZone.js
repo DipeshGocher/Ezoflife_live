@@ -30,9 +30,22 @@ const supplierServiceZoneSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    // Legacy field; no longer used to charge a fee. See platformFeeMode.
     supplierPlatformMultiplier: {
         type: Number,
         default: 0
+    },
+    // DEFAULT = inherit the global B2B platform fee (SystemConfig b2b_platform_fee).
+    platformFeeMode: {
+        type: String,
+        enum: ['DEFAULT', 'PERCENTAGE', 'FLAT', 'WAIVED'],
+        default: 'DEFAULT'
+    },
+    // Percent of goods value for PERCENTAGE, rupees per order for FLAT.
+    platformFeeValue: {
+        type: Number,
+        default: 0,
+        min: 0
     },
     minSupplierPlatformFee: {
         type: Number,

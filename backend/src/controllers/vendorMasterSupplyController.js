@@ -6,6 +6,9 @@ import SupplierServiceZone from '../models/SupplierServiceZone.js';
 import ServiceArea from '../models/ServiceArea.js';
 import fs from 'fs';
 import { httpStatusForError } from '../utils/errorResponse.js';
+import SystemConfig from '../models/SystemConfig.js';
+import User from '../models/User.js';
+import { describeFeeRule, loadGlobalFeeConfig, resolveFeeRule } from '../utils/b2bPlatformFee.js';
 
 const logToFile = (msg) => {
     try {
@@ -42,6 +45,7 @@ const generateSkuId = (categoryDoc, serialNumber) => {
 const populateDeliveryFrequencies = async (supplies) => {
     logToFile(`populateDeliveryFrequencies processing ${supplies.length} items`);
     const transformed = [];
+    const globalFeeConfig = await loadGlobalFeeConfig(SystemConfig);
     for (const supply of supplies) {
         const supplyObj = supply.toObject();
         supplyObj.zoneName = '-';
@@ -82,14 +86,14 @@ const populateDeliveryFrequencies = async (supplies) => {
             const zone = await SupplierServiceZone.findOne({ supplierId: supplyObj.supplierId });
             if (zone) {
                 supplyObj.zoneName = zone.zoneName;
-                supplyObj.supplierPlatformMultiplier = zone.supplierPlatformMultiplier || 0;
                 supplyObj.minSupplierPlatformFee = zone.minSupplierPlatformFee || 0;
                 supplyObj.maxSupplierPlatformFee = zone.maxSupplierPlatformFee || null;
             } else {
-                supplyObj.supplierPlatformMultiplier = 0;
                 supplyObj.minSupplierPlatformFee = 0;
                 supplyObj.maxSupplierPlatformFee = null;
             }
+            supplyObj.platformFeeRule = resolveFeeRule(zone, globalFeeConfig);
+            supplyObj.platformFeeLabel = describeFeeRule(supplyObj.platformFeeRule);
 
             if (supplyObj.supplierFacilityName && supplyObj.supplierFacilityName !== '-') {
                 const app = await SupplierApplication.findOne({ registeredBusinessName: supplyObj.supplierFacilityName });
@@ -104,12 +108,24 @@ const populateDeliveryFrequencies = async (supplies) => {
     return transformed;
 };
 
+/**
+ * Admins manage every product; a supplier only the products listed under their
+ * own code (SUP-<last 4 phone digits>, the same code My Supplies files them under).
+ */
+const canManageSupply = async (req, supply) => {
+    if (req.user?.role === 'Admin') return true;
+    if (req.user?.role !== 'Supplier') return false;
+    const supplier = await User.findById(req.user.id).select('phone').lean();
+    const phone = String(supplier?.phone || '');
+    return Boolean(phone) && supply.supplierId === `SUP-${phone.slice(-4)}`;
+};
+
 export const vendorMasterSupplyController = {
     create: async (req, res) => {
         try {
             const { 
                 materialName, categoryId, categoryName, subCategoryName, hsnCode, gst, brand, quantity, 
-                wholesaleRate, bulkDiscount, bulkThreshold, isActive, 
+                wholesaleRate, costPrice, bulkDiscount, bulkThreshold, isActive,
                 deliveryFrequency, movFreeDelivery, supplierId, supplierFacilityName,
                 description, images
             } = req.body;
@@ -160,6 +176,7 @@ export const vendorMasterSupplyController = {
                 materialName,
                 quantity,
                 wholesaleRate,
+                costPrice: Number(costPrice) || 0,
                 bulkDiscount,
                 bulkThreshold,
                 isActive: isActive || 'y',
@@ -286,12 +303,31 @@ export const vendorMasterSupplyController = {
         }
     },
 
+    getMyCosts: async (req, res) => {
+        try {
+            if (!['Supplier', 'Admin'].includes(req.user?.role)) {
+                return res.status(403).json({ message: 'Only suppliers can view product costs' });
+            }
+            let supplierCode = req.query.supplierId;
+            if (req.user.role === 'Supplier') {
+                const supplier = await User.findById(req.user.id).select('phone role');
+                if (!supplier) return res.status(404).json({ message: 'Supplier not found' });
+                supplierCode = `SUP-${String(supplier.phone || '').slice(-4)}`;
+            }
+            if (!supplierCode || supplierCode === '-') return res.json([]);
+            const rows = await VendorMasterSupply.find({ supplierId: supplierCode }).select('+costPrice').lean();
+            res.json(rows.map(row => ({ _id: row._id, costPrice: Number(row.costPrice) || 0 })));
+        } catch (error) {
+            res.status(httpStatusForError(error)).json({ message: error.message });
+        }
+    },
+
     update: async (req, res) => {
         try {
             const { id } = req.params;
             const { 
                 materialName, categoryId, hsnCode, gst, brand, quantity, 
-                wholesaleRate, bulkDiscount, bulkThreshold, isActive, 
+                wholesaleRate, costPrice, bulkDiscount, bulkThreshold, isActive,
                 approvalStatus, adminMessage,
                 deliveryFrequency, movFreeDelivery, supplierId, supplierFacilityName,
                 description, images
@@ -301,14 +337,23 @@ export const vendorMasterSupplyController = {
             if (!existing) {
                 return res.status(404).json({ message: 'Supply item not found' });
             }
+            if (!(await canManageSupply(req, existing))) {
+                return res.status(403).json({ message: 'You can only edit your own products' });
+            }
 
             const updates = { 
                 materialName, hsnCode, gst, brand, quantity, 
-                wholesaleRate, bulkDiscount, bulkThreshold, isActive, 
+                wholesaleRate, costPrice, bulkDiscount, bulkThreshold, isActive,
                 approvalStatus, adminMessage,
                 deliveryFrequency, movFreeDelivery, supplierId, supplierFacilityName,
                 description, images
             };
+            if (req.user?.role !== 'Admin') {
+                // Suppliers can't approve their own edits or hand the product to someone else.
+                updates.approvalStatus = 'Pending';
+                delete updates.adminMessage;
+                delete updates.supplierId;
+            }
 
             // If category changed, update skuId
             if (categoryId && categoryId !== String(existing.categoryId)) {
@@ -330,6 +375,13 @@ export const vendorMasterSupplyController = {
     delete: async (req, res) => {
         try {
             const { id } = req.params;
+            const existing = await VendorMasterSupply.findById(id);
+            if (!existing) {
+                return res.status(404).json({ message: 'Supply item not found' });
+            }
+            if (!(await canManageSupply(req, existing))) {
+                return res.status(403).json({ message: 'You can only delete your own products' });
+            }
             await VendorMasterSupply.findByIdAndDelete(id);
             res.json({ message: 'Supply item deleted successfully' });
         } catch (error) {
@@ -506,14 +558,20 @@ export const vendorMasterSupplyController = {
             // Extract supplierIds and map their delivery settings
             let supplierIds = zones.map(z => z.supplierId);
             const supplierZoneMap = {};
+            const globalFeeConfig = await loadGlobalFeeConfig(SystemConfig);
+            const vendorPin = matchingPincodes[0] || null;
             zones.forEach(z => {
+                // Same zone preference as order placement: the zone serving the vendor's own pincode wins.
+                const existing = supplierZoneMap[z.supplierId];
+                if (existing && existing.servesVendorPin) return;
                 supplierZoneMap[z.supplierId] = {
                     minOrderValue: z.minOrderValue || 0,
                     deliveryCharges: z.deliveryCharges || 0,
-                    minSupplierPlatformFee: z.minSupplierPlatformFee || 0,
-                    maxSupplierPlatformFee: z.maxSupplierPlatformFee || null
+                    platformFeeRule: resolveFeeRule(z, globalFeeConfig),
+                    servesVendorPin: Boolean(vendorPin && (z.pincodes || []).map(String).includes(String(vendorPin)))
                 };
             });
+            const noZoneFeeRule = resolveFeeRule(null, globalFeeConfig);
 
             // 4. Find all active supplies in VendorMasterSupply
             const query = {
@@ -561,20 +619,21 @@ export const vendorMasterSupplyController = {
 
                 const gst = item.gst || 18;
                 const basePrice = Math.round((item.wholesaleRate + (item.wholesaleRate * gst / 100)) * 100) / 100;
-                const itemMultiplier = item.supplierPlatformMultiplier || 0;
-                const platformFeeAmount = Math.round((basePrice * itemMultiplier) * 100) / 100;
-                const finalPrice = Math.round((basePrice + platformFeeAmount) * 100) / 100;
+                // The platform fee is charged once per supplier order at checkout,
+                // not baked into the unit price.
+                const platformFeeRule = supplierZoneMap[item.supplierId]?.platformFeeRule || noZoneFeeRule;
                 
                 return {
                     _id: item._id,
+                    skuId: item.skuId,
+                    hsnCode: item.hsnCode,
                     name: item.materialName,
-                    price: finalPrice,
+                    price: basePrice,
                     basePrice: basePrice,
                     wholesaleRate: item.wholesaleRate,
                     gst: gst,
-                    supplierPlatformMultiplier: itemMultiplier,
-                    minSupplierPlatformFee: supplierZoneMap[item.supplierId]?.minSupplierPlatformFee || 0,
-                    maxSupplierPlatformFee: supplierZoneMap[item.supplierId]?.maxSupplierPlatformFee || null,
+                    platformFeeRule,
+                    platformFeeLabel: describeFeeRule(platformFeeRule),
                     category: item.categoryId?.mainCategory || 'Other',
                     subCategory: item.categoryId?.subCategory || 'General',
                     brand: item.brand || 'Generic',
@@ -597,7 +656,9 @@ export const vendorMasterSupplyController = {
                             ? Number(item.deliveryCharges)
                             : (Number(item.movFreeDelivery) > 0 ? 50 : 0)),
                     bulkDiscount: item.bulkDiscount || 0,
-                    bulkThreshold: item.bulkThreshold || 0
+                    bulkThreshold: item.bulkThreshold || 0,
+                    createdAt: item.createdAt,
+                    updatedAt: item.updatedAt
                 };
             });
 

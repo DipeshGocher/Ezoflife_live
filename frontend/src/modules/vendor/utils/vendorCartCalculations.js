@@ -19,6 +19,29 @@ export const parseSupplierInfo = (facilityName, phoneFromItem) => {
   return { name, phone };
 };
 
+/**
+ * Platform fee for one supplier order. Mirrors backend/src/utils/b2bPlatformFee.js
+ * (computePlatformFee) for display only; the server recalculates and charges.
+ * rule: { type: 'PERCENTAGE' | 'FLAT' | 'NONE', value, minFee, maxFee }
+ */
+export const computePlatformFee = (goodsSubtotal, rule) => {
+  const subtotal = Number(goodsSubtotal) > 0 ? Number(goodsSubtotal) : 0;
+  if (!rule || rule.type === "NONE" || subtotal <= 0) return 0;
+
+  const value = Number(rule.value) > 0 ? Number(rule.value) : 0;
+  let fee = rule.type === "FLAT" ? value : (subtotal * value) / 100;
+  if (fee <= 0) return 0;
+
+  const min = Number(rule.minFee) > 0 ? Number(rule.minFee) : 0;
+  const hasMax =
+    rule.maxFee !== null && rule.maxFee !== undefined && rule.maxFee !== "";
+  if (min > 0 && fee < min) fee = min;
+  if (hasMax && Number(rule.maxFee) >= 0 && fee > Number(rule.maxFee)) {
+    fee = Number(rule.maxFee);
+  }
+  return Math.round(fee * 100) / 100;
+};
+
 export const calculateVendorCart = (cart, materials) => {
   let subTotal = 0;
   let gstTotal = 0;
@@ -51,8 +74,6 @@ export const calculateVendorCart = (cart, materials) => {
         const itemWholesaleTotal = wholesaleRate * qty;
         const itemGstTotal = gstAmount * qty;
         const itemTotalFinal = basePriceWithGst * qty;
-        const itemPlatformFee =
-          (item.supplierPlatformMultiplier || 0) * itemWholesaleTotal;
 
         const itemData = {
           ...item,
@@ -101,14 +122,10 @@ export const calculateVendorCart = (cart, materials) => {
             subTotal: 0,
             gstTotal: 0,
             totalAmount: 0,
-            platformFeeRaw: 0,
             movFreeDelivery: itemMov,
             deliveryCharges: itemDelivery,
-            minSupplierPlatformFee: item.minSupplierPlatformFee || 0,
-            maxSupplierPlatformFee:
-              item.maxSupplierPlatformFee !== undefined
-                ? item.maxSupplierPlatformFee
-                : null,
+            platformFeeRule: item.platformFeeRule || null,
+            platformFeeLabel: item.platformFeeLabel || "",
             payableToSupplier: 0,
           };
         } else {
@@ -124,7 +141,6 @@ export const calculateVendorCart = (cart, materials) => {
         supplierGroups[sId].subTotal += itemWholesaleTotal;
         supplierGroups[sId].gstTotal += itemGstTotal;
         supplierGroups[sId].totalAmount += itemTotalFinal;
-        supplierGroups[sId].platformFeeRaw += itemPlatformFee;
       }
     }
   });
@@ -151,23 +167,12 @@ export const calculateVendorCart = (cart, materials) => {
     group.effectiveDeliveryFee = deliveryFee;
     group.payableToSupplier = group.subTotal + group.gstTotal + deliveryFee;
 
-    let clampedFee = group.platformFeeRaw;
-    if (
-      group.minSupplierPlatformFee &&
-      clampedFee < group.minSupplierPlatformFee
-    ) {
-      clampedFee = group.minSupplierPlatformFee;
-    }
-    if (
-      group.maxSupplierPlatformFee !== null &&
-      group.maxSupplierPlatformFee !== undefined
-    ) {
-      if (clampedFee > group.maxSupplierPlatformFee) {
-        clampedFee = group.maxSupplierPlatformFee;
-      }
-    }
-    group.platformFeeFinal = clampedFee;
-    finalPlatformFeeTotal += clampedFee;
+    // Charged once per supplier order, on goods value excl. GST & delivery
+    group.platformFeeFinal = computePlatformFee(
+      group.subTotal,
+      group.platformFeeRule,
+    );
+    finalPlatformFeeTotal += group.platformFeeFinal;
   });
 
   const calculatedGrandTotal =
@@ -180,7 +185,7 @@ export const calculateVendorCart = (cart, materials) => {
     totalDeliveryCharges: deliveryTotal,
     grandTotal: calculatedGrandTotal,
     payableToSupplier: totalPayableToSuppliers,
-    totalPlatformFee: finalPlatformFeeTotal,
+    totalPlatformFee: Math.round(finalPlatformFeeTotal * 100) / 100,
     orderItems: items,
     groupedCarts: Object.values(supplierGroups),
   };

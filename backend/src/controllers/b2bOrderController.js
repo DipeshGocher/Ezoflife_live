@@ -1,18 +1,94 @@
 import { createAdminReportScope } from '../utils/adminReportScope.js';
 import B2BOrder from '../models/B2BOrder.js';
 import User from '../models/User.js';
-import Razorpay from 'razorpay';
-import crypto from 'crypto';
 import VendorMasterSupply from '../models/VendorMasterSupply.js';
 import SystemConfig from '../models/SystemConfig.js';
 import { getNextDeliveryDate, generateCycleId, isBeforeCutoff, DAYS } from '../utils/cycleHelper.js';
 import admin from '../utils/firebaseAdmin.js';
 import { sendError } from '../utils/errorResponse.js';
+import SupplierServiceZone from '../models/SupplierServiceZone.js';
+import { verifyRazorpayPayment } from '../utils/paymentVerification.js';
+import { isRazorpayConfigured } from '../utils/razorpayClient.js';
+import { openCheckout } from '../services/paymentLedger.js';
+import PaymentTransaction from '../models/PaymentTransaction.js';
+import {
+    PLATFORM_FEE_CONFIG_KEY,
+    computePlatformFee,
+    describeFeeRule,
+    effectiveWholesaleRate,
+    loadGlobalFeeConfig,
+    resolveFeeRule,
+    validateGlobalConfig
+} from '../utils/b2bPlatformFee.js';
 
-const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder',
-    key_secret: process.env.RAZORPAY_KEY_SECRET || 'rzp_test_secret_placeholder'
-});
+const round2 = n => Math.round((Number(n) || 0) * 100) / 100;
+
+/**
+ * Group cart items by supplier and work out each group's platform fee from
+ * DB prices and admin-configured rules. Shared by /quote and /place so the
+ * vendor is charged exactly what they were shown.
+ */
+const buildSupplierFeeGroups = async (items, pincode) => {
+    const materialIds = items.map(i => i.materialId).filter(Boolean);
+    const supplyProducts = await VendorMasterSupply.find({ _id: { $in: materialIds } }).select('+costPrice');
+    const productMap = {};
+    supplyProducts.forEach(p => { productMap[p._id.toString()] = p; });
+
+    const groups = {};
+    items.forEach(item => {
+        const product = productMap[item.materialId?.toString()];
+        const sId = product?.supplierId || '-';
+        if (!groups[sId]) groups[sId] = { supplierId: sId, items: [], goodsSubtotal: 0 };
+        const quantity = Number(item.quantity) || 0;
+        const gst = Number(product?.gst) || 18;
+        const wholesaleRate = product ? effectiveWholesaleRate(product, quantity) : 0;
+        groups[sId].items.push({
+            ...item,
+            name: product?.materialName || item.name,
+            quantity,
+            // Store the supplier's GST-inclusive unit price from the database;
+            // never trust a cart-supplied price for the order value.
+            price: round2(wholesaleRate * (1 + gst / 100)),
+            costPrice: product && Number(product.costPrice) > 0 ? Number(product.costPrice) : null,
+            gst
+        });
+        if (product) {
+            groups[sId].goodsSubtotal += wholesaleRate * quantity;
+            groups[sId].movFreeDelivery = Math.max(
+                Number(groups[sId].movFreeDelivery) || 0,
+                Number(product.movFreeDelivery) || 0
+            );
+        }
+    });
+
+    const supplierIds = Object.keys(groups).filter(id => id !== '-');
+    const zones = supplierIds.length
+        ? await SupplierServiceZone.find({ supplierId: { $in: supplierIds }, isActive: true }).lean()
+        : [];
+    const globalConfig = await loadGlobalFeeConfig(SystemConfig);
+    const pin = pincode ? String(pincode).trim() : null;
+
+    for (const group of Object.values(groups)) {
+        const supplierZones = zones.filter(z => z.supplierId === group.supplierId);
+        // Prefer the zone that actually serves the delivery pincode.
+        const zone = supplierZones.find(z => pin && (z.pincodes || []).map(String).includes(pin)) || supplierZones[0] || null;
+        group.goodsSubtotal = round2(group.goodsSubtotal);
+        group.rule = resolveFeeRule(zone, globalConfig);
+        group.platformFee = computePlatformFee(group.goodsSubtotal, group.rule);
+        const configuredDelivery = Number(zone?.deliveryCharges) || 0;
+        const belowFreeDelivery = group.movFreeDelivery > 0 && group.goodsSubtotal < group.movFreeDelivery;
+        group.deliveryCharge = belowFreeDelivery
+            ? (configuredDelivery > 0 ? configuredDelivery : 50)
+            : (group.movFreeDelivery > 0 ? 0 : configuredDelivery);
+        const itemsWithGst = group.items.reduce(
+            (sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0),
+            0
+        );
+        group.supplierPayableAmount = round2(itemsWithGst + group.deliveryCharge);
+    }
+
+    return Object.values(groups);
+};
 
 const decreaseSupplyStock = async (order) => {
     try {
@@ -68,7 +144,11 @@ export const placeB2BOrder = async (req, res) => {
     console.log('\n🚨 [B2B_ORDER_INCOMING] ----------------------------------------');
     console.log('📦 Body:', JSON.stringify(req.body, null, 2));
     try {
-        const { vendorId, items, shippingAddress, totalAmount, totalPlatformFee } = req.body;
+        // totalPlatformFee from the client is deliberately ignored: the fee is computed server-side.
+        const { vendorId, items, shippingAddress } = req.body;
+        if (!Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ message: 'items must be a non-empty array' });
+        }
         
         // 0. Fetch Vendor to get fallback location info
         const vendor = await User.findById(vendorId);
@@ -81,6 +161,9 @@ export const placeB2BOrder = async (req, res) => {
 
         let pincode = cleanLocation(req.body.pincode) || cleanLocation(vendor.shopDetails?.pincode) || cleanLocation(vendor.pincode);
         let city = cleanLocation(req.body.city) || cleanLocation(vendor.shopDetails?.city) || cleanLocation(vendor.city);
+        let state = cleanLocation(req.body.state) || cleanLocation(vendor.shopDetails?.state)
+            || cleanLocation((vendor.addresses || []).find(address => address.isDefault)?.state)
+            || cleanLocation(vendor.addresses?.[0]?.state);
 
         if (!pincode && vendor.shopDetails?.address) {
             const pinMatch = vendor.shopDetails.address.match(/\b\d{6}\b/);
@@ -103,6 +186,7 @@ export const placeB2BOrder = async (req, res) => {
         // Safe fallbacks to prevent Mongoose schema validation failure
         if (!pincode) pincode = '452001';
         if (!city) city = 'Indore';
+        if (!state) state = '-';
 
         const cleanAddress = (addr) => {
             if (!addr) return null;
@@ -134,29 +218,38 @@ export const placeB2BOrder = async (req, res) => {
 
         console.log(`📦 [B2B_AGGREGATION] Order Attempt -> Vendor: ${vendor.displayName} | Pincode: ${pincode} | City: ${city}`);
 
-        // 3. Fetch VendorMasterSupply to determine supplierId for each cart item
-        const VendorMasterSupply = (await import('../models/VendorMasterSupply.js')).default;
-        const materialIds = items.map(i => i.materialId);
-        const supplyProducts = await VendorMasterSupply.find({ _id: { $in: materialIds } });
-        
-        const productMap = {};
-        supplyProducts.forEach(p => {
-            productMap[p._id.toString()] = p;
-        });
+        // 3. Group items by supplier and compute each supplier order's platform fee
+        const feeGroups = await buildSupplierFeeGroups(items, pincode);
+        const totalPlatformFee = round2(feeGroups.reduce((acc, g) => acc + g.platformFee, 0));
+        const feeDue = totalPlatformFee > 0;
 
-        // Group items by supplierId
-        const groups = {};
-        items.forEach(item => {
-            const product = productMap[item.materialId?.toString()];
-            const sId = product?.supplierId || '-';
-            if (!groups[sId]) groups[sId] = [];
-            groups[sId].push(item);
-        });
+        // 4. Open the Razorpay order BEFORE persisting anything, so a gateway
+        //    failure never leaves orphaned PENDING_PAYMENT orders behind.
+        let rzpOrder = null;
+        if (feeDue) {
+            if (!isRazorpayConfigured()) {
+                return res.status(503).json({ message: 'Payment gateway is not configured. Cannot collect the platform fee right now.' });
+            }
+            try {
+                const checkout = await openCheckout({
+                    purpose: 'B2B_PLATFORM_FEE',
+                    payerId: vendorId,
+                    amount: totalPlatformFee,
+                    quote: { groups: feeGroups.map(g => ({ supplierId: g.supplierId, goods: g.goodsSubtotal, fee: g.platformFee })) }
+                });
+                rzpOrder = { id: checkout.razorpayOrderId, keyId: checkout.keyId };
+            } catch (gatewayErr) {
+                console.error('❌ [B2B_PLATFORM_FEE] Razorpay order creation failed:', gatewayErr?.error?.description || gatewayErr.message);
+                return res.status(502).json({ message: 'Could not start the platform fee payment. Please try again.' });
+            }
+        }
 
         const createdOrders = [];
 
         // For each supplier group, create or aggregate separate orders
-        for (const [sId, groupItems] of Object.entries(groups)) {
+        for (const feeGroup of feeGroups) {
+            const sId = feeGroup.supplierId;
+            const groupItems = feeGroup.items;
             // Find supplier user ObjectId by phone suffix matching
             let supplierObjectId = null;
             let supplierApp = null;
@@ -205,7 +298,7 @@ export const placeB2BOrder = async (req, res) => {
                 }
             }
 
-            const groupTotal = groupItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+            const groupTotal = feeGroup.supplierPayableAmount;
 
             // Create new order (No aggregation for Upfront payment flow)
             console.log(`✨ [B2B_CHECKOUT] Creating new order for supplier ${sId}`);
@@ -214,52 +307,39 @@ export const placeB2BOrder = async (req, res) => {
                 supplier: supplierObjectId, // PRE-ASSIGNED!
                 items: groupItems,
                 totalAmount: groupTotal,
-                platformFee: 0, // We will assign the total platform fee to the first order later
+                deliveryCharge: feeGroup.deliveryCharge,
+                platformFee: feeGroup.platformFee,
+                platformFeeBase: feeGroup.goodsSubtotal,
+                platformFeeRule: feeGroup.rule,
+                platformFeeStatus: feeGroup.platformFee > 0 ? 'PENDING' : 'NOT_APPLICABLE',
+                razorpayOrderId: rzpOrder ? rzpOrder.id : undefined,
                 shippingAddress: finalShippingAddress,
                 pincode,
                 city: city?.trim(),
                 shippingAddress: finalShippingAddress || 'Store Address',
                 pincode: pincode || '452001',
                 city: (city || 'Indore').trim(),
-                status: (totalPlatformFee && totalPlatformFee > 0) ? 'PENDING_PAYMENT' : 'SUBMITTED',
+                state,
+                status: feeDue ? 'PENDING_PAYMENT' : 'SUBMITTED',
                 cycleId: groupCycleId,
                 deliveryDay: groupDeliveryDay,
                 deliveryDate: groupDeliveryDate,
-                paymentStatus: 'Pending',
-                escrowStatus: 'Held'
+                // Spinzyt collects only platformFee. The supplier invoice is
+                // settled directly between the vendor and supplier.
+                paymentStatus: 'Direct',
+                escrowStatus: 'Not Applicable'
             });
             await order.save();
             createdOrders.push(order);
         }
 
-        // Assign platform fee and create Razorpay Order
-        let rzpOrder = null;
-        if (createdOrders.length > 0) {
-            createdOrders[0].platformFee = totalPlatformFee || 0;
-            await createdOrders[0].save();
-
-            if (totalPlatformFee > 0) {
-                const options = {
-                    amount: Math.round(totalPlatformFee * 100), // In paise
-                    currency: 'INR',
-                    receipt: `receipt_b2b_${Date.now()}`,
-                    notes: { vendorId: vendorId.toString(), type: 'B2B_PLATFORM_FEE' }
-                };
-                rzpOrder = await razorpay.orders.create(options);
-                
-                // Save razorpay order ID to all created orders
-                for (let order of createdOrders) {
-                    order.razorpayOrderId = rzpOrder.id;
-                    await order.save();
-                }
-            } else {
-                // If no platform fee, automatically confirm
-                for (let order of createdOrders) {
-                    order.status = 'SUBMITTED';
-                    order.paymentStatus = 'Paid';
-                    await order.save();
-                    await decreaseSupplyStock(order);
-                }
+        // An explicitly fee-free order can be submitted immediately. This does
+        // not mark the supplier invoice paid; that remains a direct settlement.
+        if (!feeDue) {
+            for (let order of createdOrders) {
+                order.status = 'SUBMITTED';
+                await order.save();
+                await decreaseSupplyStock(order);
             }
         }
 
@@ -267,7 +347,9 @@ export const placeB2BOrder = async (req, res) => {
             message: 'Orders submitted successfully!',
             orders: createdOrders,
             razorpayOrderId: rzpOrder ? rzpOrder.id : null,
-            platformFeeAmount: totalPlatformFee || 0
+            razorpayKeyId: rzpOrder ? rzpOrder.keyId : null,
+            platformFeeAmount: totalPlatformFee || 0,
+            supplierPayableAmount: round2(createdOrders.reduce((sum, order) => sum + (Number(order.totalAmount) || 0), 0))
         });
 
     } catch (err) {
@@ -278,55 +360,191 @@ export const placeB2BOrder = async (req, res) => {
 
 // Verify Platform Fee Payment and Confirm Order
 
-export const verifyPlatformFeePayment = async (req, res) => {
-    try {
-        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderIds } = req.body;
-        
-        const hmac = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || 'rzp_test_secret_placeholder');
-        hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
-        const generated_signature = hmac.digest('hex');
+/**
+ * Confirm the B2B orders paid for by one platform-fee checkout. Used by the
+ * vendor's checkout callback and by the Razorpay webhook / reconciler, so an
+ * order is confirmed even if the vendor's browser closes after paying.
+ * Idempotent: each order moves PENDING_PAYMENT -> SUBMITTED at most once.
+ */
+export const confirmPlatformFeeOrders = async (razorpayOrderId, paymentId) => {
+    const orders = await B2BOrder.find({ razorpayOrderId, status: 'PENDING_PAYMENT' }).select('_id');
+    const confirmed = [];
+    for (const { _id } of orders) {
+        const order = await B2BOrder.findOneAndUpdate(
+            { _id, status: 'PENDING_PAYMENT' },
+            { status: 'SUBMITTED', platformFeePaymentId: paymentId, platformFeeStatus: 'PAID' },
+            { new: true }
+        );
+        if (!order) continue; // confirmed concurrently
+        if (!(order.platformFee > 0)) await B2BOrder.updateOne({ _id }, { platformFeeStatus: 'NOT_APPLICABLE' });
+        await decreaseSupplyStock(order);
+        confirmed.push(order);
 
-        if (generated_signature !== razorpay_signature) {
-            return res.status(400).json({ message: 'Invalid payment signature' });
-        }
-
-        // Update all orders to Confirmed
-        const orders = await B2BOrder.find({ _id: { $in: orderIds } });
-        
-        for (let order of orders) {
-            order.status = 'SUBMITTED';
-            order.paymentStatus = 'Paid';
-            await order.save();
-            await decreaseSupplyStock(order);
-            
-            // Notify supplier if pre-assigned
-            if (order.supplier) {
-                try {
-                    const supplier = await User.findById(order.supplier);
-                    if (supplier && supplier.fcmToken) {
-                        const notificationMessage = {
-                            notification: {
-                                title: 'New Confirmed B2B Order',
-                                body: `A vendor has placed and confirmed a new order with you.`
-                            },
-                            data: {
-                                type: 'NEW_B2B_ORDER',
-                                orderId: order._id.toString()
-                            },
-                            token: supplier.fcmToken
-                        };
-                        await admin.messaging().send(notificationMessage);
-                    }
-                } catch (pushErr) {
-                    console.error('❌ [FCM_PUSH] Supplier Notification Error:', pushErr.message);
+        if (order.supplier) {
+            try {
+                const supplier = await User.findById(order.supplier);
+                if (supplier && supplier.fcmToken) {
+                    await admin.messaging().send({
+                        notification: {
+                            title: 'New Confirmed B2B Order',
+                            body: 'A vendor has placed and confirmed a new order with you.'
+                        },
+                        data: { type: 'NEW_B2B_ORDER', orderId: order._id.toString() },
+                        token: supplier.fcmToken
+                    });
                 }
+            } catch (pushErr) {
+                console.error('❌ [FCM_PUSH] Supplier Notification Error:', pushErr.message);
             }
         }
+    }
+    const ids = (await B2BOrder.find({ razorpayOrderId }).select('_id')).map(o => o._id);
+    await PaymentTransaction.updateOne(
+        { razorpayOrderId, status: { $in: ['created', 'paid'] } },
+        { status: 'consumed', consumedAt: new Date(), razorpayPaymentId: paymentId, 'consumedBy.kind': 'B2BOrder', 'consumedBy.ids': ids }
+    );
+    return confirmed;
+};
 
-        res.json({ message: 'Payment verified and orders confirmed successfully', orders });
+// Verify Platform Fee Payment and Confirm Order
+export const verifyPlatformFeePayment = async (req, res) => {
+    try {
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+        if (!razorpay_order_id) {
+            return res.status(400).json({ message: 'razorpay_order_id is required' });
+        }
+
+        // The orders are identified by the Razorpay order they were placed under,
+        // never by client-supplied ids, so a payment can only confirm its own orders.
+        const orders = await B2BOrder.find({ razorpayOrderId: razorpay_order_id });
+        if (orders.length === 0) {
+            return res.status(404).json({ message: 'No orders found for this payment' });
+        }
+
+        const isAdmin = req.user?.role === 'Admin';
+        if (!isAdmin && orders.some(o => o.vendor?.toString() !== req.user?.id)) {
+            return res.status(403).json({ message: 'These orders do not belong to you' });
+        }
+
+        if (!orders.some(o => o.status === 'PENDING_PAYMENT')) {
+            // Already confirmed (retried callback, or the webhook got there first).
+            return res.json({ message: 'Payment already verified', orders });
+        }
+
+        const expectedAmount = round2(orders.reduce((acc, o) => acc + (Number(o.platformFee) || 0), 0));
+        const verification = await verifyRazorpayPayment({
+            razorpay_order_id,
+            razorpay_payment_id,
+            razorpay_signature,
+            expectedAmount
+        });
+        if (!verification.ok) {
+            return res.status(400).json({ message: verification.reason });
+        }
+
+        await confirmPlatformFeeOrders(razorpay_order_id, verification.paymentId);
+        const updated = await B2BOrder.find({ razorpayOrderId: razorpay_order_id });
+        res.json({ message: 'Payment verified and orders confirmed successfully', orders: updated });
     } catch (error) {
         console.error('💥 [VERIFY_PAYMENT_ERROR]:', error);
-        res.status(500).json({ error: error.message });
+        sendError(res, error, 'Error verifying platform fee payment');
+    }
+};
+
+// Preview the platform fee for a cart. Uses the same calculation as /place.
+export const quotePlatformFee = async (req, res) => {
+    try {
+        const { items } = req.body;
+        if (!Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ message: 'items must be a non-empty array' });
+        }
+
+        let pincode = req.body.pincode ? String(req.body.pincode).trim() : null;
+        if (!pincode && req.user?.id) {
+            const vendor = await User.findById(req.user.id).select('shopDetails pincode').lean();
+            pincode = vendor?.shopDetails?.pincode || vendor?.pincode || null;
+        }
+
+        const groups = await buildSupplierFeeGroups(items, pincode);
+        res.json({
+            totalPlatformFee: round2(groups.reduce((acc, g) => acc + g.platformFee, 0)),
+            groups: groups.map(g => ({
+                supplierId: g.supplierId,
+                goodsSubtotal: g.goodsSubtotal,
+                supplierPayableAmount: g.supplierPayableAmount,
+                deliveryCharge: g.deliveryCharge,
+                platformFee: g.platformFee,
+                rule: g.rule,
+                ruleLabel: describeFeeRule(g.rule)
+            }))
+        });
+    } catch (error) {
+        console.error('💥 [B2B_FEE_QUOTE_ERROR]:', error);
+        sendError(res, error, 'Error calculating platform fee');
+    }
+};
+
+// Admin: the global B2B platform fee default
+export const getPlatformFeeConfig = async (req, res) => {
+    try {
+        const config = await loadGlobalFeeConfig(SystemConfig);
+        res.json({ ...config, label: describeFeeRule(resolveFeeRule(null, config)) });
+    } catch (error) {
+        sendError(res, error, 'Error loading platform fee settings');
+    }
+};
+
+export const updatePlatformFeeConfig = async (req, res) => {
+    try {
+        const result = validateGlobalConfig(req.body);
+        if (!result.ok) return res.status(400).json({ message: result.message });
+
+        await SystemConfig.findOneAndUpdate(
+            { key: PLATFORM_FEE_CONFIG_KEY },
+            { value: result.config, description: 'Default platform fee charged to vendors on supplier (B2B) orders' },
+            { upsert: true, new: true }
+        );
+        res.json({ ...result.config, label: describeFeeRule(resolveFeeRule(null, result.config)) });
+    } catch (error) {
+        sendError(res, error, 'Error saving platform fee settings');
+    }
+};
+
+// Admin: every vendor -> supplier order, with its platform fee
+export const getAdminB2BOrders = async (req, res) => {
+    try {
+        const { status, platformFeeStatus } = req.query;
+        const query = {};
+        if (status) query.status = status;
+        if (platformFeeStatus) query.platformFeeStatus = platformFeeStatus;
+
+        const orders = await B2BOrder.find(query)
+            .select('-deliveryOtp')
+            .populate('vendor', 'displayName phone shopDetails.name')
+            .populate('supplier', 'displayName phone supplierDetails.businessName')
+            .sort({ createdAt: -1 })
+            .limit(1000)
+            .lean();
+
+        const summary = orders.reduce((acc, o) => {
+            const fee = Number(o.platformFee) || 0;
+            if (o.status === 'PENDING_PAYMENT') acc.pendingFees += fee;
+            else if (!['CANCELLED', 'Cancelled', 'REJECTED'].includes(o.status)) acc.collectedFees += fee;
+            acc.goodsValue += Number(o.totalAmount) || 0;
+            return acc;
+        }, { collectedFees: 0, pendingFees: 0, goodsValue: 0 });
+
+        res.json({
+            orders,
+            summary: {
+                count: orders.length,
+                collectedFees: round2(summary.collectedFees),
+                pendingFees: round2(summary.pendingFees),
+                goodsValue: round2(summary.goodsValue)
+            }
+        });
+    } catch (error) {
+        sendError(res, error, 'Error fetching vendor supply orders');
     }
 };
 
@@ -436,7 +654,7 @@ export const updateB2BStatus = async (req, res) => {
             // Atomically claim the order
             const claimedOrder = await B2BOrder.findOneAndUpdate(
                 { _id: id, supplier: null },
-                { status: 'ACCEPTED', supplier: supplierId },
+                { status: 'ACCEPTED', supplier: supplierId, acceptedAt: new Date() },
                 { new: true }
             ).populate('vendor');
 
@@ -541,9 +759,18 @@ export const bulkUpdateB2BStatus = async (req, res) => {
         const { orderIds, status, supplierId } = req.body;
         if (!Array.isArray(orderIds)) return res.status(400).json({ message: 'Invalid orderIds' });
 
+        const normalizedStatus = String(status || '').toUpperCase();
+        const timestampField = {
+            ACCEPTED: 'acceptedAt',
+            PROCESSING: 'processingStartedAt',
+            DISPATCHED: 'dispatchedAt',
+            DELIVERED: 'deliveredAt'
+        }[normalizedStatus];
+        const update = { status };
+        if (timestampField) update[timestampField] = new Date();
         const results = await B2BOrder.updateMany(
             { _id: { $in: orderIds }, supplier: supplierId },
-            { status: status }
+            update
         );
 
         const CONFIRMED_STATUSES = ['SUBMITTED', 'ACCEPTED', 'PROCESSING', 'DISPATCHED', 'DELIVERED', 'SETTLED', 'Confirmed', 'Delivered', 'Accepted', 'Settled'];
@@ -561,53 +788,10 @@ export const bulkUpdateB2BStatus = async (req, res) => {
     }
 };
 
-// 1. Vendor initiates payment (Razorpay Order creation)
-export const initiateB2BPayment = async (req, res) => {
-    try {
-        const { orderId } = req.body;
-        const b2bOrder = await B2BOrder.findById(orderId);
-
-        if (!b2bOrder) return res.status(404).json({ message: 'Order not found' });
-        if (b2bOrder.status !== 'DELIVERED' && b2bOrder.status !== 'Delivered') {
-            return res.status(400).json({ message: 'Payment only allowed after product is delivered' });
-        }
-
-        const options = {
-            amount: b2bOrder.totalAmount * 100, // In paise
-            currency: 'INR',
-            receipt: `receipt_${b2bOrder.b2bOrderId}`,
-            notes: { orderId: b2bOrder._id.toString(), type: 'B2B_ESCROW' }
-        };
-
-        const rzpOrder = await razorpay.orders.create(options);
-        res.json({ rzpOrder, b2bOrderId: b2bOrder.b2bOrderId });
-    } catch (error) {
-        console.error('Razorpay Order Error:', error);
-        res.status(500).json({ message: 'Failed to create payment order' });
-    }
-};
-
-// 2. Complete payment tracking
-export const verifyB2BPayment = async (req, res) => {
-    try {
-        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId } = req.body;
-        const hmac = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || 'rzp_test_secret_placeholder');
-        hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
-        const generated_signature = hmac.digest('hex');
-
-        if (generated_signature === razorpay_signature) {
-            const order = await B2BOrder.findByIdAndUpdate(orderId, {
-                paymentStatus: 'Paid',
-                escrowStatus: 'Held'
-            }, { new: true });
-            res.json({ message: 'Payment verified and held in Escrow', order });
-        } else {
-            res.status(400).json({ message: 'Invalid signature' });
-        }
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-};
+// Supplier invoices are settled directly between vendor and supplier; the old
+// in-app escrow checkout (initiate/verify-payment) was removed because it could
+// mark any order Paid without checking ownership or amount. Legacy escrow
+// orders that are already Paid/Held are still released by an Admin below.
 
 // 3. Admin releases payment to Supplier
 export const releaseSupplierPayment = async (req, res) => {
@@ -617,6 +801,13 @@ export const releaseSupplierPayment = async (req, res) => {
 
         if (!order) return res.status(404).json({ message: 'Order not found' });
         if (order.paymentStatus !== 'Paid') return res.status(400).json({ message: 'Cannot release unpaid order' });
+        // Funds go to the supplier only once the goods have been delivered.
+        if (!['DELIVERED', 'Delivered'].includes(order.status)) {
+            return res.status(400).json({ message: 'Funds can be released only after the order is delivered' });
+        }
+        if (order.escrowStatus === 'Released') {
+            return res.status(400).json({ message: 'Funds for this order were already released' });
+        }
 
         order.escrowStatus = 'Released';
         order.status = 'Settled';
@@ -771,3 +962,34 @@ export const updateB2BDeliveryDate = async (req, res) => {
 };
 
 
+
+// Vendor rates the supplier of one of their delivered supply orders (1-5).
+const RATEABLE_STATUSES = ['DELIVERED', 'Delivered', 'SETTLED', 'Settled'];
+export const rateSupplier = async (req, res) => {
+    try {
+        const rating = Number(req.body.rating);
+        const comment = typeof req.body.comment === 'string' ? req.body.comment.trim().slice(0, 500) : '';
+        if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+            return res.status(400).json({ message: 'rating must be a whole number from 1 to 5' });
+        }
+
+        const order = await B2BOrder.findById(req.params.id);
+        if (!order) return res.status(404).json({ message: 'Order not found' });
+        if (!order.vendor || order.vendor.toString() !== req.user?.id) {
+            return res.status(403).json({ message: 'Only the vendor who placed this order can rate its supplier' });
+        }
+        if (!order.supplier) {
+            return res.status(400).json({ message: 'This order has no supplier to rate' });
+        }
+        if (!RATEABLE_STATUSES.includes(order.status)) {
+            return res.status(400).json({ message: 'You can rate the supplier once the order is delivered' });
+        }
+
+        order.supplierRating = { rating, comment, ratedAt: new Date() };
+        await order.save();
+        res.json({ message: 'Thanks! Your rating was saved.', supplierRating: order.supplierRating });
+    } catch (error) {
+        console.error('Rate supplier error:', error);
+        sendError(res, error, 'Error saving rating');
+    }
+};

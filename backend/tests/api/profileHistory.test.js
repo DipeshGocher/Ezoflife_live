@@ -72,7 +72,7 @@ test('owners and scoped/read-only admins retain permitted profile reads without 
 test('profile edits support addresses, bank details and admin status changes but reject privilege fields', async () => {
     const res = await call(`/api/auth/profile/update/${customer._id}`, customer, 'PATCH', { displayName: 'Updated customer', addresses: [{ type: 'Home', address: 'Updated address', location: { lat: 1, lng: 1 }, isDefault: true }], isProfileComplete: true });
     assert.equal(res.status, 200); assert.equal(res.body.displayName, 'Updated customer'); assert.equal(res.body.password, undefined);
-    for (const body of [{ role: 'Admin' }, { status: 'approved' }, { walletBalance: 5000 }, { isBlocked: false }, { adminAccessType: 'Read/Write' }, { onboardingStage: 'COMPLETED' }, { bankVerification: { isVerified: true } }, { 'shopDetails.services.0.status': 'approved' }]) assert.equal((await call(`/api/auth/profile/update/${customer._id}`, customer, 'PATCH', body)).status, 400);
+    for (const body of [{ role: 'Admin' }, { status: 'pending' }, { walletBalance: 5000 }, { isBlocked: true }, { adminAccessType: 'Read-Only' }, { onboardingStage: 'COMPLETED' }, { bankVerification: { isVerified: true } }, { 'shopDetails.services.0.status': 'approved' }]) assert.equal((await call(`/api/auth/profile/update/${customer._id}`, customer, 'PATCH', body)).status, 403);
     const bank = await call(`/api/auth/profile/update/${supplier._id}`, supplier, 'PATCH', { bankDetails: { bankName: 'Test Bank', accountNumber: '000000' } }); assert.equal(bank.status, 200);
     assert.equal((await call(`/api/auth/profile/update/${customer._id}`, scoped, 'PATCH', { status: 'rejected' })).status, 200);
     assert.equal((await User.findById(customer._id)).isBlocked, true);

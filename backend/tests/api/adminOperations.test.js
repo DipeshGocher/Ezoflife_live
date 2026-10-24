@@ -94,6 +94,7 @@ test('invoice and support actions fail closed for an admin with no matching area
 
 test('external payout recording rejects negative values and makes repeated references idempotent', async () => {
     const vendor = await User.create({ role: 'Vendor', phone: '9922334466', status: 'approved' });
+    await Order.create({ customer: customer._id, vendor: vendor._id, status: 'READY_FOR_DISPATCH', pickupAddress: 'Pickup', dropAddress: 'Drop', totalAmount: 100, ledger: { vendorNetPayout: 100 } });
     const body = { vendorId: String(vendor._id), amount: 50, transactionId: 'ADMIN-TEST-EXTERNAL-001', paymentMethod: 'UPI' };
     assert.equal((await call('/api/admin/record-vendor-payout', admin, 'POST', { ...body, amount: -1 })).status, 400);
     const results = await Promise.all([call('/api/admin/record-vendor-payout', admin, 'POST', body), call('/api/admin/record-vendor-payout', admin, 'POST', body)]);

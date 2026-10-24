@@ -19,6 +19,7 @@ import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import { serviceApi } from '../../../lib/api';
 import PageHeader from '../components/common/PageHeader';
+import FilterField from "../components/common/FilterLabel";
 
 export default function VendorServiceRequests() {
   const navigate = useNavigate();
@@ -247,9 +248,10 @@ export default function VendorServiceRequests() {
         {/* Table Container */}
         <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
           
-          <div className="px-8 py-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between bg-white gap-4">
+          <div className="px-8 py-5 border-b border-slate-100 flex flex-col md:flex-row md:items-end justify-between bg-white gap-4">
             {/* Date Filters on the Left */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-end gap-2">
+              <FilterField label="Submitted from" info="Shows only service requests submitted on or after this date.">
               <input 
                 type="date"
                 value={startDate}
@@ -259,7 +261,8 @@ export default function VendorServiceRequests() {
                 }}
                 className="bg-slate-50 border border-slate-200/80 rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-800 hover:bg-slate-100/50 focus:border-slate-300 outline-none cursor-pointer transition-all"
               />
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">to</span>
+              </FilterField>
+              <FilterField label="Submitted to" info="Shows only service requests submitted on or before this date (whole day included).">
               <input 
                 type="date"
                 value={endDate}
@@ -269,6 +272,7 @@ export default function VendorServiceRequests() {
                 }}
                 className="bg-slate-50 border border-slate-200/80 rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-800 hover:bg-slate-100/50 focus:border-slate-300 outline-none cursor-pointer transition-all"
               />
+              </FilterField>
               {(startDate || endDate) && (
                 <button
                   onClick={() => {
@@ -283,8 +287,9 @@ export default function VendorServiceRequests() {
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 justify-end">
+            <div className="flex flex-wrap items-end gap-3 justify-end">
               {/* Vendor Name Filter */}
+              <FilterField label="Vendor" info="Shows only requests raised by this vendor.">
               <MultiSelectFilter
                 value={selectedVendorName}
                 onChange={e => setSelectedVendorName(e.target.value)}
@@ -295,8 +300,10 @@ export default function VendorServiceRequests() {
                   <option key={name} value={name}>{name}</option>
                 ))}
               </MultiSelectFilter>
+              </FilterField>
 
               {/* Item Name Filter */}
+              <FilterField label="Item" info="Shows only requests for this service item.">
               <MultiSelectFilter
                 value={selectedItemName}
                 onChange={e => setSelectedItemName(e.target.value)}
@@ -307,8 +314,10 @@ export default function VendorServiceRequests() {
                   <option key={name} value={name}>{name}</option>
                 ))}
               </MultiSelectFilter>
+              </FilterField>
 
               {/* Price Filter */}
+              <FilterField label="Requested price" info="Shows only requests asking for exactly this base price.">
               <MultiSelectFilter
                 value={selectedPrice}
                 onChange={e => setSelectedPrice(e.target.value)}
@@ -319,6 +328,7 @@ export default function VendorServiceRequests() {
                   <option key={price} value={String(price)}>₹{price}</option>
                 ))}
               </MultiSelectFilter>
+              </FilterField>
 
               {/* Reset Button */}
               {(selectedVendorName || selectedItemName || selectedPrice || startDate || endDate) && (

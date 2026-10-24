@@ -149,6 +149,19 @@ export const validatePromotion = async (req, res) => {
             return res.status(404).json({ message: 'Invalid promo code' });
         }
 
+        // If it's a partner promotion (Vendor/Supplier), ensure it matches the vendor's shop
+        if (promo.owner_type !== 'PLATFORM') {
+            // Customer online orders can only use admin-created platform promotions
+            if (!vendorId || req.user?.role === 'Customer') {
+                return res.status(400).json({
+                    message: 'This promo code is only valid for store walk-in orders. Customer online orders accept admin platform promo codes only.'
+                });
+            }
+            if (vendorId && promo.vendorId && promo.vendorId.toString() !== vendorId.toString()) {
+                return res.status(400).json({ message: 'This coupon is only valid for orders with the issuing store' });
+            }
+        }
+
         if (promo.status !== 'Active') {
             return res.status(400).json({ message: 'This promo code is currently inactive or paused' });
         }
@@ -194,29 +207,25 @@ export const validatePromotion = async (req, res) => {
 };
 
 // Customer facing: Get applicable promos for a vendor
+// Customer facing: Get applicable admin platform promos for customer checkout
 export const getApplicablePromos = async (req, res) => {
     try {
-        const { vendorId } = req.query;
-        console.log(`📡 [PROMO] Fetching applicable promos for Vendor: ${vendorId}`);
-        
-        if (!vendorId || vendorId === 'undefined') {
-            console.warn('⚠️ [PROMO] No vendorId provided in query');
-            return res.json([]);
-        }
+        const { vendorId, lat, lng } = req.query;
+        console.log(`📡 [PROMO] Fetching applicable platform promos (lat: ${lat}, lng: ${lng}, vendorId: ${vendorId})`);
 
         const User = (await import('../models/User.js')).default;
         const ServiceArea = (await import('../models/ServiceArea.js')).default;
-
-        const vendor = await User.findById(vendorId);
         let geofenceId = null;
-        if (vendor && vendor.location?.lat) {
+
+        // 1. Try to resolve geofence from coordinates (customer or pickup location)
+        if (lat && lng && !isNaN(Number(lat)) && !isNaN(Number(lng))) {
             const serviceArea = await ServiceArea.findOne({
                 isActive: true,
                 boundary: {
                     $geoIntersects: {
                         $geometry: {
                             type: 'Point',
-                            coordinates: [Number(vendor.location.lng), Number(vendor.location.lat)]
+                            coordinates: [Number(lng), Number(lat)]
                         }
                     }
                 }
@@ -226,15 +235,67 @@ export const getApplicablePromos = async (req, res) => {
             }
         }
 
-        const promos = await Promotion.find({ 
+        // 2. If no geofence resolved yet and vendorId is present, try vendor location
+        if (!geofenceId && vendorId && vendorId !== 'undefined' && vendorId !== 'null') {
+            const vendor = await User.findById(vendorId);
+            if (vendor && vendor.location?.lat && vendor.location?.lng) {
+                const serviceArea = await ServiceArea.findOne({
+                    isActive: true,
+                    boundary: {
+                        $geoIntersects: {
+                            $geometry: {
+                                type: 'Point',
+                                coordinates: [Number(vendor.location.lng), Number(vendor.location.lat)]
+                            }
+                        }
+                    }
+                });
+                if (serviceArea) {
+                    geofenceId = serviceArea._id;
+                }
+            }
+        }
+
+        // 3. Query STRICTLY for Admin Platform Promotions (owner_type: 'PLATFORM')
+        const filter = {
             status: 'Active',
             approval_status: 'APPROVED',
+            owner_type: 'PLATFORM', // ONLY admin created platform promotions! Never vendor promotions!
             expiryDate: { $gte: new Date() },
-            owner_type: 'PLATFORM',
-            $or: [{ geofence_id: geofenceId }, { geofence_id: null }]
-        });
-        
-        console.log(`✅ [PROMO] Found ${promos.length} active promos for Vendor: ${vendorId}`);
+            $or: [
+                { start_date: { $exists: false } },
+                { start_date: null },
+                { start_date: { $lte: new Date() } }
+            ]
+        };
+
+        if (geofenceId) {
+            filter.$and = [
+                {
+                    $or: [
+                        { geofence_id: geofenceId },
+                        { geofence_id: null },
+                        { geofence_id: { $exists: false } }
+                    ]
+                }
+            ];
+        } else {
+            // Global admin promos with no geofence restriction (or geofence_id: null)
+            filter.$and = [
+                {
+                    $or: [
+                        { geofence_id: null },
+                        { geofence_id: { $exists: false } }
+                    ]
+                }
+            ];
+        }
+
+        const promos = await Promotion.find(filter)
+            .select('title code discountType discountValue minOrderValue usageLimit currentUsage start_date expiryDate status owner_type')
+            .sort({ createdAt: -1 });
+
+        console.log(`✅ [PROMO] Found ${promos.length} active platform promos for customer`);
         res.json(promos);
     } catch (error) {
         console.error('❌ [PROMO] Fetch Error:', error);

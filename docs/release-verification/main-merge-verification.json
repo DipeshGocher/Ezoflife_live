@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-24",
+  "mergeParents": {
+    "local": "b7a878b61904bd444416652a4b523e17b2c5a6bc",
+    "githubMain": "f96d6fc874eb9720f31886bd7b1d6ccc2eae4a0d"
+  },
+  "backendUnit": {
+    "passed": 160,
+    "failed": 0
+  },
+  "backendApi": {
+    "passed": 1170,
+    "failed": 0,
+    "cancelled": 0
+  },
+  "gstRulesAndDeepAudit": {
+    "passed": 47,
+    "failed": 0
+  },
+  "gstDisplay": {
+    "passed": 1,
+    "failed": 0
+  },
+  "frontend": {
+    "passed": 235,
+    "files": 30,
+    "failed": 0
+  },
+  "build": "passed; existing bundle-size warnings",
+  "browser": {
+    "initialFullRun": {
+      "passed": 98,
+      "failed": 7,
+      "skipped": 1
+    },
+    "affectedRerun": {
+      "passed": 6,
+      "failed": 2,
+      "skipped": 1
+    },
+    "finalCheckoutRerun": {
+      "passed": 4,
+      "failed": 0
+    },
+    "interpretation": "All seven initial failures and the checkout skip are covered by passing affected reruns. Not a single complete browser run on the final bundle. Live Google Maps tests excluded."
+  },
+  "frontendLint": {
+    "errors": 421,
+    "warnings": 95
+  },
+  "productionReadiness": "HOLD; prior dependency advisories and staging/live-provider verification remain unresolved",
+  "fingerprint": "main-merge-source-fingerprint.json"
+}

@@ -2,6 +2,13 @@ import { requireUnrestrictedAdmin } from './src/middleware/adminAccountScope.js'
 import dotenv from 'dotenv';
 dotenv.config();
 
+// A missing secret would fall back to the default baked into the code, which
+// anyone can read — refuse to start in production rather than sign with it.
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+    console.error('❌ JWT_SECRET must be set in production. Refusing to start.');
+    process.exit(1);
+}
+
 import dns from 'node:dns';
 // Fix querySrv EBADRESP on local networks / ISPs by using reliable public DNS servers
 dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
@@ -23,7 +30,8 @@ const logToFile = (msg) => {
 
 // Route imports
 import authRoutes from './src/routes/authRoutes.js';
-import { verifyAdmin } from './src/middleware/authMiddleware.js';
+import { verifyAdmin, verifyUser, enforceAdminModules } from './src/middleware/authMiddleware.js';
+import { getAllowedOrigins } from './src/config/allowedOrigins.js';
 import adminRoutes from './src/routes/adminRoutes.js';
 import orderRoutes from './src/routes/orderRoutes.js';
 import notificationRoutes from './src/routes/notificationRoutes.js';
@@ -57,10 +65,11 @@ import vendorProductQueryRoutes from './src/routes/vendorProductQueryRoutes.js';
 
 import SystemConfig from './src/models/SystemConfig.js';
 import { getSystemConfig, updateSystemConfig } from './src/controllers/adminController.js';
-import { addSpecialist, getAllSpecialists, deleteSpecialist, createRequisition, getAllRequisitions, assignRequisition } from './src/controllers/laborController.js';
 
 import { initPickupScheduler } from './src/jobs/pickupScheduler.js';
 import { startOrderAggregationJob } from './src/jobs/orderAggregationJob.js';
+import { startPaymentReconciler } from './src/jobs/paymentReconciler.js';
+import { handleRazorpayWebhook, reconcilePaymentsNow } from './src/controllers/razorpayWebhookController.js';
 import { initSocket } from './src/socket.js';
 
 const app = express();
@@ -72,20 +81,10 @@ initSocket(server);
 // Initialize Jobs
 initPickupScheduler();
 startOrderAggregationJob();
+startPaymentReconciler();
 
 // Middleware
-const envOrigins = (process.env.FRONTEND_URL || '')
-    .split(',')
-    .map(o => o.trim().replace(/\/$/, ''))
-    .filter(Boolean);
-
-const defaultOrigins = [
-    'http://localhost:5173', 
-    'http://localhost:5174',
-    'https://ezoflife-six.vercel.app'
-];
-
-const allowedOrigins = Array.from(new Set([...envOrigins, ...defaultOrigins]));
+const allowedOrigins = getAllowedOrigins();
 
 app.use(cors({
     origin: (origin, callback) => {
@@ -115,7 +114,9 @@ app.use(cors({
     },
     credentials: true
 }));
-app.use(express.json());
+// Keep the exact bytes of each JSON body: Razorpay webhook signatures are
+// computed over the raw payload, not over re-serialised JSON.
+app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(morgan('dev'));
 app.use('/uploads', express.static('uploads'));
 
@@ -127,7 +128,12 @@ app.use((req, res, next) => {
     next();
 });
 
+// Role-based admin access: sub-admins only reach the modules their role grants
+app.use(enforceAdminModules);
+
 // ─── Public Routes (no auth required) ────────────────────────────────────────
+// Razorpay → server notifications; authenticated by their HMAC signature.
+app.post('/api/payments/razorpay/webhook', handleRazorpayWebhook);
 app.use('/api/auth', authRoutes);
 
 // Public read-only config (needed at app startup)
@@ -137,6 +143,7 @@ app.get('/api/admin/config', getSystemConfig);
 // All routes below require a valid Admin JWT in Authorization: Bearer <token>
 app.post('/api/admin/config', verifyAdmin, requireUnrestrictedAdmin, updateSystemConfig);
 app.use('/api/admin/dashboard-analytics', verifyAdmin, dashboardAnalyticsRoutes);
+app.post('/api/admin/payments/reconcile', verifyAdmin, reconcilePaymentsNow);
 app.use('/api/admin', verifyAdmin, adminRoutes);
 app.post('/api/admin/force-clear-orders', verifyAdmin, requireUnrestrictedAdmin, async (req, res) => {
     try {
@@ -186,17 +193,21 @@ app.use('/api/area-overrides', verifyAdmin, areaOverrideRoutes);
 app.use('/api/master-pricing', masterPricingRoutes);
 app.use('/api/vendor-product-queries', vendorProductQueryRoutes);
 
-// Labor Routes
-app.post('/api/labor/add', verifyAdmin, addSpecialist);
-app.get('/api/labor/all', getAllSpecialists);
-app.delete('/api/labor/:id', verifyAdmin, deleteSpecialist);
-app.post('/api/labor/place-request', createRequisition);
-app.get('/api/labor/active-requests', verifyAdmin, getAllRequisitions);
-app.patch('/api/labor/place-request/:id/assign', verifyAdmin, assignRequisition);
-
 // Database Connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ezoflife';
-mongoose.connect(MONGODB_URI)
+mongoose.connection.on('error', (err) => {
+    console.error('❌ [MongoDB] Connection error:', err.message);
+});
+mongoose.connection.on('disconnected', () => {
+    console.warn('⚠️ [MongoDB] Disconnected — driver will retry in the background');
+});
+mongoose.connection.on('reconnected', () => {
+    console.log('✅ [MongoDB] Reconnected');
+});
+mongoose.connect(MONGODB_URI, {
+    serverSelectionTimeoutMS: 8000, // fail fast instead of hanging the default 30s when a shard is briefly unreachable
+    socketTimeoutMS: 20000
+})
     .then(async () => {
         console.log('✅ Connected to MongoDB');
         try {
@@ -333,6 +344,7 @@ mongoose.connect(MONGODB_URI)
     })
     .catch((err) => console.error('❌ MongoDB Connection Error:', err));
 
+app.use('/api/maintenance', (req, res, next) => process.env.NODE_ENV === 'production' ? res.status(404).json({ message: 'Not found' }) : next());
 app.use('/api/maintenance', verifyAdmin, requireUnrestrictedAdmin, (req, res, next) => ['GET', 'HEAD'].includes(req.method) ? res.status(405).json({ message: 'Maintenance changes require an explicit POST request.' }) : next());
 
 app.post('/api/maintenance/seed-vendor-promos', async (req, res) => {
@@ -471,29 +483,6 @@ app.post('/api/maintenance/seed-materials', async (req, res) => {
             await Material.findOneAndUpdate({ name: m.name }, m, { upsert: true });
         }
         res.json({ message: `✅ Successfully seeded ${materials.length} catalog materials.` });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.post('/api/maintenance/seed-labor', async (req, res) => {
-    try {
-        const Specialist = (await import('./src/models/Specialist.js')).default;
-        const specialists = [
-            { name: 'Master Ironing Expert', rate: '₹750/shift', icon: 'iron', description: 'Expert in high-pressure steam ironing and delicate fabrics.' },
-            { name: 'Stain Removal Specialist', rate: '₹850/shift', icon: 'colorize', description: 'Certified in chemical stain identification and removal.' },
-            { name: 'Bulk Washing Operator', rate: '₹600/shift', icon: 'local_laundry_service', description: 'Experienced in 50kg+ industrial machine operations.' },
-            { name: 'Senior Delivery Captain', rate: '₹550/shift', icon: 'moped', description: 'Skilled navigator with 5+ years in logistics delivery.' },
-            { name: 'Shop Operations Manager', rate: '₹1200/shift', icon: 'manage_accounts', description: 'Handles staff, inventory, and end-to-end shop flow.' },
-            { name: 'Dry Cleaning Technician', rate: '₹950/shift', icon: 'dry_cleaning', description: 'Expert in solvent-based cleaning and finishing.' },
-            { name: 'Quality Control Auditor', rate: '₹800/shift', icon: 'fact_check', description: 'Ensures 100% garment hygiene and spotting standards.' },
-            { name: 'Customer Experience Lead', rate: '₹700/shift', icon: 'support_agent', description: 'Handles walk-in clients and complex order support.' }
-        ];
-
-        for (const s of specialists) {
-            await Specialist.findOneAndUpdate({ name: s.name }, s, { upsert: true });
-        }
-        res.json({ message: `✅ Successfully seeded ${specialists.length} skilled labor types.` });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

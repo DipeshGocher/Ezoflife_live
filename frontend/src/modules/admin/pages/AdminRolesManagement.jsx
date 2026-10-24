@@ -1,58 +1,32 @@
 import MultiSelectFilter from '../components/common/MultiSelectFilter';
 import React, { useState, useEffect } from 'react';
-import { motion as Motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, UserPlus, MapPin } from 'lucide-react';
+import { motion, motion as Motion, AnimatePresence } from 'framer-motion';
+import { Plus, X, UserPlus, MapPin, RotateCw } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 import { toast } from 'react-hot-toast';
 import { BASE_URL } from '../../../lib/api';
+import { ADMIN_MODULES, ROLE_PRESETS, FORCED_ACCESS_TYPE, CUSTOM_ROLE } from '../config/adminAccess';
+
+const EMPTY_FORM = {
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    role: 'Master Admin',
+    accessType: 'Read/Write',
+    geofences: [],
+    permissions: []
+};
+
+const formatDate = (value) => value
+    ? new Date(value).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : '';
 
 export default function AdminRolesManagement() {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [formData, setFormData] = useState({
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        role: 'Master Admin',
-        accessType: 'Read/Write',
-        geofences: [],
-        permissions: []
-    });
-
-    const availableModules = [
-        'Dashboard',
-        'User Management',
-        'Registration Approval',
-        'Vendor Service Request',
-        'Supplier Product Request',
-        'Orders',
-        'Services & Pricing',
-        'Vendor Supply Pricing',
-        'Support Tickets',
-        'Notifications',
-        'FAQ Manager',
-        'Privacy Policy',
-        'Terms & Conditions',
-        'Splash Ads',
-        'Advertise',
-        'Referral Settings',
-        'Promotions',
-        'Partnerships',
-        'Customer Feedback',
-        'Career Center',
-        'Settings',
-        'Invoice Design'
-    ];
-
-    const rolePermissionsMapping = {
-        'Master Admin': ['All Modules (Full RWD)'],
-        'Global Auditor / Developer': ['All Modules (Read-Only)'],
-        'Operations & Pricing Lead': ['Dashboard', 'Registration Approval', 'Vendor Service Request', 'Supplier Product Request', 'Orders'],
-        'Customer Support Executive': ['User Management', 'Orders (View Only)', 'Support Tickets', 'FAQ Manager'],
-        'Logistics & Shipping Coordinator': ['Orders', 'Support Tickets (Logistics tags)', 'Notifications', 'Third-Party Logistics Integrations'],
-        'Growth & Marketing Admin': ['Splash Ads', 'Advertise', 'Referral Settings', 'Promotions', 'Partnerships'],
-        'HR': ['User Management', 'Support Tickets', 'FAQ Manager', 'Career Center', 'Invoice Design', 'Customer Feedback']
-    };
+    const [formData, setFormData] = useState(EMPTY_FORM);
+    const [submitting, setSubmitting] = useState(false);
+    const [resendingId, setResendingId] = useState(null);
 
     const [admins, setAdmins] = useState([]);
     const [geofences, setGeofences] = useState([]);
@@ -75,7 +49,10 @@ export default function AdminRolesManagement() {
                     role: adm.adminRole || 'Master Admin',
                     accessType: adm.adminAccessType || 'Read/Write',
                     geofences: adm.geofenceRestrictions?.length > 0 ? adm.geofenceRestrictions : ['All Zones'],
-                    status: adm.status === 'approved' ? 'Active' : 'Pending'
+                    inviteStatus: adm.inviteStatus,
+                    inviteSentAt: adm.inviteSentAt,
+                    inviteAcceptedAt: adm.inviteAcceptedAt,
+                    needsResend: adm.needsResend
                 }));
                 setAdmins(mapped);
             }
@@ -99,9 +76,37 @@ export default function AdminRolesManagement() {
         fetchGeofences();
     }, []);
 
+    const handleGeofenceToggle = (zone) => {
+        setFormData(prev => {
+            const current = prev.geofences;
+            if (current.includes(zone)) {
+                return { ...prev, geofences: current.filter(z => z !== zone) };
+            } else {
+                return { ...prev, geofences: [...current, zone] };
+            }
+        });
+    };
+
+    const handleRoleChange = (role) => {
+        setFormData(prev => ({
+            ...prev,
+            role,
+            accessType: FORCED_ACCESS_TYPE[role] || prev.accessType
+        }));
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+        if (formData.phone.length !== 10) {
+            toast.error('Enter a valid 10-digit mobile number');
+            return;
+        }
+        if (formData.role === CUSTOM_ROLE && formData.permissions.length === 0) {
+            toast.error('Select at least one module for a custom role');
+            return;
+        }
+
+        setSubmitting(true);
         try {
             const token = localStorage.getItem('adminToken');
             const res = await fetch(`${BASE_URL}/admin/invite-sub-admin`, {
@@ -110,50 +115,50 @@ export default function AdminRolesManagement() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({
-                    firstName: formData.firstName,
-                    lastName: formData.lastName,
-                    email: formData.email,
-                    phone: formData.phone,
-                    role: formData.role,
-                    accessType: formData.accessType,
-                    geofences: formData.geofences,
-                    permissions: formData.permissions
-                })
+                body: JSON.stringify(formData)
             });
 
             const data = await res.json();
             if (!res.ok) {
                 throw new Error(data.message || 'Failed to generate invitation');
             }
-            
-            // Reload admins list from database
+
             await fetchAdmins();
             setIsModalOpen(false);
-            
-            // Copy activation link returned by backend
-            const activationLink = data.activationLink;
-            navigator.clipboard.writeText(activationLink).then(() => {
-                toast.success('Invitation Created! Activation link copied to clipboard.');
-            }).catch(() => {
-                toast.success('Invitation Created successfully!');
-            });
+            setFormData(EMPTY_FORM);
 
-            // Reset form
-            setFormData({
-                firstName: '',
-                lastName: '',
-                email: '',
-                phone: '',
-                role: 'Master Admin',
-                accessType: 'Read/Write',
-                geofences: [],
-                permissions: []
-            });
+            if (data.emailSent) {
+                toast.success(data.message || 'Invitation sent');
+            } else {
+                toast.error(data.message || 'Invitation saved, but the email could not be sent.');
+            }
         } catch (err) {
             toast.error(err.message || 'Something went wrong');
+        } finally {
+            setSubmitting(false);
         }
     };
+
+    const handleResend = async (adm) => {
+        setResendingId(adm.id);
+        try {
+            const token = localStorage.getItem('adminToken');
+            const res = await fetch(`${BASE_URL}/admin/sub-admins/${adm.id}/resend-invite`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || 'Could not resend the invitation');
+            toast.success(data.message || 'Invitation re-sent');
+            await fetchAdmins();
+        } catch (err) {
+            toast.error(err.message);
+        } finally {
+            setResendingId(null);
+        }
+    };
+
+    const presetModules = ROLE_PRESETS[formData.role];
 
     return (
         <div className="flex flex-col min-h-[100dvh] bg-slate-50/50 pb-20">
@@ -161,7 +166,7 @@ export default function AdminRolesManagement() {
                 title="User Roles & Access Control" 
                 actions={[
                     {
-                        label: "Create New Admin",
+                        label: "Add New Role",
                         icon: Plus,
                         onClick: () => setIsModalOpen(true),
                         variant: 'primary'
@@ -175,7 +180,7 @@ export default function AdminRolesManagement() {
                     <div className="px-8 py-6 border-b border-slate-100 bg-white flex justify-between items-center">
                         <div>
                             <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Administrative Directory</h3>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Manage sub-admin credentials, permission scopes, and geofence assignments.</p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Invite admins to a role, set their permissions and geofence scope, and track their invitations.</p>
                         </div>
                     </div>
                     
@@ -187,13 +192,14 @@ export default function AdminRolesManagement() {
                                     <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Assigned Role</th>
                                     <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Access Type</th>
                                     <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Geofence Scope</th>
-                                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap text-center">Status</th>
+                                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap text-center">Invite Status</th>
+                                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {admins.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="px-8 py-16 text-center text-xs font-black text-slate-400 uppercase tracking-widest bg-slate-50/10">
+                                        <td colSpan={6} className="px-8 py-16 text-center text-xs font-black text-slate-400 uppercase tracking-widest bg-slate-50/10">
                                             No Admins Configured
                                         </td>
                                     </tr>
@@ -229,14 +235,22 @@ export default function AdminRolesManagement() {
                                                 </div>
                                             </td>
                                             <td className="px-8 py-5 text-center">
-                                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border whitespace-nowrap ${
-                                                    adm.status.toLowerCase() === 'active'
-                                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                                        : 'bg-amber-50 text-amber-600 border-amber-100'
-                                                }`}>
-                                                    <span className={`w-1.5 h-1.5 rounded-full ${adm.status.toLowerCase() === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                                                    {adm.status}
-                                                </span>
+                                                <InviteStatusBadge admin={adm} />
+                                            </td>
+                                            <td className="px-8 py-5 text-center">
+                                                {adm.inviteStatus === 'Invite Pending' ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleResend(adm)}
+                                                        disabled={resendingId === adm.id}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-[9px] font-black uppercase tracking-widest text-slate-700 cursor-pointer disabled:opacity-50"
+                                                    >
+                                                        <RotateCw size={12} className={resendingId === adm.id ? 'animate-spin' : ''} />
+                                                        {resendingId === adm.id ? 'Sending…' : 'Resend Invite'}
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-[10px] font-bold text-slate-300">—</span>
+                                                )}
                                             </td>
                                         </tr>
                                     ))
@@ -247,7 +261,7 @@ export default function AdminRolesManagement() {
                 </div>
             </div>
 
-            {/* Create New Admin Modal */}
+            {/* Add New Role Modal */}
             <AnimatePresence>
                 {isModalOpen && (
                     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
@@ -265,8 +279,8 @@ export default function AdminRolesManagement() {
                                         <UserPlus size={18} />
                                     </div>
                                     <div>
-                                        <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Provision New Admin</h3>
-                                        <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Invite a sub-admin to join your operations.</p>
+                                        <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Add New Role</h3>
+                                        <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">They get an email invite and can log in once they accept.</p>
                                     </div>
                                 </div>
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full border border-slate-200 shadow-sm bg-white cursor-pointer">
@@ -331,7 +345,7 @@ export default function AdminRolesManagement() {
                                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">Assigned Role</label>
                                         <select 
                                             value={formData.role}
-                                            onChange={e => setFormData({ ...formData, role: e.target.value })}
+                                            onChange={e => handleRoleChange(e.target.value)}
                                             className="w-full px-4 py-3 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs font-bold text-slate-900 outline-none cursor-pointer focus:bg-white focus:border-slate-900 transition-all appearance-none"
                                         >
                                             <option value="Master Admin">Master Admin</option>
@@ -341,13 +355,14 @@ export default function AdminRolesManagement() {
                                             <option value="Logistics & Shipping Coordinator">Logistics & Shipping Coordinator</option>
                                             <option value="Growth & Marketing Admin">Growth & Marketing Admin</option>
                                             <option value="HR">HR</option>
-                                            <option value="Custom">Custom Role</option>
+                                            <option value={CUSTOM_ROLE}>Custom Role</option>
                                         </select>
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">Access Type</label>
                                         <select 
                                             value={formData.accessType}
+                                            disabled={!!FORCED_ACCESS_TYPE[formData.role]}
                                             onChange={e => setFormData({ ...formData, accessType: e.target.value })}
                                             className="w-full px-4 py-3 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs font-bold text-slate-900 outline-none cursor-pointer focus:bg-white focus:border-slate-900 transition-all appearance-none"
                                         >
@@ -357,12 +372,12 @@ export default function AdminRolesManagement() {
                                     </div>
                                 </div>
 
-                                {formData.role !== 'Custom' && (
+                                {formData.role !== CUSTOM_ROLE && (
                                     <div className="space-y-2 bg-slate-50 p-4 rounded-3xl border border-slate-100">
                                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">Permitted Modules for this Role</label>
                                         <div className="flex flex-wrap gap-1.5 mt-1">
-                                            {rolePermissionsMapping[formData.role]?.map((perm, idx) => (
-                                                <span key={idx} className="px-2.5 py-1 bg-white border border-slate-200/80 rounded-xl text-[9px] font-bold text-slate-800 uppercase tracking-wider shadow-sm">
+                                            {(presetModules || [formData.role === 'Master Admin' ? 'All Modules + Admin Roles' : 'All Modules']).map(perm => (
+                                                <span key={perm} className="px-2.5 py-1 bg-white border border-slate-200/80 rounded-xl text-[9px] font-bold text-slate-800 uppercase tracking-wider shadow-sm">
                                                     {perm}
                                                 </span>
                                             ))}
@@ -370,11 +385,11 @@ export default function AdminRolesManagement() {
                                     </div>
                                 )}
 
-                                {formData.role === 'Custom' && (
+                                {formData.role === CUSTOM_ROLE && (
                                     <div className="space-y-3">
                                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">Custom Module Permissions</label>
                                         <div className="grid grid-cols-2 gap-2 bg-slate-50 p-4 rounded-3xl border border-slate-100 max-h-48 overflow-y-auto">
-                                            {availableModules.map(module => (
+                                            {ADMIN_MODULES.map(module => (
                                                 <label key={module} className="flex items-center gap-2 cursor-pointer p-2 hover:bg-white rounded-xl transition-all">
                                                     <input 
                                                         type="checkbox"
@@ -429,15 +444,38 @@ export default function AdminRolesManagement() {
                                 </button>
                                 <button 
                                     type="submit"
-                                    className="w-2/3 bg-slate-950 hover:bg-black text-white py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-900/10 transition-all border border-slate-900 cursor-pointer"
+                                    disabled={submitting}
+                                    className="w-2/3 disabled:opacity-50 bg-slate-950 hover:bg-black text-white py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-slate-900/10 transition-all border border-slate-900 cursor-pointer"
                                 >
-                                    Generate Invitation
+                                    {submitting ? 'Sending Invitation…' : 'Generate Invitation'}
                                 </button>
                             </div>
                         </Motion.form>
                     </div>
                 )}
             </AnimatePresence>
+        </div>
+    );
+}
+
+function InviteStatusBadge({ admin }) {
+    const styles = {
+        'Invite Pending': { box: 'bg-amber-50 text-amber-600 border-amber-100', dot: 'bg-amber-500' },
+        'Accepted': { box: 'bg-emerald-50 text-emerald-600 border-emerald-100', dot: 'bg-emerald-500' },
+        'Active': { box: 'bg-emerald-50 text-emerald-600 border-emerald-100', dot: 'bg-emerald-500' }
+    };
+    const style = styles[admin.inviteStatus] || styles['Invite Pending'];
+    const detail = admin.inviteStatus === 'Invite Pending'
+        ? (admin.needsResend ? 'Old link no longer works — resend' : admin.inviteSentAt && `Sent ${formatDate(admin.inviteSentAt)}`)
+        : admin.inviteAcceptedAt && `Accepted ${formatDate(admin.inviteAcceptedAt)}`;
+
+    return (
+        <div className="flex flex-col items-center gap-1">
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border whitespace-nowrap ${style.box}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
+                {admin.inviteStatus}
+            </span>
+            {detail && <span className="text-[9px] font-bold text-slate-400 whitespace-nowrap">{detail}</span>}
         </div>
     );
 }

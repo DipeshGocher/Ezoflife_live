@@ -12,6 +12,9 @@
  *   await env.stop();
  */
 import { spawn } from 'node:child_process';
+
+/** The Master Service that factories.orderPayload orders. */
+export const FIXTURE_SERVICE_ID = '000000000000000000000001';
 import { mkdtempSync, rmSync, createWriteStream } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -80,6 +83,36 @@ export const startTestEnvironment = async ({ silent = true, env: extraEnv = {} }
             { label: 'mongod to accept connections' }
         );
 
+    // ---- 1b. fixtures every order test relies on ----
+    // Orders are priced from the database, so the service used by
+    // factories.orderPayload must exist (₹100, 5% GST, active).
+    const seed = await mongoose.createConnection(mongoUri).asPromise();
+    await seed.collection('masterservices').insertOne({
+        _id: new mongoose.Types.ObjectId(FIXTURE_SERVICE_ID),
+        itemName: 'Wash & Fold',
+        categoryId: new mongoose.Types.ObjectId(),
+        basePrice: 100,
+        discountedPrice: 100,
+        gst: 5,
+        sacCode: '9994',
+        unit: 'per_item',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+    });
+    await seed.collection('systemconfigs').insertMany([
+        { key: 'gst_percent', value: 18 },
+        { key: 'platform_fee_fixed', value: 20 },
+        { key: 'platform_fee_gst_percent', value: 18 },
+        { key: 'logistics_fee_gst_percent', value: 18 },
+        { key: 'spinzyt_gstin', value: '23ABCDE1234F1Z5' },
+        { key: 'invoice_settings', value: {
+            businessName: 'Spinzyt Test', registeredAddress: '1 Test Road, Indore, Madhya Pradesh 452001',
+            platformSacCode: '998311', logisticsSacCode: '996511', promotionSacCode: '9983'
+        } }
+    ]);
+    await seed.close();
+
         // ---- 2. the real server, pointed at the throwaway db ----
         server = spawn('node', ['server.js'], {
             cwd: BACKEND_ROOT,
@@ -88,6 +121,10 @@ export const startTestEnvironment = async ({ silent = true, env: extraEnv = {} }
                 NODE_ENV: 'test',
                 SHIPROCKET_ENABLED: 'false',
                 WHATSAPP_ENABLED: 'false',
+                FIREBASE_PRIVATE_KEY: '',
+                FIREBASE_CLIENT_EMAIL: '',
+                FIREBASE_PROJECT_ID: '',
+                RAZORPAY_ROUTE_ENABLED: 'false',
                 RAZORPAY_KEY_ID: 'rzp_test_isolated',
                 RAZORPAY_KEY_SECRET: 'isolated_test_secret_key',
                 SIGNZY_API_KEY: '',

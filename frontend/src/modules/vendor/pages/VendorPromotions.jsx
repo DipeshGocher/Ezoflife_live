@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -34,9 +35,9 @@ const VendorPromotions = () => {
             await promotionApi.create({ ...promoForm, vendorId });
             setPromoForm({ title: '', code: '', discountType: 'Percentage', discountValue: '', minOrderValue: '', usageLimit: 100, expiryDate: '' });
             fetchPromos();
-            alert('Promo Code Created Successfully!');
+            await appDialog.alert('Promo Code Created Successfully!');
         } catch (err) { 
-            alert(err.message || 'Failed to create promo'); 
+            await appDialog.alert(err.message || 'Failed to create promo');
         }
     };
 
@@ -48,7 +49,7 @@ const VendorPromotions = () => {
     };
 
     const deletePromo = async (id) => {
-        if (!confirm('Are you sure you want to delete this promo code?')) return;
+        if (!await appDialog.confirm('Are you sure you want to delete this promo code?')) return;
         try {
             await promotionApi.delete(id);
             fetchPromos();

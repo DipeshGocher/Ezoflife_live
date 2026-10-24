@@ -1,3 +1,4 @@
+import BrandLogo from '../../../shared/components/BrandLogo.jsx';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -83,7 +84,7 @@ const LaborRequestPage = () => {
                             transition={{ duration: 2, repeat: Infinity }}
                             className="flex flex-col items-center"
                         >
-                            <h1 className="text-5xl font-black text-slate-900 tracking-tighter">SPINZYT</h1>
+                            <BrandLogo className="h-36 w-auto" />
                             <div className="flex items-center gap-2 mt-4 bg-indigo-50 px-4 py-2 rounded-full border border-indigo-100">
                                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping"></span>
                                 <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">Staffing Hub Online</span>

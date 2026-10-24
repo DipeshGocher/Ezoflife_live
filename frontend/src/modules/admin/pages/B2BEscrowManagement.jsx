@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect } from 'react';
 import { IndianRupee, ShieldCheck, Truck, User, Store, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { b2bOrderApi } from '../../../lib/api';
@@ -26,13 +27,13 @@ export default function B2BEscrowManagement() {
   }, []);
 
   const handleRelease = async (orderId) => {
-    if (!confirm('Are you sure you want to release funds to the supplier? This action cannot be undone.')) return;
+    if (!await appDialog.confirm('Are you sure you want to release funds to the supplier? This action cannot be undone.')) return;
     try {
       await b2bOrderApi.releasePayment(orderId);
-      alert('Funds released successfully!');
+      await appDialog.alert('Funds released successfully!');
       fetchEscrowOrders();
     } catch (error) {
-      alert('Failed to release funds');
+      await appDialog.alert('Failed to release funds');
     }
   };
 
@@ -82,10 +83,12 @@ export default function B2BEscrowManagement() {
     { 
       header: 'Held Amount', 
       key: 'totalAmount', 
-      render: (val) => (
+      render: (val, row) => (
         <div className="flex flex-col">
           <span className="font-black text-slate-900 tabular-nums text-xs">₹{val.toLocaleString()}</span>
-          <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest mt-1">Incl. Platform Fee</span>
+          <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+            {row.platformFee > 0 ? `+ ₹${row.platformFee.toLocaleString()} Platform Fee` : 'No Platform Fee'}
+          </span>
         </div>
       )
     },

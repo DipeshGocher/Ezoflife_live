@@ -2,7 +2,6 @@ import React from "react";
 import { Route, Routes, Navigate } from "react-router-dom";
 
 // Auth flow
-import VendorSplash from "../pages/VendorSplash";
 import VendorAuth from "../pages/VendorAuth";
 import VendorOtp from "../pages/VendorOtp";
 
@@ -38,6 +37,7 @@ import VendorCartDetailsPage from "../pages/VendorCartDetailsPage";
 import VendorProductQueries from "../pages/VendorProductQueries";
 import VendorProductQueryChat from "../pages/VendorProductQueryChat";
 import B2BOrderTrackingPage from "../pages/B2BOrderTrackingPage";
+import VendorOrderChatPage from "../pages/VendorOrderChatPage";
 
 // Profile sub-pages
 import EditProfile from "../pages/EditProfile";
@@ -56,7 +56,7 @@ const VendorRoutes = () => {
     <Routes>
       <Route element={<VendorLayout />}>
         {/* Auth Flow */}
-        <Route path="/splash" element={<VendorSplash />} />
+        <Route path="/splash" element={<Navigate to="/vendor/auth" replace />} />
         <Route path="/auth" element={<VendorAuth />} />
         <Route path="/otp" element={<VendorOtp />} />
 
@@ -68,6 +68,7 @@ const VendorRoutes = () => {
         {/* Main App */}
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/order/:id" element={<OrderDetails />} />
+        <Route path="/order-chat/:orderId" element={<VendorOrderChatPage />} />
         <Route path="/earnings" element={<Earnings />} />
         <Route path="/services" element={<ServiceManagement />} />
         <Route path="/my-services" element={<VendorMyServices />} />

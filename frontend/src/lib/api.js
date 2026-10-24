@@ -75,9 +75,7 @@ window.fetch = async (input, init) => {
                                 (urlLower.includes('/geofence') && !urlLower.includes('/check-availability') && !urlLower.includes('/public/')) || 
                                 urlLower.includes('/area-overrides') || 
                                 (urlLower.includes('/master-pricing') && !urlLower.includes('fenceid=')) ||
-                                urlLower.includes('/supplier/requests') ||
-                                urlLower.includes('/labor/active-requests') ||
-                                urlLower.includes('/labor/add');
+                                urlLower.includes('/supplier/requests');
         if (isAdminEndpoint) {
             console.warn('🔑 Admin Session expired or unauthorized. Redirecting to login...');
             localStorage.removeItem('adminAuth');
@@ -92,19 +90,26 @@ window.fetch = async (input, init) => {
 };
 
 // ─── Admin Auth Helpers ───────────────────────────────────────────────────────
-// These are used by every admin API call to attach the JWT token.
-export const getAdminToken = () => localStorage.getItem('adminToken') || localStorage.getItem('token');
+// These are used by every admin API call to attach the JWT token. Several of
+// these APIs (e.g. vendorMasterSupplyApi) are shared with the vendor/supplier
+// portals, so pick the current portal's token — on /admin this is still
+// adminToken || token. A hard-coded adminToken sent "Bearer null" (or a stale
+// admin/customer token) from the supplier portal.
+export const getAdminToken = () => getSessionToken();
+
+const authorizationHeader = () => {
+    const token = getAdminToken();
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
+};
 
 export const adminAuthHeaders = (extra = {}) => ({
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${getAdminToken()}`,
+    ...authorizationHeader(),
     ...extra
 });
 
 // For FormData calls (no Content-Type, browser sets it with boundary)
-export const adminAuthHeadersFormData = () => ({
-    'Authorization': `Bearer ${getAdminToken()}`
-});
+export const adminAuthHeadersFormData = () => authorizationHeader();
 
 export const categoryApi = {
     getAll: async () => {
@@ -257,6 +262,12 @@ export const vendorMasterSupplyApi = {
         const res = await fetch(`${BASE_URL}/vendor-master-supplies/unique-filters`);
         return res.json();
     },
+    getMyCosts: async () => {
+        const res = await fetch(`${BASE_URL}/vendor-master-supplies/costs`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to load product costs');
+        return data;
+    },
     getPaginated: async (page = 1, limit = 10, filters = {}) => {
         const queryParams = new FilterSearchParams({
             page,
@@ -398,19 +409,6 @@ export const authApi = {
             return await response.json();
         } catch (error) {
             console.error('API Error:', error);
-            throw error;
-        }
-    },
-    adminLogin: async (email, password) => {
-        try {
-            const response = await fetch(`${BASE_URL}/auth/admin-login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Admin API Error:', error);
             throw error;
         }
     },
@@ -604,19 +602,20 @@ export const authApi = {
     }
 };
 
+const adJson = async (response, fallback) => {
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || data.message || fallback);
+    return data;
+};
+
 export const adApi = {
     create: async (formData) => {
-        try {
-            const response = await fetch(`${BASE_URL}/ads`, {
-                method: 'POST',
-                headers: adminAuthHeadersFormData(),
-                body: formData
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Create Ad Error:', error);
-            throw error;
-        }
+        const response = await fetch(`${BASE_URL}/ads`, {
+            method: 'POST',
+            headers: adminAuthHeadersFormData(),
+            body: formData
+        });
+        return adJson(response, 'Upload failed');
     },
     getActive: async (category) => {
         try {
@@ -628,56 +627,46 @@ export const adApi = {
             throw error;
         }
     },
+    /** The live splash for 'customer' | 'vendor' | 'supplier', or null if none. */
+    getActiveSplash: async (app, { signal } = {}) => {
+        const response = await fetch(`${BASE_URL}/ads/active?category=splash&app=${app}`, { signal });
+        if (response.status === 404) return null;
+        return adJson(response, 'Failed to load splash');
+    },
     getAll: async () => {
-        try {
-            const response = await fetch(`${BASE_URL}/ads/all`, {
-                headers: adminAuthHeaders()
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Get All Ads Error:', error);
-            throw error;
-        }
+        const response = await fetch(`${BASE_URL}/ads/all`, { headers: adminAuthHeaders() });
+        return adJson(response, 'Failed to fetch advertisements');
     },
     toggleStatus: async (id) => {
-        try {
-            const response = await fetch(`${BASE_URL}/ads/${id}/toggle`, {
-                method: 'PATCH',
-                headers: adminAuthHeaders()
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Toggle Ad Error:', error);
-            throw error;
-        }
+        const response = await fetch(`${BASE_URL}/ads/${id}/toggle`, {
+            method: 'PATCH',
+            headers: adminAuthHeaders()
+        });
+        return adJson(response, 'Update failed');
+    },
+    /** Edit title / notes / splash duration & audience. */
+    update: async (id, data) => {
+        const response = await fetch(`${BASE_URL}/ads/${id}`, {
+            method: 'PATCH',
+            headers: adminAuthHeaders(),
+            body: JSON.stringify(data)
+        });
+        return adJson(response, 'Update failed');
     },
     delete: async (id) => {
-        try {
-            const response = await fetch(`${BASE_URL}/ads/${id}`, {
-                method: 'DELETE',
-                headers: adminAuthHeaders()
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Delete Ad Error:', error);
-            throw error;
-        }
+        const response = await fetch(`${BASE_URL}/ads/${id}`, {
+            method: 'DELETE',
+            headers: adminAuthHeaders()
+        });
+        return adJson(response, 'Delete failed');
     },
     updateNotes: async (id, notes) => {
-        try {
-            const response = await fetch(`${BASE_URL}/ads/${id}/notes`, {
-                method: 'PATCH',
-                headers: {
-                    ...adminAuthHeaders(),
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ notes })
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Update Ad Notes Error:', error);
-            throw error;
-        }
+        const response = await fetch(`${BASE_URL}/ads/${id}/notes`, {
+            method: 'PATCH',
+            headers: adminAuthHeaders(),
+            body: JSON.stringify({ notes })
+        });
+        return adJson(response, 'Update failed');
     }
 };
 
@@ -713,6 +702,13 @@ export const b2bOrderApi = {
             console.error('Get Supplier Orders Error:', error);
             throw error;
         }
+    },
+    getSupplierInsights: async ({ from, to }) => {
+        const query = new URLSearchParams({ from, to }).toString();
+        const response = await fetch(`${BASE_URL}/b2b-orders/supplier/insights?${query}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to load supplier insights');
+        return data;
     },
     getVendorOrders: async (vendorId) => {
         try {
@@ -779,32 +775,6 @@ export const b2bOrderApi = {
             throw error;
         }
     },
-    initiateB2BPayment: async (orderId) => {
-        try {
-            const response = await fetch(`${BASE_URL}/b2b-orders/initiate-payment`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ orderId })
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Initiate B2B Payment Error:', error);
-            throw error;
-        }
-    },
-    verifyB2BPayment: async (paymentData) => {
-        try {
-            const response = await fetch(`${BASE_URL}/b2b-orders/verify-payment`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(paymentData)
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Verify B2B Payment Error:', error);
-            throw error;
-        }
-    },
     verifyPlatformFeePayment: async (paymentData) => {
         try {
             const response = await fetch(`${BASE_URL}/b2b-orders/verify-platform-fee`, {
@@ -817,6 +787,58 @@ export const b2bOrderApi = {
             console.error('Verify Platform Fee Payment Error:', error);
             throw error;
         }
+    },
+    // Server-calculated platform fee for a cart (same calculation as placeOrder)
+    quotePlatformFee: async ({ items, pincode }) => {
+        const response = await fetch(`${BASE_URL}/b2b-orders/quote`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                items: items.map(i => ({ materialId: i.materialId, quantity: i.quantity })),
+                pincode
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to calculate platform fee');
+        return data;
+    },
+    getAdminAllOrders: async (params = {}) => {
+        const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
+        const response = await fetch(`${BASE_URL}/b2b-orders/admin/all${qs ? `?${qs}` : ''}`, {
+            headers: adminAuthHeaders()
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch vendor supply orders');
+        return data;
+    },
+    getPlatformFeeConfig: async () => {
+        const response = await fetch(`${BASE_URL}/b2b-orders/admin/platform-fee-config`, {
+            headers: adminAuthHeaders()
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to load platform fee settings');
+        return data;
+    },
+    updatePlatformFeeConfig: async (config) => {
+        const response = await fetch(`${BASE_URL}/b2b-orders/admin/platform-fee-config`, {
+            method: 'PUT',
+            headers: adminAuthHeaders(),
+            body: JSON.stringify(config)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to save platform fee settings');
+        return data;
+    },
+    // Vendor rates the supplier of a delivered supply order (1-5)
+    rateSupplier: async (orderId, { rating, comment }) => {
+        const response = await fetch(`${BASE_URL}/b2b-orders/${orderId}/rate-supplier`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rating, comment })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to save rating');
+        return data;
     },
     getAdminEscrowOrders: async () => {
         try {
@@ -871,6 +893,18 @@ export const adminApi = {
         const response = await fetch(`${BASE_URL}/admin/audit-events?${new FilterSearchParams(filters)}`, { headers: adminAuthHeaders() });
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || 'Unable to load audit history.');
+        return data;
+    },
+    getVendorPayoutHistoryAdmin: async (vendorId) => {
+        const response = await fetch(`${BASE_URL}/admin/vendor-payouts/${vendorId}`, { headers: adminAuthHeaders() });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to load payout history');
+        return data;
+    },
+    getRefunds: async () => {
+        const response = await fetch(`${BASE_URL}/admin/refunds`, { headers: adminAuthHeaders() });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to load refunds');
         return data;
     },
     getSidebarCounts: async () => {
@@ -1283,18 +1317,38 @@ export const orderApi = {
             throw error;
         }
     },
+    /**
+     * Open a Razorpay checkout. The server calculates the amount from the purpose:
+     *   { purpose: 'CUSTOMER_ORDER', order: { items, pickupLocation, deliveryMode, selectedTier, promoApplied, useWallet } }
+     *   { purpose: 'WALKIN_DELIVERY', deliveryMode }
+     * Resolves to { id, amount (paise), currency, keyId, payable (₹) }.
+     */
     createRazorpayOrder: async (data) => {
-        try {
-            const response = await fetch(`${BASE_URL}/orders/razorpay`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Create Razorpay Order Error:', error);
-            throw error;
-        }
+        const response = await fetch(`${BASE_URL}/orders/razorpay`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.message || 'Could not start the payment');
+        return body;
+    },
+    /** The server's price for a cart (what will actually be charged). */
+    quoteOrder: async (order) => {
+        const response = await fetch(`${BASE_URL}/orders/quote`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(order)
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.message || 'Could not price this order');
+        return body;
+    },
+    getWalkInDeliveryFee: async (deliveryMode = 'Normal') => {
+        const response = await fetch(`${BASE_URL}/orders/walk-in/delivery-fee?deliveryMode=${encodeURIComponent(deliveryMode)}`);
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.message || 'Could not calculate the delivery fee');
+        return body;
     },
     createWalkInOrder: async (orderData) => {
         try {
@@ -1350,6 +1404,14 @@ export const orderApi = {
             console.error('Get Vendor Orders Error:', error);
             throw error;
         }
+    },
+    // Business Insights for the logged-in vendor, computed server-side for a date range
+    getVendorInsights: async ({ from, to }) => {
+        const qs = new URLSearchParams({ from, to }).toString();
+        const response = await fetch(`${BASE_URL}/orders/vendor/insights?${qs}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to load business insights');
+        return data;
     },
     updateOrderStatus: async (id, status) => {
         try {
@@ -1472,6 +1534,14 @@ export const orderApi = {
             console.error('Mark Ready API Error:', error);
             throw error;
         }
+    },
+    recordWeight: async (id, weight) => {
+        const response = await fetch(`${BASE_URL}/orders/${id}/weight`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ weight })
+        });
+        return adJson(response, 'Failed to record weight');
     },
     verifyHandshake: async (id, phase, otp) => {
         try {
@@ -1679,9 +1749,10 @@ export const ticketApi = {
             throw error;
         }
     },
-    getTicketByOrder: async (orderId) => {
+    getTicketByOrder: async (orderId, role) => {
         try {
-            const response = await fetch(`${BASE_URL}/tickets/order/${orderId}`);
+            const query = role ? `?role=${encodeURIComponent(role)}` : '';
+            const response = await fetch(`${BASE_URL}/tickets/order/${orderId}${query}`);
             return await readApiResponse(response);
         } catch (error) {
             console.error('Get Ticket By Order Error:', error);
@@ -1761,10 +1832,15 @@ export const ticketApi = {
 };
 
 export const faqApi = {
+    // Admin: includes hidden FAQs (the public list only has visible ones)
+    getAllAdmin: async () => {
+        const response = await fetch(`${BASE_URL}/faqs/admin/all`, { headers: adminAuthHeaders() });
+        return adJson(response, 'Failed to load FAQs');
+    },
     getAll: async () => {
         try {
             const response = await fetch(`${BASE_URL}/faqs`);
-            return await response.json();
+            return adJson(response, 'getAll failed');
         } catch (error) {
             console.error('Get FAQs Error:', error);
             throw error;
@@ -1777,7 +1853,7 @@ export const faqApi = {
                 headers: adminAuthHeaders(),
                 body: JSON.stringify(faqData)
             });
-            return await response.json();
+            return adJson(response, 'create failed');
         } catch (error) {
             console.error('Create FAQ Error:', error);
             throw error;
@@ -1789,7 +1865,7 @@ export const faqApi = {
                 method: 'DELETE',
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return adJson(response, 'delete failed');
         } catch (error) {
             console.error('Delete FAQ Error:', error);
             throw error;
@@ -1802,7 +1878,7 @@ export const faqApi = {
                 headers: adminAuthHeaders(),
                 body: JSON.stringify(faqData)
             });
-            return await response.json();
+            return adJson(response, 'update failed');
         } catch (error) {
             console.error('Update FAQ Error:', error);
             throw error;
@@ -1815,7 +1891,7 @@ export const faqApi = {
                 headers: adminAuthHeaders(),
                 body: JSON.stringify({ orders })
             });
-            return await response.json();
+            return adJson(response, 'reorder failed');
         } catch (error) {
             console.error('Reorder FAQs Error:', error);
             throw error;
@@ -1831,7 +1907,7 @@ export const feedbackApi = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(feedbackData)
             });
-            return await response.json();
+            return adJson(response, 'submit failed');
         } catch (error) {
             console.error('Submit Feedback Error:', error);
             throw error;
@@ -1846,7 +1922,7 @@ export const feedbackApi = {
             const response = await fetch(`${BASE_URL}/feedback/all?${params.toString()}`, {
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return adJson(response, 'getAll failed');
         } catch (error) {
             console.error('Get Feedbacks Error:', error);
             throw error;
@@ -1857,7 +1933,7 @@ export const feedbackApi = {
             const response = await fetch(`${BASE_URL}/feedback/filters`, {
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return adJson(response, 'getFilters failed');
         } catch (error) {
             console.error('Get Feedback Filters Error:', error);
             throw error;
@@ -1866,7 +1942,7 @@ export const feedbackApi = {
     getByVendorId: async (vendorId) => {
         try {
             const response = await fetch(`${BASE_URL}/feedback/vendor/${vendorId}`);
-            return await response.json();
+            return adJson(response, 'getByVendorId failed');
         } catch (error) {
             console.error('Get Vendor Feedbacks Error:', error);
             throw error;
@@ -1878,7 +1954,7 @@ export const feedbackApi = {
                 method: 'DELETE',
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return adJson(response, 'delete failed');
         } catch (error) {
             console.error('Delete Feedback Error:', error);
             throw error;
@@ -1896,7 +1972,7 @@ export const mediaApi = {
                 method: 'POST',
                 body: formData
             });
-            return await response.json();
+            return adJson(response, 'bulkUpload failed');
         } catch (error) {
             console.error('Media Upload Error:', error);
             throw error;
@@ -1941,7 +2017,7 @@ export const mediaApi = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-            return await response.json();
+            return adJson(response, 'submitInquiry failed');
         } catch (error) {
             console.error('Submit Inquiry Error:', error);
             throw error;
@@ -1959,7 +2035,7 @@ export const mediaApi = {
             const response = await fetch(url, {
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return adJson(response, 'getAllInquiries failed');
         } catch (error) {
             console.error('Get All Inquiries Error:', error);
             throw error;
@@ -1970,7 +2046,7 @@ export const mediaApi = {
             const response = await fetch(`${BASE_URL}/media/inquiries/filters`, {
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return adJson(response, 'getInquiryFilters failed');
         } catch (error) {
             console.error('Get Inquiry Filters Error:', error);
             throw error;
@@ -1982,7 +2058,7 @@ export const mediaApi = {
                 method: 'DELETE',
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return adJson(response, 'deleteInquiry failed');
         } catch (error) {
             console.error('Delete Inquiry Error:', error);
             throw error;
@@ -1998,7 +2074,7 @@ export const mediaApi = {
                 },
                 body: JSON.stringify({ status })
             });
-            return await response.json();
+            return adJson(response, 'updateInquiryStatus failed');
         } catch (error) {
             console.error('Update Inquiry Status Error:', error);
             throw error;
@@ -2014,7 +2090,7 @@ export const mediaApi = {
                 },
                 body: JSON.stringify({ notes })
             });
-            return await response.json();
+            return adJson(response, 'updateInquiryNotes failed');
         } catch (error) {
             console.error('Update Inquiry Notes Error:', error);
             throw error;
@@ -2023,7 +2099,7 @@ export const mediaApi = {
     getMyInquiries: async (email) => {
         try {
             const response = await fetch(`${BASE_URL}/media/inquiries/my?email=${encodeURIComponent(email)}`);
-            return await response.json();
+            return adJson(response, 'getMyInquiries failed');
         } catch (error) {
             console.error('Get My Ad Inquiries Error:', error);
             throw error;
@@ -2039,7 +2115,7 @@ export const partnershipApi = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-            return await response.json();
+            return adJson(response, 'submit failed');
         } catch (error) {
             console.error('Partnership Submit Error:', error);
             throw error;
@@ -2048,7 +2124,7 @@ export const partnershipApi = {
     getMyInquiries: async (email) => {
         try {
             const response = await fetch(`${BASE_URL}/partnerships/my-inquiries?email=${encodeURIComponent(email)}`);
-            return await response.json();
+            return adJson(response, 'getMyInquiries failed');
         } catch (error) {
             console.error('Get My Partnerships Error:', error);
             throw error;
@@ -2063,7 +2139,7 @@ export const partnershipApi = {
             const response = await fetch(`${BASE_URL}/partnerships/all?${params.toString()}`, {
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return adJson(response, 'getAll failed');
         } catch (error) {
             console.error('Get Partnerships Error:', error);
             throw error;
@@ -2074,7 +2150,7 @@ export const partnershipApi = {
             const response = await fetch(`${BASE_URL}/partnerships/filters`, {
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return adJson(response, 'getFilters failed');
         } catch (error) {
             console.error('Get Partnership Filters Error:', error);
             throw error;
@@ -2086,7 +2162,7 @@ export const partnershipApi = {
                 method: 'DELETE',
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return adJson(response, 'delete failed');
         } catch (error) {
             console.error('Delete Partnership Inquiry Error:', error);
             throw error;
@@ -2102,7 +2178,7 @@ export const partnershipApi = {
                 },
                 body: JSON.stringify({ status })
             });
-            return await response.json();
+            return adJson(response, 'updateStatus failed');
         } catch (error) {
             console.error('Update Partnership Status Error:', error);
             throw error;
@@ -2118,82 +2194,9 @@ export const partnershipApi = {
                 },
                 body: JSON.stringify({ notes })
             });
-            return await response.json();
+            return adJson(response, 'updateNotes failed');
         } catch (error) {
             console.error('Update Partnership Notes Error:', error);
-            throw error;
-        }
-    }
-};
-
-export const laborApi = {
-    add: async (data) => {
-        try {
-            const response = await fetch(`${BASE_URL}/labor/add`, {
-                method: 'POST',
-                headers: adminAuthHeaders(),
-                body: JSON.stringify(data)
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Add Labor Error:', error);
-            throw error;
-        }
-    },
-    getAll: async () => {
-        try {
-            const response = await fetch(`${BASE_URL}/labor/all`);
-            return await response.json();
-        } catch (error) {
-            console.error('Get Labor Error:', error);
-            throw error;
-        }
-    },
-    delete: async (id) => {
-        try {
-            const response = await fetch(`${BASE_URL}/labor/${id}`, {
-                method: 'DELETE',
-                headers: adminAuthHeaders()
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Delete Labor Error:', error);
-            throw error;
-        }
-    },
-    createRequisition: async (data) => {
-        try {
-            const response = await fetch(`${BASE_URL}/labor/place-request`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Create Requisition Error:', error);
-            throw error;
-        }
-    },
-    getAllRequisitions: async () => {
-        try {
-            const response = await fetch(`${BASE_URL}/labor/active-requests`, {
-                headers: adminAuthHeaders()
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Get Requests Error:', error);
-            throw error;
-        }
-    },
-    assignRequisition: async (id) => {
-        try {
-            const response = await fetch(`${BASE_URL}/labor/place-request/${id}/assign`, {
-                method: 'PATCH',
-                headers: adminAuthHeaders()
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Assign Requisition Error:', error);
             throw error;
         }
     }
@@ -2252,9 +2255,24 @@ export const promotionApi = {
             throw error;
         }
     },
-    getApplicablePromos: async (vendorId) => {
+    getApplicablePromos: async (params = {}) => {
         try {
-            const response = await fetch(`${BASE_URL}/promotions/applicable?vendorId=${vendorId}`);
+            let query = '';
+            if (typeof params === 'string') {
+                if (params && params !== 'undefined' && params !== 'null') {
+                    query = `?vendorId=${encodeURIComponent(params)}`;
+                }
+            } else if (params && typeof params === 'object') {
+                const sp = new URLSearchParams();
+                if (params.vendorId && params.vendorId !== 'undefined' && params.vendorId !== 'null') {
+                    sp.append('vendorId', params.vendorId);
+                }
+                if (params.lat !== undefined && params.lat !== null) sp.append('lat', params.lat);
+                if (params.lng !== undefined && params.lng !== null) sp.append('lng', params.lng);
+                const s = sp.toString();
+                if (s) query = `?${s}`;
+            }
+            const response = await fetch(`${BASE_URL}/promotions/applicable${query}`);
             const result = await response.json();
             if (!response.ok) throw new Error(result.message || 'Failed to fetch applicable promotions');
             return result;
@@ -2570,11 +2588,12 @@ export const logisticsApi = {
 export const legalApi = {
     getAll: async () => {
         const response = await fetch(`${BASE_URL}/legal/all`);
-        return await response.json();
+        return adJson(response, 'getAll failed');
     },
     getByType: async (type) => {
         const response = await fetch(`${BASE_URL}/legal/${type}`);
-        return await response.json();
+        if (response.status === 404) return null; // not uploaded yet
+            return adJson(response, 'getByType failed');
     },
     update: async (type, data) => {
         const response = await fetch(`${BASE_URL}/legal/${type}`, {
@@ -2582,7 +2601,7 @@ export const legalApi = {
             headers: adminAuthHeaders(),
             body: JSON.stringify(data)
         });
-        return await response.json();
+        return adJson(response, 'update failed');
     }
 };
 

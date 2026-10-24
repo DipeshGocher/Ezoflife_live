@@ -1,11 +1,10 @@
+import { servicePricing } from '../../../lib/servicePricing';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { authApi, serviceApi, promotionApi, BASE_URL } from '../../../lib/api';
 import VendorHeader from '../components/VendorHeader';
-import Lottie from 'lottie-react';
-import spinLogoAnimation from '../../../assets/spin_logo_text.json';
 
 const VendorMyServices = () => {
     const navigate = useNavigate();
@@ -86,7 +85,9 @@ const VendorMyServices = () => {
                             category: ms.categoryId?.mainCategory || 'Laundry',
                             subCategory: ms.categoryId?.subCategory || 'General',
                             icon: ms.icon || 'local_laundry_service',
-                            basePrice: ms.basePrice
+                            basePrice: ms.basePrice,
+                            discountedPrice: ms.discountedPrice,
+                            showDiscountPrice: ms.showDiscountPrice
                         };
                     });
                 }
@@ -97,12 +98,21 @@ const VendorMyServices = () => {
             const lat = profileRes?.location?.lat;
             const lng = profileRes?.location?.lng;
             let pricingMap = {};
+            let regionalPricing = { areaMultiplier: 1, surgeMultiplier: 1, heritageMultiplier: 1, allowDiscount: false };
             
             if (lat && lng && lat !== 0 && lng !== 0) {
                 try {
                     const geoRes = await fetch(`${BASE_URL}/geofence/check-availability?lat=${lat}&lng=${lng}`);
                     if (geoRes.ok) {
                         const geoData = await geoRes.json();
+                        if (geoData.available) {
+                            regionalPricing = {
+                                areaMultiplier: geoData.pricingFactor ?? 1,
+                                surgeMultiplier: geoData.expressMultiplier ?? 1,
+                                heritageMultiplier: geoData.heritageMultiplier ?? 1,
+                                allowDiscount: geoData.allowDiscount !== false
+                            };
+                        }
                         if (geoData.available && geoData.areaId) {
                             const pricingRes = await fetch(`${BASE_URL}/master-pricing?fenceId=${geoData.areaId}&limit=10000`);
                             if (pricingRes.ok) {
@@ -133,7 +143,7 @@ const VendorMyServices = () => {
 
             mappedRegistrationServices.forEach(s => {
                 const id = s.id || s._id;
-                const pricingInfo = pricingMap[id] || {};
+                const pricingInfo = { ...(pricingMap[id] || {}), ...regionalPricing };
                 const msInfo = masterServicesMap[id] || {};
 
                 const resolvedName = msInfo.itemName || pricingInfo.itemName || s.name || `Service ${id.slice(-4)}`;
@@ -149,6 +159,8 @@ const VendorMyServices = () => {
                     approvalStatus: s.approvalStatus,
                     active: s.active ?? true,
                     basePrice: msInfo.basePrice || s.basePrice || s.vendorRate || 0,
+                    discountedPrice: msInfo.discountedPrice ?? s.discountedPrice,
+                    showDiscountPrice: msInfo.showDiscountPrice ?? s.showDiscountPrice,
                     name: resolvedName,
                     category: resolvedCategory,
                     subCategory: resolvedSubCategory,
@@ -159,7 +171,7 @@ const VendorMyServices = () => {
 
             masterRes.forEach(s => {
                 const id = s._id || s.id;
-                const pricingInfo = pricingMap[id] || {};
+                const pricingInfo = { ...(pricingMap[id] || {}), ...regionalPricing };
                 const msInfo = masterServicesMap[id] || {};
 
                 const resolvedName = s.name || msInfo.itemName || pricingInfo.itemName || `Service ${id.slice(-4)}`;
@@ -176,6 +188,8 @@ const VendorMyServices = () => {
                     adminMessage: s.adminMessage || '',
                     active: s.status === 'Active',
                     basePrice: msInfo.basePrice || s.basePrice || 0,
+                    discountedPrice: msInfo.discountedPrice ?? s.discountedPrice,
+                    showDiscountPrice: msInfo.showDiscountPrice ?? s.showDiscountPrice,
                     name: resolvedName,
                     category: resolvedCategory,
                     subCategory: resolvedSubCategory,
@@ -486,6 +500,9 @@ const VendorMyServices = () => {
                             </div>
                         </header>
                         <section className="space-y-6">
+                            <p className="text-xs font-medium text-slate-500">
+                                Base price is the catalogue rate. Tier prices include applicable discounts and your shop region’s multipliers, before GST and checkout fees.
+                            </p>
                             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left border-collapse min-w-[950px]">
@@ -624,12 +641,13 @@ const VendorMyServices = () => {
                                                 const surgeMultiplier = pricingInfo.surgeMultiplier !== undefined ? pricingInfo.surgeMultiplier : 1;
                                                 const heritageMultiplier = pricingInfo.heritageMultiplier !== undefined ? pricingInfo.heritageMultiplier : 1;
  
-                                                const basePrice = service.basePrice || 0;
-                                                const baseNormal = Math.round(basePrice * areaMultiplier);
-                                                const baseExpress = Math.round(basePrice * areaMultiplier * surgeMultiplier);
-                                                const heritageNormal = Math.round(basePrice * areaMultiplier * heritageMultiplier);
-                                                const heritageExpress = Math.round(basePrice * areaMultiplier * heritageMultiplier * surgeMultiplier);
-                                                
+                                                const priceOptions = { pricingFactor: areaMultiplier,
+                                                    allowDiscount: pricingInfo.allowDiscount, expressMultiplier: surgeMultiplier, heritageMultiplier };
+                                                const baseNormal = servicePricing(service, priceOptions).price;
+                                                const baseExpress = servicePricing(service, { ...priceOptions, isExpress: true }).price;
+                                                const heritageNormal = servicePricing(service, { ...priceOptions, isHeritage: true }).price;
+                                                const heritageExpress = servicePricing(service, { ...priceOptions, isHeritage: true, isExpress: true }).price;
+
                                                 const isPending = service.approvalStatus === 'Pending';
                                                 const isRejected = service.approvalStatus === 'Rejected';
  

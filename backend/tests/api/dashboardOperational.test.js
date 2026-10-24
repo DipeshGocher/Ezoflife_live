@@ -26,7 +26,7 @@ before(async () => {
     const base = { customer: customer._id, vendor: vendor._id, pickupAddress: 'Pickup', dropAddress: 'Drop', pickupLocation: { lat: 1, lng: 1 }, items: [], totalAmount: 100.49 };
     [oldPickup, unpaid] = await Order.create([
         { ...base, status: 'ORDER_PLACED' },
-        { ...base, status: 'DELIVERED', paymentStatus: 'Pending', dueAmount: 50 },
+        { ...base, status: 'ORDER_PLACED', paymentStatus: 'Pending', dueAmount: 50 },
         { ...base, status: 'PROCESSING' }, { ...base, status: 'CANCELLED' },
         { ...base, status: 'OUT_FOR_DELIVERY', riderDetails: { phone: '9876543210' } },
         { ...base, status: 'RIDER_ARRIVING', riderDetails: { phone: '+91 9876543210' } },
@@ -34,7 +34,7 @@ before(async () => {
         { ...base, status: 'ORDER_PLACED', pickupLocation: { lat: 5, lng: 5 }, totalAmount: 99999 }
     ]);
     await Order.collection.updateOne({ _id: oldPickup._id }, { $set: { createdAt: new Date(Date.now() - 40 * 86400000) } });
-    await Order.collection.updateOne({ _id: unpaid._id }, { $set: { statusHistory: [{ status: 'DELIVERED', timestamp: new Date(Date.now() - 4 * 3600000) }] } });
+    await Order.collection.updateOne({ _id: unpaid._id }, { $set: { status: 'DELIVERED', statusHistory: [{ status: 'DELIVERED', timestamp: new Date(Date.now() - 4 * 3600000) }] } });
     await B2BOrder.create(['CART', 'PENDING_PAYMENT', 'Submitted', 'Confirmed', 'Delivered', 'Settled', 'Cancelled', 'REJECTED'].map((status, i) => ({ vendor: vendor._id, supplier: supplier._id, cycleId: `dashboard-${i}`, deliveryDay: 'Sunday', deliveryDate: new Date(), status, pincode: '560001', city: 'Bengaluru', totalAmount: 10.25, items: [] })));
 }, { timeout: 90000 });
 after(async () => { await mongoose.disconnect(); await env?.stop(); });

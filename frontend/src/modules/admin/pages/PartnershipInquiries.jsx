@@ -1,10 +1,12 @@
 import MultiSelectFilter from '../components/common/MultiSelectFilter';
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo } from 'react';
 import { partnershipApi } from '../../../lib/api';
 import toast from 'react-hot-toast';
 import PageHeader from '../components/common/PageHeader';
 import DataGrid from '../components/tables/DataGrid';
 import * as XLSX from 'xlsx';
+import FilterField from "../components/common/FilterLabel";
 
 
 const PartnershipInquiries = () => {
@@ -102,7 +104,7 @@ const PartnershipInquiries = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this partnership inquiry?')) return;
+        if (!await appDialog.confirm('Are you sure you want to delete this partnership inquiry?')) return;
         try {
             await partnershipApi.delete(id);
             toast.success('Inquiry deleted successfully');
@@ -287,7 +289,8 @@ const PartnershipInquiries = () => {
                     showFilter={false}
                     showSearch={false}
                     actions={
-                        <div className="flex items-center flex-wrap gap-2">
+                        <div className="flex items-end flex-wrap gap-2">
+                            <FilterField label="Brand" info="Shows only inquiries from this company or brand.">
                             <MultiSelectFilter
                                 value={filters.companyName}
                                 onChange={(e) => handleFilterChange('companyName', e.target.value)}
@@ -298,6 +301,8 @@ const PartnershipInquiries = () => {
                                     <option key={brand} value={brand}>{brand}</option>
                                 ))}
                             </MultiSelectFilter>
+                            </FilterField>
+                            <FilterField label="Email" info="Shows only inquiries sent from this email address.">
                             <MultiSelectFilter
                                 value={filters.email}
                                 onChange={(e) => handleFilterChange('email', e.target.value)}
@@ -308,6 +313,8 @@ const PartnershipInquiries = () => {
                                     <option key={email} value={email}>{email}</option>
                                 ))}
                             </MultiSelectFilter>
+                            </FilterField>
+                            <FilterField label="Contact number" info="Shows only inquiries with this phone number.">
                             <MultiSelectFilter
                                 value={filters.phone}
                                 onChange={(e) => handleFilterChange('phone', e.target.value)}
@@ -318,6 +325,8 @@ const PartnershipInquiries = () => {
                                     <option key={phone} value={phone}>{phone}</option>
                                 ))}
                             </MultiSelectFilter>
+                            </FilterField>
+                            <FilterField label="Partnership type" info="Shows only inquiries for this kind of partnership (as chosen on the partner form).">
                             <MultiSelectFilter
                                 value={filters.partnershipType}
                                 onChange={(e) => handleFilterChange('partnershipType', e.target.value)}
@@ -328,6 +337,8 @@ const PartnershipInquiries = () => {
                                     <option key={type} value={type}>{type}</option>
                                 ))}
                             </MultiSelectFilter>
+                            </FilterField>
+                            <FilterField label="Submitted on" info="Shows only inquiries submitted on this date.">
                             <MultiSelectFilter
                                 value={filters.submitted}
                                 onChange={(e) => handleFilterChange('submitted', e.target.value)}
@@ -338,6 +349,7 @@ const PartnershipInquiries = () => {
                                     <option key={date} value={date}>{new Date(date).toLocaleDateString('en-GB')}</option>
                                 ))}
                             </MultiSelectFilter>
+                            </FilterField>
                             {(filters.companyName || filters.email || filters.phone || filters.partnershipType || filters.submitted) && (
                                 <button 
                                     onClick={handleResetFilters}

@@ -110,6 +110,42 @@ test.describe('Vendor portal', () => {
 
         expect(calls.length, 'dashboard made no API calls').toBeGreaterThan(0);
     });
+
+    test('Business Insights loads real data and shows no sample values', async ({ page, request }) => {
+        const session = await loginAs(request, 'Vendor');
+        const insightCalls = [];
+        page.on('response', r => {
+            if (r.url().includes('/api/orders/vendor/insights')) insightCalls.push(r.status());
+        });
+
+        await page.goto('/vendor/auth');
+        await applySession(page, session, { vendorData: session.user, vendorToken: session.token });
+        await page.goto('/vendor/reports');
+        await page.waitForLoadState('networkidle');
+
+        expect(insightCalls, 'insights endpoint was not called').toContain(200);
+
+        // A brand-new vendor has no orders or reviews: real zeros / empty states,
+        // never the old hardcoded figures.
+        await expect(page.getByText('Total Revenue Generated')).toBeVisible();
+        await expect(page.getByText('No customer ratings in this period')).toBeVisible();
+        const body = await page.locator('body').innerText();
+        for (const sample of ['Crisp Folding', 'Late Pickup', 'Apex Corporate', '22,700', '117 Orders']) {
+            expect(body, `sample value "${sample}" is still rendered`).not.toContain(sample);
+        }
+
+        // Switching the period refetches for the new range. Wait for that
+        // response itself: 'networkidle' can settle before the refetch starts.
+        await page.getByRole('button', { name: /Current Month/ }).click();
+        const refetch = page.waitForResponse(r => r.url().includes('/api/orders/vendor/insights'));
+        await page.getByRole('button', { name: 'Last 6 Months' }).click();
+        const res = await refetch;
+        expect(res.status()).toBe(200);
+        // The new request covers roughly six months
+        const url = new URL(res.url());
+        const days = (new Date(url.searchParams.get('to')) - new Date(url.searchParams.get('from'))) / 86400000;
+        expect(days).toBeGreaterThan(170);
+    });
 });
 
 test.describe('Supplier portal', () => {

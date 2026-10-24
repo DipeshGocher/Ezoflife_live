@@ -1,3 +1,4 @@
+import BrandLogo from '../../../shared/components/BrandLogo.jsx';
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -96,9 +97,7 @@ const UserHeader = () => {
           <div
             onClick={() => navigate("/user/home")}
             className="cursor-pointer">
-            <h1 className="font-headline font-black text-lg text-primary tracking-tighter leading-none uppercase">
-              SPINZYT
-            </h1>
+            <BrandLogo className="h-10 w-auto" />
           </div>
           <div className="h-4 w-px bg-slate-200" /> {/* Divider */}
           {/* 2. Current Address (Home/Office) */}

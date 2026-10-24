@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -220,9 +221,9 @@ const ShopDetails = () => {
             toast.error('Session expired or Invalid User. Please login again.');
             return;
         }
-        if (!shopName) return alert('Please enter shop name');
-        if (!address) return alert('Please provide shop address');
-        if (!pincode) return alert('Please provide area pincode');
+        if (!shopName) return await appDialog.alert('Please enter shop name');
+        if (!address) return await appDialog.alert('Please provide shop address');
+        if (!pincode) return await appDialog.alert('Please provide area pincode');
 
         if (isEditing) {
             console.log('📝 [DEBUG] isEditing is TRUE - Attempting Profile Update API call...');

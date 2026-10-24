@@ -16,14 +16,6 @@ const BottomNav = () => {
     }
   }, []);
 
-  const userType = useMemo(() => {
-    try {
-      return (localStorage.getItem("userType") || "individual").toLowerCase();
-    } catch {
-      return "individual";
-    }
-  }, []);
-
   const navItems = useMemo(() => {
     switch (userRole) {
       case "vendor":
@@ -52,15 +44,15 @@ const BottomNav = () => {
         return [
           { label: "Home", icon: "home", path: "/user/home" },
           {
-            label: userType === "retail" ? "Bulk Orders" : "My Orders",
-            icon: userType === "retail" ? "inventory" : "local_laundry_service",
+            label: "My Orders",
+            icon: "local_laundry_service",
             path: "/user/orders",
           },
           { label: "Profile", icon: "person", path: "/user/profile" },
           { label: "More", icon: "menu", path: "/user/more" },
         ];
     }
-  }, [userRole, userType]);
+  }, [userRole]);
 
   const handleNavClick = (path) => {
     // Public paths allowed without login
@@ -82,7 +74,7 @@ const BottomNav = () => {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-2xl border-t border-slate-100 pb-safe shadow-[0_-1px_10px_rgba(0,0,0,0.02)] h-16 flex justify-center">
+    <nav data-bottom-navigation className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-2xl border-t border-slate-100 pb-safe shadow-[0_-1px_10px_rgba(0,0,0,0.02)] h-16 flex justify-center">
       <motion.div className="flex justify-around items-center w-full h-full max-w-lg mx-auto">
         {navItems.map((item) => {
           const isActive = currentPath === item.path;

@@ -1,12 +1,18 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import toast from 'react-hot-toast';
+import { motion as Motion } from 'framer-motion';
 
 const SupplierMorePage = () => {
   const navigate = useNavigate();
 
   const menuSections = useMemo(() => [
+    {
+      title: "Performance",
+      icon: "insights",
+      items: [
+        { icon: "insights", title: "Business Insights", desc: "Revenue, sales & order performance", path: "/supplier/insights", color: "primary" }
+      ]
+    },
     {
       title: "Partnerships",
       icon: "handshake",
@@ -51,7 +57,7 @@ const SupplierMorePage = () => {
   return (
     <div className="min-h-screen pb-40 font-sans">
       <main className="max-w-md mx-auto px-6 pt-2">
-        <motion.div 
+        <Motion.div
           variants={containerVariants}
           initial="hidden"
           animate="visible"
@@ -59,7 +65,7 @@ const SupplierMorePage = () => {
         >
           <div className="bg-white rounded-[2.5rem] border border-black/5 divide-y divide-black/5 overflow-hidden shadow-sm shadow-primary/5 mt-4">
             {allItems.map((item) => (
-              <motion.button 
+              <Motion.button
                 key={item.path}
                 variants={itemVariants}
                 whileHover={{ backgroundColor: 'rgba(0,0,0,0.01)' }}
@@ -79,10 +85,10 @@ const SupplierMorePage = () => {
                 <span className="material-symbols-outlined text-lg transition-transform group-hover:translate-x-1 text-slate-200">
                   {item.rightIcon || 'chevron_right'}
                 </span>
-              </motion.button>
+              </Motion.button>
             ))}
           </div>
-        </motion.div>
+        </Motion.div>
       </main>
     </div>
   );

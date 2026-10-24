@@ -39,10 +39,11 @@ export default function MetricRow({
                     {currency && <span className="text-[10px] font-bold text-slate-400 shrink-0 uppercase tracking-widest mb-1.5 opacity-60 tabular-nums">{currency}</span>}
                 </div>
                 
-                {/* Mini Sparkline Background */}
+                {/* Mini sparkline: only drawn from real series data, never a placeholder shape */}
+                {sparklineData.length > 1 && (
                 <div className="h-8 w-20 opacity-30 hover:opacity-100 transition-opacity">
                     <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={sparklineData.length ? sparklineData : [10, 25, 15, 30, 20, 35, 25].map(v => ({ value: v }))}>
+                    <AreaChart data={sparklineData}>
                         <defs>
                         <linearGradient id={`color-${label}`} x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor={isUp ? '#10b981' : '#ef4444'} stopOpacity={0.8}/>
@@ -59,6 +60,7 @@ export default function MetricRow({
                     </AreaChart>
                     </ResponsiveContainer>
                 </div>
+                )}
             </div>
         </div>
     );

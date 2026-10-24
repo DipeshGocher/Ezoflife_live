@@ -1,67 +1,63 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { authApi } from '../../../lib/api';
+import { authApi, adminApi } from '../../../lib/api';
 
 const AdminSettings = () => {
     const [activeTab, setActiveTab] = useState('profile');
     const [loading, setLoading] = useState(false);
 
-    // Profile Data State with Persistence
-    const [profileData, setProfileData] = useState(() => {
-        const saved = localStorage.getItem('admin_profile');
-        return saved ? JSON.parse(saved) : {
-            name: 'Super Admin',
-            companyName: 'EzOfLife Corporate',
-            email: 'admin@ezoflife.com',
-            phone: '9999999994',
-            role: 'Master Admin'
-        };
+    // Admin profile (name/email/phone/role) comes from the admin's user record;
+    // company name and addresses from SystemConfig 'company_profile'. Nothing is
+    // seeded with placeholder values or kept only in this browser.
+    const [profileData, setProfileData] = useState({
+        name: '',
+        companyName: '',
+        email: '',
+        phone: '',
+        role: ''
     });
+    const [addresses, setAddresses] = useState([]);
+    const [companyLoaded, setCompanyLoaded] = useState(false);
 
-    // Address Data State with Persistence
-    const [addresses, setAddresses] = useState(() => {
-        const saved = localStorage.getItem('admin_addresses');
-        return saved ? JSON.parse(saved) : [
-            { id: 1, type: 'Headquarters', address: 'Indore, MP, India', isDefault: true },
-            { id: 2, type: 'Regional Office', address: 'Mumbai, MH, India', isDefault: false }
-        ];
-    });
+    const getAdminId = () => {
+        try {
+            const adminRaw = localStorage.getItem('adminData') || localStorage.getItem('user') || localStorage.getItem('userData') || '{}';
+            const adminData = JSON.parse(adminRaw);
+            return adminData._id || adminData.id || adminData.user?._id || adminData.user?.id || null;
+        } catch {
+            return null;
+        }
+    };
 
-    // Fetch Admin Profile from Database on Mount
     useEffect(() => {
-        const fetchAdminProfile = async () => {
-            try {
-                const adminRaw = localStorage.getItem('adminData') || localStorage.getItem('user') || localStorage.getItem('userData') || '{}';
-                const adminData = JSON.parse(adminRaw);
-                const adminId = adminData._id || adminData.id || adminData.user?._id || adminData.user?.id;
-                
-                if (adminId) {
-                    const data = await authApi.getProfile(adminId);
-                    if (data) {
-                        setProfileData(prev => ({
-                            ...prev,
-                            name: data.displayName || data.name || prev.name,
-                            email: data.email || prev.email,
-                            phone: data.phone || prev.phone,
-                            role: data.role || prev.role
-                        }));
-                    }
-                }
-            } catch (error) {
-                console.error('Error fetching admin profile:', error);
-            }
+        const load = async () => {
+            const adminId = getAdminId();
+            const [profile, configs] = await Promise.all([
+                adminId ? authApi.getProfile(adminId).catch(() => null) : null,
+                adminApi.getConfig().catch(() => [])
+            ]);
+            const company = (Array.isArray(configs) ? configs : []).find(c => c.key === 'company_profile')?.value || {};
+            setProfileData({
+                name: profile?.displayName || profile?.name || '',
+                email: profile?.email || '',
+                phone: profile?.phone || '',
+                role: profile?.role || '',
+                companyName: company.companyName || ''
+            });
+            setAddresses(Array.isArray(company.addresses) ? company.addresses : []);
+            setCompanyLoaded(true);
         };
-        fetchAdminProfile();
+        load();
     }, []);
 
-    useEffect(() => {
-        localStorage.setItem('admin_profile', JSON.stringify(profileData));
-    }, [profileData]);
-
-    useEffect(() => {
-        localStorage.setItem('admin_addresses', JSON.stringify(addresses));
-    }, [addresses]);
+    // Persist company details to the database
+    const saveCompanyProfile = async (next) => {
+        const res = await adminApi.updateConfig('company_profile', next);
+        if (!res || res.message === 'Error updating config' || res.success === false) {
+            throw new Error(res?.message || 'Failed to save company details');
+        }
+    };
 
     const [newAddress, setNewAddress] = useState({ type: 'Office', address: '' });
 
@@ -69,38 +65,32 @@ const AdminSettings = () => {
         e.preventDefault();
         setLoading(true);
         try {
-            const adminRaw = localStorage.getItem('adminData') || localStorage.getItem('user') || localStorage.getItem('userData') || '{}';
-            const adminData = JSON.parse(adminRaw);
-            const adminId = adminData._id || adminData.id || adminData.user?._id || adminData.user?.id;
+            const adminId = getAdminId();
+            if (!adminId) throw new Error('Admin session not found. Please log in again.');
 
-            if (adminId) {
-                const updatedUser = await authApi.updateProfile(adminId, {
-                    displayName: profileData.name,
-                    email: profileData.email,
-                    phone: profileData.phone
-                });
-                
-                if (updatedUser) {
-                    setProfileData(prev => ({
-                        ...prev,
-                        name: updatedUser.displayName || prev.name,
-                        email: updatedUser.email || prev.email,
-                        phone: updatedUser.phone || prev.phone
-                    }));
-                    
-                    const newAdminData = {
-                        ...adminData,
-                        displayName: updatedUser.displayName || adminData.displayName,
-                        phone: updatedUser.phone || adminData.phone,
-                        email: updatedUser.email || adminData.email
-                    };
-                    localStorage.setItem('adminData', JSON.stringify(newAdminData));
-                }
-                toast.success('Profile updated successfully in database!');
-            } else {
-                localStorage.setItem('admin_profile', JSON.stringify(profileData));
-                toast.success('Profile saved locally (offline mode).');
+            const updatedUser = await authApi.updateProfile(adminId, {
+                displayName: profileData.name,
+                email: profileData.email,
+                phone: profileData.phone
+            });
+            await saveCompanyProfile({ companyName: profileData.companyName, addresses });
+
+            if (updatedUser) {
+                setProfileData(prev => ({
+                    ...prev,
+                    name: updatedUser.displayName || prev.name,
+                    email: updatedUser.email || prev.email,
+                    phone: updatedUser.phone || prev.phone
+                }));
+                const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+                localStorage.setItem('adminData', JSON.stringify({
+                    ...adminData,
+                    displayName: updatedUser.displayName || adminData.displayName,
+                    phone: updatedUser.phone || adminData.phone,
+                    email: updatedUser.email || adminData.email
+                }));
             }
+            toast.success('Profile updated successfully in database!');
         } catch (error) {
             console.error('Error updating admin profile:', error);
             toast.error(error.message || 'Failed to update profile in database');
@@ -109,22 +99,32 @@ const AdminSettings = () => {
         }
     };
 
+    const updateAddresses = async (next, successMsg) => {
+        const previous = addresses;
+        setAddresses(next);
+        try {
+            await saveCompanyProfile({ companyName: profileData.companyName, addresses: next });
+            toast.success(successMsg);
+        } catch (error) {
+            setAddresses(previous);
+            toast.error(error.message || 'Failed to save addresses');
+        }
+    };
+
     const handleAddAddress = (e) => {
         e.preventDefault();
-        if (!newAddress.address) return;
+        if (!newAddress.address || !companyLoaded) return;
         const address = {
             id: Date.now(),
             ...newAddress,
-            isDefault: false
+            isDefault: addresses.length === 0
         };
-        setAddresses([...addresses, address]);
+        updateAddresses([...addresses, address], 'Address added successfully!');
         setNewAddress({ type: 'Office', address: '' });
-        toast.success('Address added successfully!');
     };
 
     const removeAddress = (id) => {
-        setAddresses(addresses.filter(addr => addr.id !== id));
-        toast.success('Address removed');
+        updateAddresses(addresses.filter(addr => addr.id !== id), 'Address removed');
     };
 
     const tabs = [
@@ -251,6 +251,11 @@ const AdminSettings = () => {
                         >
                             {/* Existing Addresses */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {companyLoaded && addresses.length === 0 && (
+                                    <p className="md:col-span-2 text-[11px] font-bold text-slate-400 text-center py-8 bg-white rounded-[2rem] border border-dashed border-slate-200">
+                                        No company addresses yet. Add your first one below.
+                                    </p>
+                                )}
                                 {addresses.map(addr => (
                                     <div key={addr.id} className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm relative group">
                                         <div className="flex justify-between items-start mb-4">

@@ -1,11 +1,11 @@
 import express from 'express';
 import { submitPartnershipInquiry, getAllPartnershipInquiries, getPartnershipFilters, deletePartnershipInquiry, updatePartnershipStatus, getMyPartnershipInquiries, updatePartnershipNotes } from '../controllers/partnershipController.js';
-import { verifyAdmin } from '../middleware/authMiddleware.js';
+import { verifyAdmin, verifyUser, optionalUser } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-router.post('/submit', submitPartnershipInquiry);
-router.get('/my-inquiries', getMyPartnershipInquiries);
+router.post('/submit', optionalUser, submitPartnershipInquiry);
+router.get('/my-inquiries', verifyUser, getMyPartnershipInquiries);
 
 // Admin-only routes
 router.get('/all', verifyAdmin, getAllPartnershipInquiries);

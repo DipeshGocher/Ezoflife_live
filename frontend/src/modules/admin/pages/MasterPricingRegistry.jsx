@@ -7,9 +7,12 @@ import {
 import { toast } from 'react-hot-toast';
 import PageHeader from '../components/common/PageHeader';
 import DataGrid from '../components/tables/DataGrid';
-import { BASE_URL } from '../../../lib/api';
+import { BASE_URL, adminApi } from '../../../lib/api';
+import FilterField from "../components/common/FilterLabel";
 
 const MasterPricingRegistry = () => {
+    const [configuredGst, setConfiguredGst] = useState(0);
+    useEffect(() => { adminApi.getConfig().then(rows => { const rate = rows.find(row => row.key === 'gst_percent')?.value; if (rate != null) setConfiguredGst(Number(rate)); }).catch(() => toast.error('Could not load configured GST rate')); }, []);
     const [pricingData, setPricingData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [areas, setAreas] = useState([]);
@@ -165,8 +168,8 @@ const MasterPricingRegistry = () => {
                 const expressMult = row.fenceId?.dynamicSurgeMultiplier || 1.0;
                 const heritageMult = row.fenceId?.heritageMultiplier || 1.0;
                 const discMult = row.fenceId?.allowDiscount !== false ? (row.fenceId?.discountPriceMultiplier || 1.0) : 1.0;
-                const gst = row.serviceId?.gst || 5;
-                const hGst = row.serviceId?.heritageGst || 18;
+                const gst = row.serviceId?.gst ?? configuredGst;
+                const hGst = row.serviceId?.heritageGst ?? configuredGst;
 
                 const baseNormalExcl = Math.round(globalBase * baseMult);
                 const baseNormalIncl = Math.round(globalBase * baseMult * (1 + gst / 100));
@@ -282,7 +285,7 @@ const MasterPricingRegistry = () => {
             key: 'serviceId',
             render: (val) => (
                 <span className="text-[9px] font-black text-slate-500 tabular-nums">
-                    {val?.gst || 5}%
+                    {val?.gst ?? configuredGst}%
                 </span>
             )
         },
@@ -366,7 +369,7 @@ const MasterPricingRegistry = () => {
             render: (_, row) => {
                 const globalBase = row.basePrice || 0;
                 const baseMult = row.fenceId?.basePriceMultiplier || 1.0;
-                const gst = row.serviceId?.gst || 5;
+                const gst = row.serviceId?.gst ?? configuredGst;
                 const priceBeforeTax = globalBase * baseMult;
                 const final = Math.round(priceBeforeTax * (1 + gst / 100));
                 return (
@@ -400,7 +403,7 @@ const MasterPricingRegistry = () => {
                 const globalBase = row.basePrice || 0;
                 const baseMult = row.fenceId?.basePriceMultiplier || 1.0;
                 const expressMult = row.fenceId?.dynamicSurgeMultiplier || 1.0;
-                const gst = row.serviceId?.gst || 5;
+                const gst = row.serviceId?.gst ?? configuredGst;
                 const priceBeforeTax = globalBase * baseMult * expressMult;
                 const final = Math.round(priceBeforeTax * (1 + gst / 100));
                 return (
@@ -434,7 +437,7 @@ const MasterPricingRegistry = () => {
                 const globalBase = row.basePrice || 0;
                 const baseMult = row.fenceId?.basePriceMultiplier || 1.0;
                 const heritageMult = row.fenceId?.heritageMultiplier || 1.0;
-                const hGst = row.serviceId?.heritageGst || 18;
+                const hGst = row.serviceId?.heritageGst ?? configuredGst;
                 const priceBeforeTax = globalBase * baseMult * heritageMult;
                 const final = Math.round(priceBeforeTax * (1 + hGst / 100));
                 return (
@@ -470,7 +473,7 @@ const MasterPricingRegistry = () => {
                 const baseMult = row.fenceId?.basePriceMultiplier || 1.0;
                 const heritageMult = row.fenceId?.heritageMultiplier || 1.0;
                 const expressMult = row.fenceId?.dynamicSurgeMultiplier || 1.0;
-                const hGst = row.serviceId?.heritageGst || 18;
+                const hGst = row.serviceId?.heritageGst ?? configuredGst;
                 const priceBeforeTax = globalBase * baseMult * heritageMult * expressMult;
                 const final = Math.round(priceBeforeTax * (1 + hGst / 100));
                 return (
@@ -504,7 +507,7 @@ const MasterPricingRegistry = () => {
                 const globalDiscounted = row.discountPrice || 0;
                 const baseMult = row.fenceId?.basePriceMultiplier || 1.0;
                 const discMult = row.fenceId?.allowDiscount !== false ? (row.fenceId?.discountPriceMultiplier || 1.0) : 1.0;
-                const gst = row.serviceId?.gst || 5;
+                const gst = row.serviceId?.gst ?? configuredGst;
                 const priceBeforeTax = globalDiscounted * baseMult * discMult;
                 const final = Math.round(priceBeforeTax * (1 + gst / 100));
                 return (
@@ -540,7 +543,7 @@ const MasterPricingRegistry = () => {
                 const baseMult = row.fenceId?.basePriceMultiplier || 1.0;
                 const discMult = row.fenceId?.allowDiscount !== false ? (row.fenceId?.discountPriceMultiplier || 1.0) : 1.0;
                 const expressMult = row.fenceId?.dynamicSurgeMultiplier || 1.0;
-                const gst = row.serviceId?.gst || 5;
+                const gst = row.serviceId?.gst ?? configuredGst;
                 const priceBeforeTax = globalDiscounted * baseMult * discMult * expressMult;
                 const final = Math.round(priceBeforeTax * (1 + gst / 100));
                 return (
@@ -576,7 +579,7 @@ const MasterPricingRegistry = () => {
                 const baseMult = row.fenceId?.basePriceMultiplier || 1.0;
                 const heritageMult = row.fenceId?.heritageMultiplier || 1.0;
                 const discMult = row.fenceId?.allowDiscount !== false ? (row.fenceId?.discountPriceMultiplier || 1.0) : 1.0;
-                const hGst = row.serviceId?.heritageGst || 18;
+                const hGst = row.serviceId?.heritageGst ?? configuredGst;
                 const priceBeforeTax = globalDiscounted * baseMult * heritageMult * discMult;
                 const final = Math.round(priceBeforeTax * (1 + hGst / 100));
                 return (
@@ -614,7 +617,7 @@ const MasterPricingRegistry = () => {
                 const heritageMult = row.fenceId?.heritageMultiplier || 1.0;
                 const discMult = row.fenceId?.allowDiscount !== false ? (row.fenceId?.discountPriceMultiplier || 1.0) : 1.0;
                 const expressMult = row.fenceId?.dynamicSurgeMultiplier || 1.0;
-                const hGst = row.serviceId?.heritageGst || 18;
+                const hGst = row.serviceId?.heritageGst ?? configuredGst;
                 const priceBeforeTax = globalDiscounted * baseMult * heritageMult * discMult * expressMult;
                 const final = Math.round(priceBeforeTax * (1 + hGst / 100));
                 return (
@@ -625,7 +628,7 @@ const MasterPricingRegistry = () => {
                 );
             }
         }
-    ], []);
+    ], [configuredGst]);
 
     return (
         <div className="flex flex-col min-h-screen bg-slate-50/50 pb-20">
@@ -648,8 +651,9 @@ const MasterPricingRegistry = () => {
                     showFilter={false}
                     showSearch={false}
                     actions={
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-end gap-2 flex-wrap">
                             {/* Region Select */}
+                            <FilterField label="Region" info="Shows the price rows for one service area. While an area is selected, Synchronize updates only that area; All regions covers every area.">
                             <select 
                                 value={selectedArea}
                                 onChange={(e) => setSelectedArea(e.target.value)}
@@ -660,8 +664,10 @@ const MasterPricingRegistry = () => {
                                     <option key={area._id} value={area._id}>{area.areaName}</option>
                                 ))}
                             </select>
+                            </FilterField>
 
                             {/* Category Input */}
+                            <FilterField label="Category" info="Finds price rows whose service category contains this text.">
                             <input 
                                 type="text"
                                 value={searchCategory}
@@ -669,8 +675,10 @@ const MasterPricingRegistry = () => {
                                 placeholder="CATEGORY..."
                                 className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[9px] font-black uppercase tracking-wider outline-none focus:bg-white focus:border-slate-300 transition-all w-28 placeholder:text-slate-300"
                             />
+                            </FilterField>
 
                             {/* Service Input */}
+                            <FilterField label="Service / SKU" info="Finds price rows by service name or SKU code.">
                             <input 
                                 type="text"
                                 value={searchService}
@@ -678,8 +686,10 @@ const MasterPricingRegistry = () => {
                                 placeholder="SERVICE / SKU..."
                                 className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[9px] font-black uppercase tracking-wider outline-none focus:bg-white focus:border-slate-300 transition-all w-32 placeholder:text-slate-300"
                             />
+                            </FilterField>
 
                             {/* SAC Input */}
+                            <FilterField label="SAC code" info="Finds price rows with this SAC (GST service accounting) code.">
                             <input 
                                 type="text"
                                 value={searchSAC}
@@ -687,6 +697,7 @@ const MasterPricingRegistry = () => {
                                 placeholder="SAC CODE..."
                                 className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[9px] font-black uppercase tracking-wider outline-none focus:bg-white focus:border-slate-300 transition-all w-24 placeholder:text-slate-300"
                             />
+                            </FilterField>
                         </div>
                     }
                     columns={columns}

@@ -1,4 +1,5 @@
 import { filterCondition, dateFilter } from '../utils/queryFilters.js';
+import { findMyInquiries } from '../utils/myInquiries.js';
 import PartnershipInquiry from '../models/PartnershipInquiry.js';
 import { sendPartnershipConfirmation, sendAdminPartnershipNotification } from '../utils/emailHelper.js';
 import { httpStatusForError } from '../utils/errorResponse.js';
@@ -6,7 +7,7 @@ import { httpStatusForError } from '../utils/errorResponse.js';
 export const submitPartnershipInquiry = async (req, res) => {
     try {
         const { companyName, email, phone, location, website, partnershipType, proposal } = req.body;
-        const inquiry = new PartnershipInquiry({ companyName, email, phone, location, website, partnershipType, proposal });
+        const inquiry = new PartnershipInquiry({ companyName, email, phone, location, website, partnershipType, proposal, submittedBy: req.user?.id || null });
         await inquiry.save();
 
         // Send confirmation email to partner
@@ -134,11 +135,8 @@ export const updatePartnershipStatus = async (req, res) => {
 
 export const getMyPartnershipInquiries = async (req, res) => {
     try {
-        const { email } = req.query;
-        if (!email) {
-            return res.status(400).json({ message: 'Email query parameter is required' });
-        }
-        const inquiries = await PartnershipInquiry.find({ email }).sort({ createdAt: -1 });
+        // Signed-in user's own inquiries only; previously any email could be looked up.
+        const inquiries = await findMyInquiries(PartnershipInquiry, req.user.id);
         res.status(200).json(inquiries);
     } catch (err) {
         res.status(httpStatusForError(err)).json({ message: err.message });

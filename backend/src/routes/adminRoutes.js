@@ -2,6 +2,8 @@ import { getIssuedInvoice, issueInvoice } from '../controllers/issuedInvoiceCont
 import { getAdminUserHistory } from '../controllers/adminUserHistoryController.js';
 import { getAdminAuditEvents } from '../controllers/adminAuditController.js';
 import { requireAccountScope, requireUnrestrictedAdmin } from '../middleware/adminAccountScope.js';
+import User from '../models/User.js';
+import { settleVendorOrder } from '../services/vendorSettlement.js';
 console.log('--- ADMIN ROUTES MODULE LOADED ---');
 import express from 'express';
 import { getAdminOrderDetail } from '../controllers/adminOrderController.js';
@@ -36,17 +38,19 @@ import {
     recordVendorPayout,
     getVendorPayoutHistory,
     getCloudinaryUsage,
-    getSubAdmins
 } from '../controllers/adminController.js';
 import upload from '../middleware/upload.js';
-import { inviteSubAdmin } from '../controllers/authController.js';
+import { inviteSubAdmin, listAdmins, resendSubAdminInvite } from '../controllers/adminInviteController.js';
+import { requireMasterAdmin } from '../middleware/authMiddleware.js';
+import { getRefundLedger } from '../controllers/refundLedgerController.js';
 
 const router = express.Router();
 router.get('/audit-events', getAdminAuditEvents);
 
-
-router.post('/invite-sub-admin', requireUnrestrictedAdmin, inviteSubAdmin);
-router.get('/sub-admins', requireUnrestrictedAdmin, getSubAdmins);
+// Admin directory & invitations — master admins only
+router.post('/invite-sub-admin', requireMasterAdmin, requireUnrestrictedAdmin, inviteSubAdmin);
+router.get('/sub-admins', requireMasterAdmin, requireUnrestrictedAdmin, listAdmins);
+router.post('/sub-admins/:id/resend-invite', requireMasterAdmin, requireUnrestrictedAdmin, resendSubAdminInvite);
 router.delete('/services-clear-all', requireUnrestrictedAdmin, clearAllServices);
 
 router.get('/config', getSystemConfig);
@@ -75,6 +79,21 @@ router.delete('/users-clear-all', requireUnrestrictedAdmin, clearAllUsers);
 router.post('/orders-clear-all', requireUnrestrictedAdmin, clearAllOrders);
 router.get('/customer-payments', getCustomerPaymentSummary);
 router.get('/vendor-payments', getVendorPaymentSummary);
+router.post('/vendor-payments/account/:vendorId', requireUnrestrictedAdmin, async (req, res) => {
+    try {
+        const account = String(req.body.account || '');
+        if (!/^acc_[A-Za-z0-9]+$/.test(account)) return res.status(400).json({ message: 'Enter a valid Razorpay linked account ID' });
+        const vendor = await User.findOneAndUpdate({ _id: req.params.vendorId, role: 'Vendor' }, { $set: { razorpayLinkedAccountId: account } }, { new: true }).select('_id razorpayLinkedAccountId');
+        if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
+        res.json(vendor);
+    } catch (error) { res.status(error.name === 'CastError' ? 400 : 500).json({ message: 'Could not save linked account' }); }
+});
+
+router.post('/vendor-payments/route/:orderId', requireUnrestrictedAdmin, async (req, res) => {
+    try { res.json(await settleVendorOrder(req.params.orderId)); }
+    catch (error) { res.status(error.status || 500).json({ message: error.message }); }
+});
+router.get('/refunds', requireUnrestrictedAdmin, getRefundLedger);
 router.post('/record-vendor-payout', requireUnrestrictedAdmin, recordVendorPayout);
 router.get('/vendor-payouts/:vendorId', getVendorPayoutHistory);
 router.get('/vendor-request/:id', requireAccountScope(), getVendorById);

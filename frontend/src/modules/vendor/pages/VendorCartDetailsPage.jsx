@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   ShoppingBag,
   Truck,
-  ShieldCheck,
   Store,
   Clock,
   Sparkles,
@@ -18,7 +17,6 @@ import {
   CheckCircle2,
   AlertCircle,
   PackageCheck,
-  Lock,
 } from "lucide-react";
 import { b2bOrderApi, authApi } from "../../../lib/api";
 import toast from "react-hot-toast";
@@ -61,40 +59,22 @@ const VendorCartDetailsPage = () => {
     itemSubtotal,
     totalGst,
     totalDeliveryCharges,
-    grandTotal,
-    totalPlatformFee,
+    grandTotal: localGrandTotal,
+    totalPlatformFee: localPlatformFee,
     payableToSupplier,
     orderItems,
     groupedCarts,
   } = useMemo(() => calculateVendorCart(cart, materials), [cart, materials]);
 
-  // Handle empty cart state
-  if (orderItems.length === 0) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-400 mb-4">
-          <ShoppingBag className="w-8 h-8" />
-        </div>
-        <h2 className="text-base font-black uppercase tracking-wider text-slate-800">
-          Your Cart is Empty
-        </h2>
-        <p className="text-xs text-slate-500 mt-1 max-w-xs">
-          Please select materials from the B2B catalog to proceed with
-          procurement.
-        </p>
-        <button
-          onClick={() => navigate(-1)}
-          className="mt-6 px-6 py-3 bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md active:scale-95">
-          Return to Catalog
-        </button>
-      </div>
-    );
-  }
-
   let city =
     profileData.shopDetails?.city ||
     profileData.address_city ||
     profileData.city ||
+    "";
+  const state =
+    profileData.shopDetails?.state ||
+    profileData.addresses?.find((address) => address.isDefault)?.state ||
+    profileData.addresses?.[0]?.state ||
     "";
   let pincode =
     profileData.shopDetails?.pincode ||
@@ -120,6 +100,51 @@ const VendorCartDetailsPage = () => {
     city = "Indore";
   }
 
+  // The server decides the platform fee. Show its quote (the exact amount
+  // /place will charge); fall back to the local estimate until it arrives.
+  const [feeQuote, setFeeQuote] = useState(null);
+  useEffect(() => {
+    if (orderItems.length === 0) return;
+    let cancelled = false;
+    b2bOrderApi
+      .quotePlatformFee({ items: orderItems, pincode })
+      .then((q) => {
+        if (!cancelled) setFeeQuote(q);
+      })
+      .catch((err) => console.error("Platform fee quote failed:", err));
+    return () => {
+      cancelled = true;
+    };
+  }, [orderItems, pincode]);
+
+  const totalPlatformFee = feeQuote
+    ? Number(feeQuote.totalPlatformFee) || 0
+    : localPlatformFee;
+  const grandTotal = localGrandTotal - localPlatformFee + totalPlatformFee;
+
+  // Handle empty cart state
+  if (orderItems.length === 0) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-400 mb-4">
+          <ShoppingBag className="w-8 h-8" />
+        </div>
+        <h2 className="text-base font-black uppercase tracking-wider text-slate-800">
+          Your Cart is Empty
+        </h2>
+        <p className="text-xs text-slate-500 mt-1 max-w-xs">
+          Please select materials from the B2B catalog to proceed with
+          procurement.
+        </p>
+        <button
+          onClick={() => navigate(-1)}
+          className="mt-6 px-6 py-3 bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md active:scale-95">
+          Return to Catalog
+        </button>
+      </div>
+    );
+  }
+
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
       const script = document.createElement("script");
@@ -142,6 +167,7 @@ const VendorCartDetailsPage = () => {
         subTotal: itemSubtotal,
         deliveryCharges: totalDeliveryCharges,
         city: city === "Unknown" ? "" : city || "Indore",
+        state,
         pincode: pincode || "452001",
         shippingAddress: shippingAddress || "Store Address",
       };
@@ -170,10 +196,11 @@ const VendorCartDetailsPage = () => {
         }
 
         const options = {
-          key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_placeholder",
+          key: response.razorpayKeyId || import.meta.env.VITE_RAZORPAY_KEY_ID,
           amount: Math.round(response.platformFeeAmount * 100),
           currency: "INR",
           name: "SPINZYT",
+          image: `${window.location.origin}/logo-mark.png`,
           description: "B2B Procurement Platform Fee",
           order_id: response.razorpayOrderId,
           handler: async function (paymentResponse) {
@@ -519,7 +546,7 @@ const VendorCartDetailsPage = () => {
                       Supplier Payable
                     </span>
                     <p className="text-[10px] text-slate-400">
-                      Direct settlement upon fulfillment
+                      Pay directly to this supplier
                     </p>
                   </div>
                   <span className="text-base font-black text-slate-900">
@@ -530,46 +557,6 @@ const VendorCartDetailsPage = () => {
             </div>
           );
         })}
-
-        {/* B2B Platform Fee & Security Card */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-sm relative overflow-hidden">
-          <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
-                  Platform Fee & Order Escrow
-                </h3>
-                {totalPlatformFee === 0 ? (
-                  <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                    Zero Fee Promo
-                  </span>
-                ) : (
-                  <span className="text-xs font-black text-slate-900">
-                    ₹{totalPlatformFee.toFixed(2)}
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                {totalPlatformFee > 0
-                  ? "A nominal platform fee is required to confirm order processing, reserve inventory, and lock wholesale pricing."
-                  : "Platform processing fee is waived for this order during the introductory promotional window."}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-600">
-            <div className="flex items-center gap-1.5 text-slate-500 text-[11px]">
-              <Lock className="w-3.5 h-3.5 text-slate-400" />
-              <span>100% Secure & Escrow Protected</span>
-            </div>
-            <span className="text-[11px] font-bold text-slate-700">
-              Payable Now: ₹{totalPlatformFee.toFixed(2)}
-            </span>
-          </div>
-        </div>
 
         {/* Comprehensive Bill Summary */}
         <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-sm space-y-3">
@@ -606,10 +593,21 @@ const VendorCartDetailsPage = () => {
               )}
             </div>
             <div className="flex justify-between items-center text-slate-600">
-              <span>Platform Processing Fee</span>
+              <div>
+                <span>Spinzyt Platform Fee</span>
+                <p className="text-[9px] font-semibold text-slate-400">Pay now to confirm the order</p>
+              </div>
               <span className="font-semibold text-slate-800">
                 ₹{totalPlatformFee.toFixed(2)}
               </span>
+            </div>
+
+            <div className="flex justify-between items-center rounded-2xl bg-amber-50 border border-amber-100 px-3 py-2.5 text-amber-900">
+              <div>
+                <span className="font-black">Pay directly to supplier</span>
+                <p className="text-[9px] font-semibold text-amber-700/80">Goods, GST and delivery are not collected by Spinzyt</p>
+              </div>
+              <span className="font-black shrink-0 ml-3">₹{payableToSupplier.toFixed(2)}</span>
             </div>
 
             <div className="pt-3 mt-2 border-t border-slate-200 flex justify-between items-baseline">
@@ -618,7 +616,7 @@ const VendorCartDetailsPage = () => {
                   Grand Total
                 </span>
                 <p className="text-[10px] text-slate-400">
-                  Includes all taxes, delivery & fees
+                  Supplier amount + Spinzyt platform fee
                 </p>
               </div>
               <span className="text-xl font-black text-slate-900">
@@ -630,9 +628,8 @@ const VendorCartDetailsPage = () => {
 
         {/* Terms / Assistance Note */}
         <p className="text-center text-[11px] text-slate-400 font-medium px-4">
-          By confirming this order, you agree to the procurement terms. Material
-          dispatch and delivery will be coordinated directly with the verified
-          suppliers.
+          Spinzyt collects only the platform fee. You must pay the remaining ₹{payableToSupplier.toFixed(2)}
+          directly to the supplier as agreed with them.
         </p>
       </main>
 
@@ -641,16 +638,13 @@ const VendorCartDetailsPage = () => {
         <div className="max-w-xl mx-auto flex items-center justify-between gap-4">
           <div>
             <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-              {totalPlatformFee > 0 ? "Payable Now" : "Payable on Delivery"}
+              Pay now to Spinzyt
             </p>
             <p className="text-lg font-black text-slate-900">
-              ₹
-              {totalPlatformFee > 0
-                ? totalPlatformFee.toFixed(2)
-                : payableToSupplier.toFixed(2)}
+              ₹{totalPlatformFee.toFixed(2)}
             </p>
             <p className="text-[9px] text-slate-500 font-semibold">
-              {totalPlatformFee > 0 ? "Platform Fee" : "Supplier Total"}
+              ₹{payableToSupplier.toFixed(2)} payable directly to supplier
             </p>
           </div>
 

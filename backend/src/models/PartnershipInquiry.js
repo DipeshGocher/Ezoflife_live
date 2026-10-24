@@ -1,6 +1,13 @@
 import mongoose from 'mongoose';
 
 const partnershipInquirySchema = new mongoose.Schema({
+    // Signed-in user who submitted it (null for anonymous submissions)
+    submittedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+        index: true
+    },
     companyName: {
         type: String,
         required: true

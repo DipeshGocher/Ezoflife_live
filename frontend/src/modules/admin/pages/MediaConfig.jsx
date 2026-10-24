@@ -48,6 +48,8 @@ const MediaConfig = () => {
         }
 
         const formData = new FormData();
+        // Marks this as a media kit so it is listed in the history below
+        formData.append('purpose', 'media-kit');
         formData.append('media', file);
 
         try {

@@ -9,7 +9,6 @@ const FeedbackForm = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const orderId = searchParams.get('orderId');
-    const vendorIdFromQuery = searchParams.get('vendorId');
 
     const [ratings, setRatings] = useState({
         'Service': 5,
@@ -21,8 +20,6 @@ const FeedbackForm = () => {
     const [submitting, setSubmitting] = useState(false);
     const [success, setSuccess] = useState(false);
 
-    const userData = JSON.parse(localStorage.getItem('userData') || localStorage.getItem('user') || '{}');
-    const userId = userData?._id || userData?.id || localStorage.getItem('userId');
 
     const handleRatingChange = (cat, val) => {
         setRatings(prev => ({ ...prev, [cat]: val }));
@@ -40,18 +37,16 @@ const FeedbackForm = () => {
 
         try {
             await feedbackApi.submit({
-                userId,
-                orderId,
-                vendorId: vendorIdFromQuery,
+                orderId: orderId || undefined,
                 rating: avgRating,
                 comment: `[Ratings: ${JSON.stringify(ratings)}] ${comment}`,
-                category: 'Detailed Feedback'
+                category: orderId ? 'Service' : 'App Experience'
             });
             setSuccess(true);
             setTimeout(() => navigate(-1), 2000);
         } catch (error) {
             console.error('Submit Feedback Error:', error);
-            toast.error('Failed to submit feedback');
+            toast.error(error.message || 'Failed to submit feedback');
         } finally {
             setSubmitting(false);
         }

@@ -1,3 +1,4 @@
+import BrandLogo from '../../../shared/components/BrandLogo.jsx';
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -43,9 +44,7 @@ const SupplierAuth = () => {
                     transition={{ duration: 0.8 }}
                     className="z-10 text-center px-8"
                 >
-                    <div className="w-16 h-16 bg-primary rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-2xl shadow-primary/20">
-                        <span className="material-symbols-outlined text-white text-[32px]">inventory_2</span>
-                    </div>
+                    <BrandLogo className="h-28 w-auto mx-auto mb-2" />
                     <h1 className="font-headline font-black text-3xl text-on-surface leading-none tracking-tighter mb-1 uppercase italic">B2B Core</h1>
                     <p className="font-label text-on-surface-variant uppercase tracking-[0.2em] text-[10px] font-black opacity-60 italic">Material Supplier Portal</p>
                 </motion.div>

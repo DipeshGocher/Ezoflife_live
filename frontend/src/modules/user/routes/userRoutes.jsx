@@ -1,6 +1,6 @@
 import React from 'react';
 import { Route, Routes, Navigate } from 'react-router-dom';
-import SplashPage from '../pages/SplashPage';
+import AppEntryRedirect from '../pages/AppEntryRedirect';
 import AuthPage from '../pages/AuthPage';
 import OtpVerificationPage from '../pages/OtpVerificationPage';
 import HomePage from '../pages/HomePage';
@@ -9,7 +9,6 @@ import SuccessPage from '../pages/SuccessPage';
 import OrderConfirmationPage from '../pages/OrderConfirmationPage';
 import OrderTrackingPage from '../pages/OrderTrackingPage';
 import DeliveryVerificationPage from '../pages/DeliveryVerificationPage';
-import PaymentSelectionPage from '../pages/PaymentPage';
 import SuccessFeedbackPage from '../pages/SuccessFeedbackPage';
 import OrdersHistoryPage from '../pages/OrdersHistoryPage';
 import UserProfilePage from '../pages/UserProfilePage';
@@ -41,15 +40,14 @@ import SupplierProductSelectionPage from '../pages/SupplierProductSelectionPage'
 
 
 import UserLayout from '../layouts/UserLayout';
-import LandingAdPage from '../pages/LandingAdPage';
 import ServiceImageUploadPage from '../pages/ServiceImageUploadPage';
 import ReferralPage from '../pages/ReferralPage';
 
 const UserRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<SplashPage />} />
-      <Route path="/land" element={<LandingAdPage />} />
+      <Route path="/" element={<AppEntryRedirect />} />
+      <Route path="/land" element={<AppEntryRedirect />} />
       
       <Route element={<UserLayout />}>
         <Route path="/auth" element={<AuthPage />} />
@@ -63,7 +61,6 @@ const UserRoutes = () => {
         <Route path="/success" element={<SuccessPage />} />
         <Route path="/tracking/:id" element={<OrderTrackingPage />} />
         <Route path="/verification" element={<DeliveryVerificationPage />} />
-        {/* <Route path="/payment" element={<PaymentSelectionPage />} /> Removed per user request */}
         <Route path="/success-feedback" element={<SuccessFeedbackPage />} />
         <Route path="/orders" element={<OrdersHistoryPage />} />
         <Route path="/support/tickets/:ticketId?" element={<SupportTicketsPage />} />

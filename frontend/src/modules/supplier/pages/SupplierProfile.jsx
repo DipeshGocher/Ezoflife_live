@@ -291,8 +291,9 @@ const SupplierProfile = () => {
                                 <input 
                                     type="tel" 
                                     value={formData.phone} 
-                                    onChange={(e) => setFormData({...formData, phone: e.target.value})} 
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3.5 text-xs font-black text-slate-900 outline-none focus:bg-white focus:border-slate-950 transition-all mt-1" 
+                                    readOnly
+                                    title="Your login number can't be changed here"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3.5 text-xs font-black text-slate-400 outline-none cursor-not-allowed mt-1"
                                 />
                             ) : (
                                 <div className="flex items-center gap-2">

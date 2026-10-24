@@ -7,6 +7,7 @@ const router = express.Router();
 router.get('/', vendorMasterSupplyController.getAll);
 router.get('/unique-filters', vendorMasterSupplyController.getUniqueFilters);
 router.get('/live-catalog', vendorMasterSupplyController.getLiveCatalog);
+router.get('/costs', verifyUser, vendorMasterSupplyController.getMyCosts);
 
 // Admin / Supplier modification routes
 router.post('/', verifyUser, vendorMasterSupplyController.create);

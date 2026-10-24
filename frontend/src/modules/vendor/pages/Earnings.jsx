@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -5,6 +6,10 @@ import VendorHeader from '../components/VendorHeader';
 import { orderApi, authApi, vendorPaymentApi } from '../../../lib/api';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+const payoutStatusLabel = payout => !payout.order ? payout.status : ({
+    SETTLED: 'Bank settled', ON_HOLD: 'Bank settlement on hold', REVIEW: 'Reconciliation required'
+}[payout.bankSettlementStatus] || (payout.status === 'Completed' ? 'Transferred · bank pending' : 'Transfer pending'));
 
 const Earnings = () => {
     const navigate = useNavigate();
@@ -41,7 +46,7 @@ const Earnings = () => {
         fetchData();
     }, [vendorId]);
 
-    const handleDownloadInvoice = () => {
+    const handleDownloadInvoice = async () => {
         try {
             const doc = new jsPDF();
             doc.setFontSize(22);
@@ -58,7 +63,7 @@ const Earnings = () => {
             doc.text('FINANCIAL SUMMARY', 25, 55);
             doc.setFontSize(10);
             doc.text(`Total Lifetime Earnings: INR ${summary?.totalEarnings?.toLocaleString() || 0}`, 25, 65);
-            doc.text(`Total Settled (Paid): INR ${summary?.totalPaid?.toLocaleString() || 0}`, 25, 72);
+            doc.text(`Transferred / Recorded: INR ${summary?.totalPaid?.toLocaleString() || 0}`, 25, 72);
             doc.setFontSize(11);
             doc.text(`CURRENT PENDING BALANCE: INR ${summary?.pendingBalance?.toLocaleString() || 0}`, 25, 80);
 
@@ -67,12 +72,13 @@ const Earnings = () => {
                     p.transactionId,
                     new Date(p.paidAt).toLocaleDateString(),
                     p.paymentMethod,
-                    `INR ${p.amount}`
+                    `INR ${p.amount}`,
+                    payoutStatusLabel(p)
                 ]);
 
                 autoTable(doc, {
                     startY: 95,
-                    head: [['Transaction ID', 'Date', 'Method', 'Amount']],
+                    head: [['Transaction ID', 'Date', 'Method', 'Amount', 'Status']],
                     body: tableData,
                     theme: 'grid',
                     headStyles: { fillColor: [61, 90, 254] }
@@ -81,7 +87,7 @@ const Earnings = () => {
 
             doc.save(`Statement_${vendorId}_${Date.now()}.pdf`);
         } catch (error) {
-            alert('Could not generate PDF');
+            await appDialog.alert('Could not generate PDF');
         }
     };
 
@@ -127,7 +133,7 @@ const Earnings = () => {
                                 <p className="text-sm font-black text-slate-200">₹{summary?.totalEarnings?.toLocaleString() || 0}</p>
                             </div>
                             <div>
-                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Settled</p>
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Transferred / Recorded</p>
                                 <p className="text-sm font-black text-slate-200">₹{summary?.totalPaid?.toLocaleString() || 0}</p>
                             </div>
                         </div>
@@ -168,7 +174,8 @@ const Earnings = () => {
                                     </div>
                                     <div className="text-right">
                                         <p className="text-base font-black text-emerald-600 tracking-tight leading-none">+₹{p.amount.toLocaleString()}</p>
-                                        <p className="text-[8px] font-black text-emerald-500 uppercase tracking-widest mt-1">Completed</p>
+                                        <p className="text-[8px] font-black text-emerald-500 uppercase tracking-widest mt-1">{payoutStatusLabel(p)}</p>
+                                        {p.recipientSettlementId && <p className="text-[8px] text-slate-500 mt-1">{p.recipientSettlementId}</p>}
                                     </div>
                                 </div>
                             ))
@@ -185,13 +192,13 @@ const Earnings = () => {
                 <section className="space-y-4">
                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Recent Revenue Items</h3>
                     <div className="space-y-2">
-                        {orders.filter(o => ['Ready', 'Delivered', 'Out for Delivery'].includes(o.status)).slice(0, 5).map(order => (
+                        {orders.filter(o => o.status === 'DELIVERED' && Number.isFinite(Number(o.ledger?.vendorNetPayout))).slice(0, 5).map(order => (
                              <div key={order._id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
                                  <div>
                                      <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight">{order.orderId}</p>
                                      <p className="text-[9px] text-slate-400 font-bold uppercase">{new Date(order.createdAt).toLocaleDateString()}</p>
                                  </div>
-                                 <p className="text-xs font-black text-slate-900">₹{((order.priceBreakdown?.baseWithArea || 0) + (order.priceBreakdown?.expressSurcharge || 0)).toFixed(0)}</p>
+                                 <p className="text-xs font-black text-slate-900">₹{Number(order.ledger.vendorNetPayout).toFixed(2)}</p>
                              </div>
                         ))}
                     </div>

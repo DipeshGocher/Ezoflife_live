@@ -1,5 +1,6 @@
 import TicketEvidence from '../components/TicketEvidence';
 import TicketAssignment from '../components/TicketAssignment';
+import { socketAuth } from '../../../lib/socketAuth';
 import React, { useState, useEffect, useRef } from 'react';
 import { ShieldAlert, IndianRupee, Image, History, ArrowRight, User, CheckCircle2, XCircle, AlertCircle, Search, ExternalLink, Send, Clock } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';

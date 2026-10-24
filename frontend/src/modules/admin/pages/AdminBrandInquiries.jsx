@@ -1,4 +1,5 @@
 import MultiSelectFilter from '../components/common/MultiSelectFilter';
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { mediaApi } from '../../../lib/api';
@@ -6,6 +7,7 @@ import toast from 'react-hot-toast';
 import PageHeader from '../components/common/PageHeader';
 import DataGrid from '../components/tables/DataGrid';
 import * as XLSX from 'xlsx';
+import FilterField from "../components/common/FilterLabel";
 
 
 const AdminBrandInquiries = () => {
@@ -105,7 +107,7 @@ const AdminBrandInquiries = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this inquiry?')) return;
+        if (!await appDialog.confirm('Are you sure you want to delete this inquiry?')) return;
         try {
             await mediaApi.deleteInquiry(id);
             toast.success('Inquiry deleted successfully');
@@ -264,7 +266,8 @@ const AdminBrandInquiries = () => {
                     showFilter={false}
                     showSearch={false}
                     actions={
-                        <div className="flex items-center flex-wrap gap-2">
+                        <div className="flex items-end flex-wrap gap-2">
+                            <FilterField label="Brand" info="Shows only advertising inquiries from this brand.">
                             <MultiSelectFilter
                                 value={filters.brandName}
                                 onChange={(e) => handleFilterChange('brandName', e.target.value)}
@@ -275,6 +278,8 @@ const AdminBrandInquiries = () => {
                                     <option key={brand} value={brand}>{brand}</option>
                                 ))}
                             </MultiSelectFilter>
+                            </FilterField>
+                            <FilterField label="Email" info="Shows only inquiries sent from this email address.">
                             <MultiSelectFilter
                                 value={filters.email}
                                 onChange={(e) => handleFilterChange('email', e.target.value)}
@@ -285,6 +290,8 @@ const AdminBrandInquiries = () => {
                                     <option key={email} value={email}>{email}</option>
                                 ))}
                             </MultiSelectFilter>
+                            </FilterField>
+                            <FilterField label="Contact number" info="Shows only inquiries with this phone number.">
                             <MultiSelectFilter
                                 value={filters.phone}
                                 onChange={(e) => handleFilterChange('phone', e.target.value)}
@@ -295,6 +302,8 @@ const AdminBrandInquiries = () => {
                                     <option key={phone} value={phone}>{phone}</option>
                                 ))}
                             </MultiSelectFilter>
+                            </FilterField>
+                            <FilterField label="Budget" info="Shows only inquiries that stated exactly this advertising budget.">
                             <MultiSelectFilter
                                 value={filters.budget}
                                 onChange={(e) => handleFilterChange('budget', e.target.value)}
@@ -305,6 +314,7 @@ const AdminBrandInquiries = () => {
                                     <option key={budget} value={budget}>₹{budget.toLocaleString()}</option>
                                 ))}
                             </MultiSelectFilter>
+                            </FilterField>
                             {(filters.brandName || filters.email || filters.phone || filters.budget) && (
                                 <button 
                                     onClick={handleResetFilters}

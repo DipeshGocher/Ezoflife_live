@@ -127,11 +127,10 @@ const B2BInvoicePrint = ({ order, settings: savedSettings = {} }) => {
                     </div>
                     <div className="space-y-2">
                         <p className="text-[11px] font-bold text-slate-500 leading-relaxed italic">
-                            This transaction has been successfully processed through the EzOfLife Escrow System. 
-                            Funds are secured until delivery confirmation.
+                            Spinzyt collected only the platform fee for order placement. The invoice amount must be settled directly between the vendor and supplier.
                         </p>
                         <div className="pt-2 flex items-center gap-2">
-                            <span className="text-[9px] font-black uppercase text-emerald-600 px-2 py-0.5 bg-emerald-50 rounded-full border border-emerald-100">Paid via Razorpay</span>
+                            <span className="text-[9px] font-black uppercase text-emerald-600 px-2 py-0.5 bg-emerald-50 rounded-full border border-emerald-100">Platform fee paid</span>
                             <span className="text-[9px] font-black uppercase text-slate-400 px-2 py-0.5 bg-white rounded-full border border-slate-100">Ref: {order._id.slice(-10)}</span>
                         </div>
                     </div>

@@ -1,3 +1,5 @@
+import { getDashboardAnalytics as getLegacyDashboardAnalytics, getDashboardFilters as getLegacyDashboardFilters } from './legacyDashboardAnalyticsController.js';
+import { isScopedAdmin } from '../utils/adminScope.js';
 import { getOperationalDashboard } from './operationalDashboardController.js';
 import { slaExceptions } from '../utils/operationalMetrics.js';
 import { analyticsWindow, inWindow } from '../utils/analyticsWindow.js';
@@ -16,6 +18,9 @@ import ServiceArea from '../models/ServiceArea.js';
 
 export const getDashboardAnalytics = async (req, res) => {
     if (req.query.view === 'operational') return getOperationalDashboard(req, res);
+    // Retain the expanded legacy response for existing clients; restricted admins
+    // use the scoped queries below so no global analytics escape their service area.
+    if (!isScopedAdmin(req) && !req.query.geofence) return getLegacyDashboardAnalytics(req, res);
     try {
         const { channel, state, city, pincode, geofence } = req.query;
 
@@ -722,6 +727,7 @@ export const getDashboardAnalytics = async (req, res) => {
 };
 
 export const getDashboardFilters = async (req, res) => {
+    if (!isScopedAdmin(req)) return getLegacyDashboardFilters(req, res);
     try {
         const scope = await createAdminReportScope(req, ['User', 'ServiceArea']);
         const capitalize = (str) => {

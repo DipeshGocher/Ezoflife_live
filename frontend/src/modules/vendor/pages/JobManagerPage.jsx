@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -196,7 +197,7 @@ const JobManagerPage = () => {
                                         <div className="pt-4 border-t border-slate-50 flex gap-2">
                                             <button 
                                                 onClick={async () => {
-                                                    if(confirm('Delete this job?')) {
+                                                    if(await appDialog.confirm('Delete this job?')) {
                                                         await jobApi.delete(job._id);
                                                         fetchJobs();
                                                     }

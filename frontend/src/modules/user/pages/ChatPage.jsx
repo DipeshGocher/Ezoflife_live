@@ -1,3 +1,4 @@
+import { socketAuth } from '../../../lib/socketAuth';
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';

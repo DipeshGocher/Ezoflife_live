@@ -1,5 +1,7 @@
 import Order from '../models/Order.js';
 import { getLogisticsProvider } from '../services/logistics/index.js';
+import { finalizeDeliveredOrder } from '../services/invoiceFinalizationService.js';
+import { GstConfigurationError } from '../utils/gstInvoiceHelper.js';
 
 /**
  * Logistics Handshake Controller
@@ -91,10 +93,17 @@ export const verifyHandshake = async (req, res) => {
         } else if (phase === 'Reverse') {
             order.status = 'OUT_FOR_DELIVERY';
         } else if (phase === 'Completion') {
-            order.status = 'DELIVERED';
+            // Final status is stored together with both immutable invoices below.
         }
 
-        await order.save();
+        if (phase === 'Completion') {
+            await finalizeDeliveredOrder(order._id, {
+                set: { logisticsHandshakes: order.logisticsHandshakes.map(item => item.toObject()), deliveryStatus: 'delivered' }
+            });
+            order.status = 'DELIVERED';
+        } else {
+            await order.save();
+        }
 
         // Populate order details and emit WebSocket status update
         try {
@@ -108,13 +117,15 @@ export const verifyHandshake = async (req, res) => {
             if (io) {
                 const orderRoom = `order_${order._id.toString()}`;
                 console.log(`[DEBUG] Emitting order status update to room: ${orderRoom} -> ${order.status}`);
-                io.to(orderRoom).emit('order_status_update', populatedOrder);
+                const safeOrder = populatedOrder.toObject();
+                if (safeOrder.invoices) safeOrder.invoices = { customerInvoice: safeOrder.invoices.customerInvoice };
+                io.to(orderRoom).emit('order_status_update', safeOrder);
 
                 if (phase === 'Completion') {
                     const customerId = order.customer._id || order.customer;
                     const targetRoom = `user_${customerId.toString()}`;
                     console.log(`[DEBUG] Notifying delivery to user room: ${targetRoom}`);
-                    io.to(targetRoom).emit('order_status_update', populatedOrder);
+                    io.to(targetRoom).emit('order_status_update', safeOrder);
                 }
             }
         } catch (socketErr) {
@@ -128,6 +139,7 @@ export const verifyHandshake = async (req, res) => {
 
     } catch (error) {
         console.error('Verify Handshake Error:', error);
+        if (error instanceof GstConfigurationError) return res.status(error.status).json({ message: error.message });
         res.status(500).json({ message: 'Internal server error' });
     }
 };

@@ -1,3 +1,4 @@
+import { servicePricing } from '../../../lib/servicePricing';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -45,9 +46,11 @@ const RegisterAsVendorPage = () => {
   const [verifyingGst, setVerifyingGst] = useState(false);
   const [bankVerified, setBankVerified] = useState(false);
   const [verifyingBank, setVerifyingBank] = useState(false);
-  const [showAmountInput, setShowAmountInput] = useState(false);
-  const [amountEntered, setAmountEntered] = useState('');
-  const [demoNote, setDemoNote] = useState('');
+  const [showAmountInput, setShowAmountInput] = useState(false); // "verifying with bank" state
+  const [bankRegisteredName, setBankRegisteredName] = useState('');
+  // Instant verification unavailable (RazorpayX down / not configured): the
+  // application can still be submitted and the admin verifies the account.
+  const [bankCheckUnavailable, setBankCheckUnavailable] = useState(false);
   const [isAgreed, setIsAgreed] = useState(false);
   const [resolvedGpsAddress, setResolvedGpsAddress] = useState('');
   const [isResolvingGpsAddress, setIsResolvingGpsAddress] = useState(false);
@@ -327,85 +330,73 @@ const RegisterAsVendorPage = () => {
 
     try {
         setVerifyingBank(true);
-        const userId = currentUser?._id || currentUser?.id;
-        if (!userId) {
-            toast.error('User session not found. Please log in again.');
-            return;
-        }
-
         const response = await fetch(`${BASE_URL}/supplier/initiate-bank-verify`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                userId,
+            body: JSON.stringify({
                 accountNumber: trimmedAcc,
-                ifscCode: trimmedIfsc
+                ifscCode: trimmedIfsc,
+                accountHolderName: formData.ownerName || ''
             })
         });
-        const result = await response.json();
-
-        if (result.success) {
-            setShowAmountInput(true);
-            setDemoNote(result.demoNote || '');
-            if (result.demoAmount) {
-                setAmountEntered(String(result.demoAmount));
-            }
-            toast.success(result.message);
-        } else {
-            toast.error(result.message || 'Failed to initiate verification');
+        const result = await response.json().catch(() => ({}));
+        if (response.status === 503) {
+            setBankCheckUnavailable(true);
+            setVerifyingBank(false);
+            toast(result.message || 'Instant bank verification is unavailable. You can still submit.', { duration: 6000 });
+            return;
         }
+        if (!response.ok) throw new Error(result.message || 'Failed to initiate verification');
+        toast(result.message, { duration: 5000 });
+        setShowAmountInput(true);
+        pollBankVerification();
     } catch (error) {
         console.error('Bank verify error:', error);
-        toast.error('Bank verification service unavailable');
-    } finally {
+        toast.error(error.message || 'Bank verification service unavailable');
         setVerifyingBank(false);
     }
   };
 
-  const handleCompleteBankVerify = async () => {
-    if (!amountEntered) {
-        toast.error('Please enter the amount received');
-        return;
-    }
-
+  // Poll RazorpayX's result until the bank confirms (or rejects) the account.
+  const pollBankVerification = async (attempt = 0) => {
     try {
-        setVerifyingBank(true);
-        const userId = currentUser?._id || currentUser?.id;
         const response = await fetch(`${BASE_URL}/supplier/complete-bank-verify`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                userId,
-                amountEntered
-            })
+            body: JSON.stringify({})
         });
-        const result = await response.json();
-
-        if (result.success) {
-            const verifiedName = result.data?.registered_name || '';
-            const ownerName = formData.ownerName.toLowerCase();
-            
-            if (verifiedName && !verifiedName.toLowerCase().includes(ownerName.split(' ')[0])) {
-                toast.warning(`Account Name (${verifiedName}) doesn't match Owner Name`);
-            }
-
-            setBankVerified(true);
-            setShowAmountInput(false);
-            toast.success('Bank Account Verified Successfully!');
-        } else {
-            toast.error(result.message || 'Incorrect amount');
+        const result = await response.json().catch(() => ({}));
+        if (response.status === 202 && attempt < 20) {
+            setTimeout(() => pollBankVerification(attempt + 1), 3000);
+            return;
         }
-    } catch (error) {
-        toast.error('Verification failed. Try again.');
-    } finally {
         setVerifyingBank(false);
+        setShowAmountInput(false);
+        if (response.ok && result.status === 'verified') {
+            const verifiedName = result.registeredName || '';
+            const firstName = (formData.ownerName || '').toLowerCase().split(' ')[0];
+            if (verifiedName && firstName && !verifiedName.toLowerCase().includes(firstName)) {
+                toast(`Account name on bank record: ${verifiedName} — it doesn't match the owner name.`, { duration: 6000 });
+            }
+            setBankRegisteredName(verifiedName);
+            setBankVerified(true);
+            toast.success('Bank Account Verified Successfully!');
+        } else if (response.status === 202) {
+            toast('Verification is taking longer than usual. Try again in a minute.');
+        } else {
+            toast.error(result.message || 'Bank verification failed');
+        }
+    } catch {
+        setVerifyingBank(false);
+        setShowAmountInput(false);
+        toast.error('Could not check the verification status');
     }
   };
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     
-    if (!bankVerified) {
+    if (!bankVerified && !bankCheckUnavailable) {
         toast.error('Please verify your bank account first');
         return;
     }
@@ -1430,39 +1421,24 @@ const RegisterAsVendorPage = () => {
                             )}
 
                             {showAmountInput && (
-                                <div className="space-y-4 p-5 bg-primary/5 rounded-2xl border border-primary/10 flex flex-col">
-                                    <p className="text-[10px] font-black text-primary uppercase tracking-widest text-center">
-                                        Enter the exact amount received (₹1.XX)
+                                <div className="p-5 bg-primary/5 rounded-2xl border border-primary/10 flex items-center justify-center gap-3">
+                                    <span className="material-symbols-outlined text-primary animate-spin text-base">progress_activity</span>
+                                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">
+                                        Verifying with your bank — sending ₹1…
                                     </p>
-                                    
-                                    {(demoNote || (currentUser.bankVerification?.amount > 0 && !bankVerified)) && (
-                                        <div className="p-3.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-xl text-center text-[10px] font-black uppercase tracking-wider animate-pulse">
-                                            {demoNote || `[DEMO ONLY]: The amount sent is ₹${currentUser.bankVerification.amount}`}
-                                        </div>
-                                    )}
-
-                                    <input 
-                                        type="number"
-                                        value={amountEntered}
-                                        onChange={(e) => setAmountEntered(e.target.value)}
-                                        placeholder="E.G. 1.15"
-                                        className="w-full p-4 bg-white rounded-xl font-black text-sm outline-none border-2 border-primary text-center"
-                                    />
-                                    
-                                    <button 
-                                        onClick={handleCompleteBankVerify}
-                                        disabled={verifyingBank}
-                                        className="w-full py-4 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20 active:scale-95 transition-all text-center cursor-pointer"
-                                    >
-                                        {verifyingBank ? 'Verifying...' : 'Confirm'}
-                                    </button>
                                 </div>
+                            )}
+
+                            {bankCheckUnavailable && !bankVerified && (
+                                <p className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-100 rounded-xl p-3 text-center">
+                                    Instant verification is unavailable. You can submit; our team will verify your account from the cancelled cheque.
+                                </p>
                             )}
 
                             {bankVerified && (
                                 <div className="flex items-center justify-center gap-3 p-4 bg-green-50 text-green-600 rounded-xl border border-green-100">
                                     <span className="material-symbols-outlined text-sm">verified</span>
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Bank Account Verified</span>
+                                    <span className="text-[10px] font-black uppercase tracking-widest">Bank Account Verified{bankRegisteredName ? ` · ${bankRegisteredName}` : ''}</span>
                                 </div>
                             )}
                         </div>
@@ -1652,15 +1628,16 @@ const ServiceSelectionView = ({ userId, onComplete }) => {
                 const mappedServices = (pricingData.data || [])
                     .filter(item => item.serviceId && item.isActive !== false)
                     .map(item => {
-                        const basePrice = item.basePrice || 0;
-                        const areaMultiplier = item.areaMultiplier !== undefined ? item.areaMultiplier : 1;
-                        const surgeMultiplier = item.surgeMultiplier !== undefined ? item.surgeMultiplier : 1;
-                        const heritageMultiplier = item.heritageMultiplier !== undefined ? item.heritageMultiplier : 1;
-
-                        const baseNormal = Math.round(basePrice * areaMultiplier);
-                        const baseExpress = Math.round(basePrice * areaMultiplier * surgeMultiplier);
-                        const heritageNormal = Math.round(basePrice * areaMultiplier * heritageMultiplier);
-                        const heritageExpress = Math.round(basePrice * areaMultiplier * heritageMultiplier * surgeMultiplier);
+                        const priceOptions = {
+                            pricingFactor: geoData.pricingFactor ?? 1,
+                            allowDiscount: geoData.allowDiscount !== false,
+                            expressMultiplier: geoData.expressMultiplier ?? 1,
+                            heritageMultiplier: geoData.heritageMultiplier ?? 1,
+                        };
+                        const baseNormal = servicePricing(item.serviceId, priceOptions).price;
+                        const baseExpress = servicePricing(item.serviceId, { ...priceOptions, isExpress: true }).price;
+                        const heritageNormal = servicePricing(item.serviceId, { ...priceOptions, isHeritage: true }).price;
+                        const heritageExpress = servicePricing(item.serviceId, { ...priceOptions, isHeritage: true, isExpress: true }).price;
 
                         return {
                             _id: item.serviceId._id,
@@ -1670,7 +1647,7 @@ const ServiceSelectionView = ({ userId, onComplete }) => {
                             tier: item.serviceId.tier || 'Essential',
                             category: item.categoryId?.mainCategory || '',
                             subCategory: item.categoryId?.subCategory || '',
-                            basePrice: item.finalPrice || item.basePrice || 0,
+                            basePrice: item.serviceId.basePrice ?? item.basePrice ?? 0,
                             baseNormal,
                             baseExpress,
                             heritageNormal,

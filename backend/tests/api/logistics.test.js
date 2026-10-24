@@ -9,15 +9,25 @@ import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
 import { startTestEnvironment, api } from '../helpers/testEnvironment.js';
-import { orderPayload, createUser, tokenFor } from '../helpers/factories.js';
+import { orderPayload, createUser, makeVendorCapableOf } from '../helpers/factories.js';
+import { FIXTURE_SERVICE_ID } from '../helpers/testEnvironment.js';
 
-let env, customerId, customerToken;
+let env, customerId, customerToken, vendorId, vendorToken;
 
 before(async () => {
     env = await startTestEnvironment();
     const user = await createUser(api, env.baseUrl, '9990000005', 'Customer');
     customerId = user.id;
     customerToken = user.token;
+    const vendor = await createUser(api, env.baseUrl, '9990000006', 'Vendor');
+    vendorId = vendor.id;
+    vendorToken = vendor.token;
+    await makeVendorCapableOf(env.mongoUri, vendorId, [FIXTURE_SERVICE_ID]);
+    await mongoose.connect(env.mongoUri);
+    const User = (await import('../../src/models/User.js')).default;
+    await User.updateOne({ _id: customerId }, { $set: { address: '12 Test Street, Indore', addresses: [{ address: '12 Test Street', city: 'Indore', state: 'Madhya Pradesh', pincode: '452001', isDefault: true }] } });
+    await User.updateOne({ _id: vendorId }, { $set: { 'shopDetails.gst': '23ABCDE1234F1Z5', 'shopDetails.state': 'Madhya Pradesh', 'shopDetails.city': 'Indore', 'shopDetails.pincode': '452001' } });
+    await mongoose.disconnect();
 }, { timeout: 90000 });
 
 after(async () => { if (env) await env.stop(); });
@@ -27,6 +37,10 @@ const newOrder = async () => {
         method: 'POST', body: orderPayload(customerId), token: customerToken
     });
     assert.equal(res.status, 201, 'fixture order should be created');
+    const accepted = await api(env.baseUrl, `/api/orders/vendor-accept/${res.body._id}`, {
+        method: 'POST', body: {}, token: vendorToken
+    });
+    assert.equal(accepted.status, 200, 'fixture order should be accepted');
     return res.body;
 };
 

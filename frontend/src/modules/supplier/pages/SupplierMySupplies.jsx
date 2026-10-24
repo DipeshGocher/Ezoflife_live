@@ -1,3 +1,4 @@
+import BrandLogo from '../../../shared/components/BrandLogo.jsx';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -101,6 +102,7 @@ const SupplierMySupplies = () => {
                     gst: matched.gst || 18,
                     quantity: matched.quantity || '-',
                     wholesaleRate: matched.wholesaleRate || 0,
+                    costPrice: matched.costPrice || 0,
                     bulkDiscount: matched.bulkDiscount || 0,
                     bulkThreshold: matched.bulkThreshold || 0,
                     movFreeDelivery: matched.movFreeDelivery || 0,
@@ -121,6 +123,7 @@ const SupplierMySupplies = () => {
                 gst: 18,
                 quantity: '-',
                 wholesaleRate: 0,
+                costPrice: 0,
                 bulkDiscount: 0,
                 bulkThreshold: 0,
                 movFreeDelivery: 0,
@@ -154,6 +157,7 @@ const SupplierMySupplies = () => {
     }, [categories, selectedCategoryOption]);
     const [editForm, setEditForm] = useState({
         wholesaleRate: 0,
+        costPrice: 0,
         bulkDiscount: 0,
         bulkThreshold: 0,
         movFreeDelivery: 0,
@@ -172,6 +176,7 @@ const SupplierMySupplies = () => {
         setEditingSupply(supply);
         setEditForm({
             wholesaleRate: supply.wholesaleRate || 0,
+            costPrice: supply.costPrice || 0,
             bulkDiscount: supply.bulkDiscount || 0,
             bulkThreshold: supply.bulkThreshold || 0,
             movFreeDelivery: supply.movFreeDelivery || 0,
@@ -204,6 +209,7 @@ const SupplierMySupplies = () => {
         gst: 18,
         quantity: '-',
         wholesaleRate: 0,
+        costPrice: 0,
         bulkDiscount: 0,
         bulkThreshold: 0,
         movFreeDelivery: 0,
@@ -278,6 +284,7 @@ const SupplierMySupplies = () => {
                 categoryName: finalCategory,
                 subCategoryName: finalSubCategory,
                 wholesaleRate: Number(createForm.wholesaleRate) || 0,
+                costPrice: Number(createForm.costPrice) || 0,
                 bulkDiscount: Number(createForm.bulkDiscount) || 0,
                 bulkThreshold: Number(createForm.bulkThreshold) || 0,
                 movFreeDelivery: Number(createForm.movFreeDelivery) || 0,
@@ -308,6 +315,7 @@ const SupplierMySupplies = () => {
                     gst: 18,
                     quantity: '-',
                     wholesaleRate: 0,
+                    costPrice: 0,
                     bulkDiscount: 0,
                     bulkThreshold: 0,
                     movFreeDelivery: 0,
@@ -376,6 +384,7 @@ const SupplierMySupplies = () => {
             const payload = {
                 ...editingSupply,
                 wholesaleRate: Number(editForm.wholesaleRate) || 0,
+                costPrice: Number(editForm.costPrice) || 0,
                 bulkDiscount: Number(editForm.bulkDiscount) || 0,
                 bulkThreshold: Number(editForm.bulkThreshold) || 0,
                 movFreeDelivery: Number(editForm.movFreeDelivery) || 0,
@@ -440,6 +449,7 @@ const SupplierMySupplies = () => {
                         original.description !== item.description ||
                         original.quantity !== item.quantity ||
                         original.wholesaleRate !== item.wholesaleRate ||
+                        original.costPrice !== item.costPrice ||
                         original.gst !== item.gst ||
                         original.hsnCode !== item.hsnCode ||
                         original.bulkDiscount !== item.bulkDiscount ||
@@ -452,6 +462,7 @@ const SupplierMySupplies = () => {
                         const payload = {
                             ...item,
                             wholesaleRate: Number(item.wholesaleRate) || 0,
+                            costPrice: Number(item.costPrice) || 0,
                             bulkDiscount: Number(item.bulkDiscount) || 0,
                             bulkThreshold: Number(item.bulkThreshold) || 0,
                             movFreeDelivery: Number(item.movFreeDelivery) || 0,
@@ -494,8 +505,15 @@ const SupplierMySupplies = () => {
     const fetchSupplies = async () => {
         try {
             setLoading(true);
-            const data = await vendorMasterSupplyApi.getAll({ supplierId: supplierCode });
-            const list = Array.isArray(data) ? data : [];
+            const [data, costs] = await Promise.all([
+                vendorMasterSupplyApi.getAll({ supplierId: supplierCode }),
+                vendorMasterSupplyApi.getMyCosts()
+            ]);
+            const costById = new Map((Array.isArray(costs) ? costs : []).map(row => [String(row._id), row.costPrice]));
+            const list = (Array.isArray(data) ? data : []).map(item => ({
+                ...item,
+                costPrice: costById.get(String(item._id)) || 0
+            }));
             setSupplies(list);
             setOriginalSupplies(JSON.parse(JSON.stringify(list)));
         } catch (err) {
@@ -880,6 +898,19 @@ const SupplierMySupplies = () => {
                                         </div>
                                     </div>
                                     <div className="space-y-1.5 text-left">
+                                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">UNIT COST FOR PROFIT (₹)</label>
+                                        <div className="relative">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-black text-slate-300">₹</span>
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              value={editForm.costPrice}
+                                              onChange={(e) => setEditForm({...editForm, costPrice: e.target.value})}
+                                              className="w-full pl-8 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-slate-900 transition-all"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1.5 text-left">
                                         <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">BULK DISCOUNT (%)</label>
                                         <input 
                                           type="number"
@@ -1196,6 +1227,20 @@ const SupplierMySupplies = () => {
                                         </div>
                                     </div>
                                     <div className="space-y-1.5 text-left">
+                                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">UNIT COST FOR PROFIT (₹)</label>
+                                        <div className="relative">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-black text-slate-300">₹</span>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={createForm.costPrice}
+                                                onChange={(e) => setCreateForm({...createForm, costPrice: e.target.value})}
+                                                placeholder="Optional"
+                                                className="w-full pl-8 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-slate-900 transition-all placeholder:text-slate-300"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1.5 text-left">
                                         <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">BULK DISCOUNT (%)</label>
                                         <input 
                                             type="number"
@@ -1335,7 +1380,7 @@ const SupplierMySupplies = () => {
             {/* Header */}
             <header className="px-6 pt-2 flex items-center justify-between mb-6 max-w-5xl mx-auto">
                 <div className="flex items-center gap-2">
-                    <h1 className="font-headline font-black text-xl text-primary tracking-tighter leading-none uppercase">SPINZYT</h1>
+                    <BrandLogo className="h-10 w-auto" />
                     <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1 animate-pulse"></div>
                 </div>
 

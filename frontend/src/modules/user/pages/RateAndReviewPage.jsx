@@ -14,27 +14,20 @@ const RateAndReviewPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // The order being reviewed is passed through from the tracking/orders screen.
-  const { orderId, vendorId } = location.state || {};
-
-  const userId = useMemo(() => {
-    try {
-      const u = JSON.parse(localStorage.getItem('user') || '{}');
-      return u._id || u.id || null;
-    } catch { return null; }
-  }, []);
+  const { orderId } = location.state || {};
 
   const handleReview = async () => {
     if (isSubmitting) return;
     try {
       setIsSubmitting(true);
+      // Who is reviewing and which vendor is rated are decided by the server
+      // from the login and the order; only the review itself is sent.
       await feedbackApi.submit({
-        userId,
         orderId,
-        vendorId,
         rating,
         // Tags are appended so they are not lost — the API stores a single comment.
         comment: [comment, selectedTags.join(', ')].filter(Boolean).join(' — '),
-        category: 'order'
+        category: 'Service'
       });
       setIsSubmitted(true);
       setTimeout(() => navigate('/user/home'), 2000);

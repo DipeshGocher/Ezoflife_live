@@ -13,7 +13,11 @@ import { orderPayload, createUser } from '../helpers/factories.js';
 let env, customerId, customerToken;
 
 before(async () => {
-    env = await startTestEnvironment();
+    // Fixed dummy gateway keys so the signature check always runs, whether or
+    // not the machine has a backend/.env (CI and fresh clones do not).
+    env = await startTestEnvironment({
+        env: { RAZORPAY_KEY_ID: 'rzp_test_dummy', RAZORPAY_KEY_SECRET: 'dummy_secret_for_tests' }
+    });
     const user = await createUser(api, env.baseUrl, '9990000001', 'Customer');
     customerId = user.id;
     customerToken = user.token;

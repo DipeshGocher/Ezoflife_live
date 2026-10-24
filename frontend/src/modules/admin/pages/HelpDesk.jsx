@@ -1,12 +1,16 @@
 import TicketAssignment from '../components/TicketAssignment';
 import { filterValues, matchesFilter } from '../utils/filters';
 import MultiSelectFilter from '../components/common/MultiSelectFilter';
+import { appDialog } from '../../../shared/stores/appDialogStore';
+import { socketAuth } from '../../../lib/socketAuth';
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { MessageSquare, Search, User, Send, Loader2, ArrowLeft } from 'lucide-react';
+import { MessageSquare, Search, User, Send, Loader2, ArrowLeft, Package } from 'lucide-react';
+import io from 'socket.io-client';
 import PageHeader from '../components/common/PageHeader';
 import { ticketApi, adminApi } from '../../../lib/api';
 import toast from 'react-hot-toast';
+import { FilterLabel } from "../components/common/FilterLabel";
 
 export default function HelpDesk() {
   const [tickets, setTickets] = useState([]);
@@ -17,8 +21,7 @@ export default function HelpDesk() {
   const [adminMessage, setAdminMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
-  
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('activeTab') || 'Customer';
   
   // Filtering States
@@ -27,6 +30,51 @@ export default function HelpDesk() {
   const [timeFilter, setTimeFilter] = useState('All');
   
   const chatEndRef = useRef(null);
+  const socketRef = useRef(null);
+
+  // Initialize socket
+  useEffect(() => {
+    const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    const s = io(SOCKET_URL, { auth: socketAuth, autoConnect: true, reconnection: true });
+    socketRef.current = s;
+
+    s.on('new_ticket', (newTicket) => {
+      setTickets(prev => {
+        if (prev.some(t => t._id === newTicket._id)) return prev;
+        return [newTicket, ...prev];
+      });
+    });
+
+    return () => {
+      s.disconnect();
+    };
+  }, []);
+
+  // Listen to messages for the selected ticket room
+  useEffect(() => {
+    if (selectedTicket && socketRef.current) {
+      socketRef.current.emit('join_room', `ticket_${selectedTicket._id}`);
+
+      const handleNewMessage = (data) => {
+        if (data.ticketId === selectedTicket._id) {
+          setSelectedTicket(prev => {
+            if (!prev || prev._id !== data.ticketId) return prev;
+            const exists = prev.messages?.some(m => m._id && data.message?._id && m._id === data.message._id);
+            if (exists) return prev;
+            return {
+              ...prev,
+              messages: [...(prev.messages || []), data.message]
+            };
+          });
+        }
+      };
+
+      socketRef.current.on('new_message', handleNewMessage);
+      return () => {
+        socketRef.current.off('new_message', handleNewMessage);
+      };
+    }
+  }, [selectedTicket?._id]);
 
   // Reset filters on tab change
   useEffect(() => {
@@ -35,6 +83,30 @@ export default function HelpDesk() {
     setTimeFilter('All');
     setIsMobileChatOpen(false);
   }, [activeTab]);
+
+  const getTicketRole = (t) => {
+    if (t?.userType) return t.userType;
+    if (t?.vendor && !t?.customer) return 'Vendor';
+    return t?.customer?.role || 'Customer';
+  };
+
+  const getTicketPartyName = (t) => {
+    if (!t) return 'User';
+    const role = getTicketRole(t);
+    if (role === 'Vendor') {
+      return t.vendor?.shopDetails?.name || t.vendor?.displayName || t.customer?.displayName || 'Vendor';
+    }
+    return t.customer?.displayName || t.customer?.ownerName || t.customer?.phone || 'Customer';
+  };
+
+  const getTicketPartyPhone = (t) => {
+    if (!t) return '';
+    const role = getTicketRole(t);
+    if (role === 'Vendor') {
+      return t.vendor?.phone || t.customer?.phone || '';
+    }
+    return t.customer?.phone || '';
+  };
 
   const fetchAllTickets = async () => {
     try {
@@ -45,6 +117,7 @@ export default function HelpDesk() {
       // Auto-select first ticket of the active tab (excluding disputes)
       const filtered = data.filter(t => 
         (t.customer?.role || 'Customer') === activeTab &&
+        getTicketRole(t) === activeTab &&
         !['Missing Items', 'Damaged Items', 'Wrong Items'].includes(t.category)
       );
       if (filtered.length > 0) {
@@ -95,7 +168,7 @@ export default function HelpDesk() {
       const listData = await ticketApi.getAllTickets();
       setTickets(listData);
     } catch (err) {
-      alert('Failed to send reply');
+      await appDialog.alert('Failed to send reply');
     } finally {
       setIsSending(false);
     }
@@ -110,7 +183,7 @@ export default function HelpDesk() {
       const listData = await ticketApi.getAllTickets();
       setTickets(listData);
     } catch (err) {
-      alert('Failed to resolve ticket');
+      await appDialog.alert('Failed to resolve ticket');
     }
   };
   // Time checking helpers
@@ -140,15 +213,15 @@ export default function HelpDesk() {
 
   const uniqueNames = useMemo(() => {
     const names = tickets
-      .filter(t => (t.customer?.role || 'Customer') === activeTab)
+      .filter(t => getTicketRole(t) === activeTab)
       .filter(t => !['Missing Items', 'Damaged Items', 'Wrong Items'].includes(t.category))
-      .map(t => t.customer?.displayName || t.customer?.ownerName || t.customer?.phone || 'Unknown User');
+      .map(t => getTicketPartyName(t));
     return ['All', ...new Set(names)].sort();
   }, [tickets, activeTab]);
 
   const uniqueChatIds = useMemo(() => {
     const ids = tickets
-      .filter(t => (t.customer?.role || 'Customer') === activeTab)
+      .filter(t => getTicketRole(t) === activeTab)
       .filter(t => !['Missing Items', 'Damaged Items', 'Wrong Items'].includes(t.category))
       .map(t => t._id);
     return ['All', ...new Set(ids)];
@@ -156,11 +229,11 @@ export default function HelpDesk() {
 
   const filteredTickets = useMemo(() => {
     return tickets.filter(t => {
-      const matchesRole = (t.customer?.role || 'Customer') === activeTab;
+      const matchesRole = getTicketRole(t) === activeTab;
       const isDispute = ['Missing Items', 'Damaged Items', 'Wrong Items'].includes(t.category);
       if (isDispute) return false;
       
-      const ticketName = t.customer?.displayName || t.customer?.ownerName || t.customer?.phone || 'Unknown User';
+      const ticketName = getTicketPartyName(t);
       const matchesName = matchesFilter(nameFilter, ticketName);
       
       const matchesChatId = matchesFilter(chatIdFilter, t._id);
@@ -174,11 +247,33 @@ export default function HelpDesk() {
       return matchesRole && matchesName && matchesChatId && matchesTime && matchesFilter(ownerFilter, t.assignedTo?._id || t.assignedTo || 'unassigned');
     });
   }, [tickets, activeTab, nameFilter, chatIdFilter, timeFilter, ownerFilter]);
+  const customerCount = useMemo(() => {
+    return tickets.filter(t =>
+      getTicketRole(t) === 'Customer' &&
+      !['Missing Items', 'Damaged Items', 'Wrong Items'].includes(t.category)
+    ).length;
+  }, [tickets]);
+
+  const vendorCount = useMemo(() => {
+    return tickets.filter(t =>
+      getTicketRole(t) === 'Vendor' &&
+      !['Missing Items', 'Damaged Items', 'Wrong Items'].includes(t.category)
+    ).length;
+  }, [tickets]);
+
+  const supplierCount = useMemo(() => {
+    return tickets.filter(t =>
+      getTicketRole(t) === 'Supplier' &&
+      !['Missing Items', 'Damaged Items', 'Wrong Items'].includes(t.category)
+    ).length;
+  }, [tickets]);
+
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50/50 overflow-hidden">
       <div className="flex-shrink-0">
         <PageHeader 
           title="Help Desk" 
+          title={activeTab === 'Vendor' ? 'Help Desk - Vendor Issues' : activeTab === 'Supplier' ? 'Help Desk - Supplier Issues' : 'Help Desk - Customer Issues'}
         />
       </div>
 
@@ -187,6 +282,33 @@ export default function HelpDesk() {
         
         {/* Ticket List Sidebar */}
         <div className={`w-full lg:w-[450px] flex flex-col bg-white overflow-hidden ${isMobileChatOpen ? 'hidden lg:flex' : 'flex'}`}>
+          {/* Issue Type Tabs */}
+          <FilterLabel label="Raised by" className="px-3 pt-2 bg-slate-50/70" info="Switches between tickets raised by customers, vendors and suppliers. The number is how many tickets each group has." />
+          <div className="flex border-b border-slate-200 bg-slate-50/70 p-2 gap-1.5">
+            {[
+              { id: 'Customer', label: 'Customer Issues', count: customerCount },
+              { id: 'Vendor', label: 'Vendor Issues', count: vendorCount },
+              { id: 'Supplier', label: 'Supplier Issues', count: supplierCount },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setSearchParams({ activeTab: tab.id })}
+                className={`flex-1 py-2 px-2 rounded-sm text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+                  activeTab === tab.id
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/50'
+                }`}
+              >
+                <span className="truncate">{tab.label}</span>
+                <span className={`text-[8px] px-1.5 py-0.2 rounded-full ${
+                  activeTab === tab.id ? 'bg-slate-800 text-slate-200' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
           <div className="p-6 border-b border-slate-100">
             <label className="block text-xs mb-3">Owner
               <MultiSelectFilter value={ownerFilter} onChange={event => setOwnerFilter(event.target.value)} className="w-full border border-slate-200 p-2 rounded-sm">
@@ -196,7 +318,7 @@ export default function HelpDesk() {
             </label>
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="block text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">Name</label>
+                <FilterLabel label="Name" className="mb-1 ml-1" info="Shows only tickets from this person." />
                 <MultiSelectFilter
                   value={nameFilter}
                   onChange={(e) => setNameFilter(e.target.value)}
@@ -211,7 +333,7 @@ export default function HelpDesk() {
               </div>
 
               <div>
-                <label className="block text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">Chat ID</label>
+                <FilterLabel label="Chat ID" className="mb-1 ml-1" info="Shows only one ticket conversation, by its ID (last 6 characters shown)." />
                 <MultiSelectFilter
                   value={chatIdFilter}
                   onChange={(e) => setChatIdFilter(e.target.value)}
@@ -226,7 +348,7 @@ export default function HelpDesk() {
               </div>
 
               <div>
-                <label className="block text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">Time</label>
+                <FilterLabel label="Last activity" className="mb-1 ml-1" info="Shows tickets by when they were last updated (or created, if never updated): today, yesterday or the last 7 days." />
                 <MultiSelectFilter
                   value={timeFilter}
                   onChange={(e) => setTimeFilter(e.target.value)}
@@ -273,13 +395,15 @@ export default function HelpDesk() {
                     </span>
                   </div>
                   <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-tight mb-2 group-hover:translate-x-1 transition-transform">{ticket.subject}</h4>
-                  <div className="flex items-center gap-3">
-                     <div className="flex items-center gap-1.5 opacity-60">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                     <div className="flex items-center gap-1.5 opacity-70">
                       <User size={10} className="text-slate-400" />
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                        {ticket.customer?.displayName || ticket.customer?.ownerName || ticket.customer?.phone || `Unknown User`} 
-                        <span className="ml-2 px-1 bg-slate-100 text-[7px] text-slate-400 rounded-sm">
-                          {ticket.customer?.role || 'Customer'}
+                      <span className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">
+                        {getTicketPartyName(ticket)}
+                        <span className={`ml-1.5 px-1.5 py-0.5 rounded-sm text-[7px] font-black uppercase tracking-widest ${
+                          getTicketRole(ticket) === 'Vendor' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {getTicketRole(ticket)}
                         </span>
                       </span>
                      </div>
@@ -287,6 +411,12 @@ export default function HelpDesk() {
                         <MessageSquare size={10} className="text-slate-400" />
                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{ticket.category}</span>
                      </div>
+                     {ticket.order && (
+                       <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-sm bg-slate-100 text-slate-700 text-[8px] font-black tracking-wide">
+                         <Package size={9} className="text-slate-500" />
+                         ORD #{ticket.order.orderId || ticket.order._id?.slice(-6).toUpperCase()}
+                       </span>
+                     )}
                   </div>
                 </div>
               ))
@@ -318,6 +448,31 @@ export default function HelpDesk() {
                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{selectedTicket.customer?.phone}</span>
                           </div>
                         )}
+                       <div className="flex items-center gap-2">
+                         <h2 className="text-xl font-black text-slate-900 tracking-tighter uppercase">{getTicketPartyName(selectedTicket)}</h2>
+                         <span className={`px-2 py-0.5 rounded-sm text-[8px] font-black uppercase tracking-widest ${
+                           getTicketRole(selectedTicket) === 'Vendor' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-700'
+                         }`}>
+                           {getTicketRole(selectedTicket)}
+                         </span>
+                       </div>
+                       <div className="flex flex-wrap items-center gap-3 mt-1.5">
+                         {getTicketPartyPhone(selectedTicket) && (
+                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{getTicketPartyPhone(selectedTicket)}</span>
+                         )}
+                         {selectedTicket.order && (
+                           <span className="flex items-center gap-1 px-2 py-0.5 rounded-sm bg-slate-100 text-slate-800 text-[9px] font-black tracking-wider">
+                             <Package size={10} className="text-slate-500" />
+                             ORDER #{selectedTicket.order.orderId || selectedTicket.order._id?.slice(-6).toUpperCase()}
+                             {selectedTicket.order.status && (
+                               <span className="ml-1 text-[8px] text-slate-500 font-bold uppercase">({selectedTicket.order.status})</span>
+                             )}
+                           </span>
+                         )}
+                         <span className="px-2 py-0.5 rounded-sm bg-slate-100 text-slate-500 text-[9px] font-bold uppercase">
+                           Category: {selectedTicket.category}
+                         </span>
+                       </div>
                      </div>
                  </div>
                  <div className="flex gap-2.5">
@@ -329,6 +484,7 @@ export default function HelpDesk() {
                       <button 
                         onClick={handleResolveTicket}
                         className="px-4 py-2 bg-emerald-600 text-white text-[9px] font-black uppercase tracking-widest transition-all rounded-sm flex items-center gap-2"
+                        className="px-4 py-2 bg-emerald-600 text-white text-[9px] font-black uppercase tracking-widest transition-all rounded-sm flex items-center gap-2 hover:bg-emerald-700"
                       >
                          Resolve Ticket
                       </button>
@@ -351,12 +507,26 @@ export default function HelpDesk() {
                     <div key={idx} className={`flex gap-4 max-w-[80%] ${chat.senderRole === 'Admin' ? 'ml-auto flex-row-reverse' : ''}`}>
                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest self-center flex-shrink-0">
                           {chat.senderRole === 'Admin' ? 'Admin' : (selectedTicket.customer?.displayName || selectedTicket.customer?.ownerName || selectedTicket.customer?.phone || 'User')}
+                          {chat.senderRole === 'Admin' ? 'Admin' : (chat.senderRole === 'Vendor' ? (selectedTicket.vendor?.shopDetails?.name || selectedTicket.vendor?.displayName || 'Vendor') : (selectedTicket.customer?.displayName || selectedTicket.customer?.ownerName || selectedTicket.customer?.phone || 'Customer'))}
                         </span>
                        <div className={`space-y-2 ${chat.senderRole === 'Admin' ? 'items-end flex flex-col' : ''}`}>
                           <div className={`p-5 rounded-sm shadow-sm ${chat.senderRole === 'Admin' ? 'bg-slate-900 text-white shadow-xl' : 'bg-white border border-slate-100 text-slate-800'}`}>
                              <p className="text-[11px] font-bold leading-relaxed uppercase tracking-tight">
                                {chat.message}
                              </p>
+                             {chat.attachments && chat.attachments.length > 0 && (
+                               <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t border-slate-100/20">
+                                 {chat.attachments.map((att, i) => (
+                                   <a key={i} href={att} target="_blank" rel="noopener noreferrer" className="block group">
+                                     <img
+                                       src={att}
+                                       alt="Attachment"
+                                       className="w-24 h-24 object-cover rounded border border-slate-200 group-hover:opacity-80 transition-opacity"
+                                     />
+                                   </a>
+                                 ))}
+                               </div>
+                             )}
                           </div>
                           <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
                             {new Date(chat.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

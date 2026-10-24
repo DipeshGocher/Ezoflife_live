@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useMemo, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, PlusCircle, Settings, IndianRupee, Layers, CheckCircle2, XCircle, RotateCw, Filter, Download, ArrowRight, Trash2, Info, TrendingUp, Award, ShieldCheck } from 'lucide-react';
@@ -7,6 +8,7 @@ import PageHeader from '../components/common/PageHeader';
 import DataGrid from '../components/tables/DataGrid';
 import StatusBadge from '../components/common/StatusBadge';
 import MetricRow from '../components/cards/MetricRow';
+import { FilterLabel } from "../components/common/FilterLabel";
 
 export default function Services() {
   const [data, setData] = useState([]);
@@ -30,7 +32,7 @@ export default function Services() {
 
     } catch (error) {
       console.error('Error fetching services:', error);
-      alert('Failed to load services');
+      await appDialog.alert('Failed to load services');
     } finally {
       setLoading(false);
     }
@@ -119,10 +121,10 @@ export default function Services() {
         }
         await fetchServices();
         setIsModalOpen(false);
-        alert(`Service ${editingService ? 'updated' : 'created'} successfully!`);
+        await appDialog.alert(`Service ${editingService ? 'updated' : 'created'} successfully!`);
     } catch (error) {
         console.error('Error saving service:', error);
-        alert('Failed to save service');
+        await appDialog.alert('Failed to save service');
     }
   };
 
@@ -130,29 +132,29 @@ export default function Services() {
     try {
         await serviceApi.update(id, { approvalStatus: 'Approved', status: 'Inactive' });
         await fetchServices();
-        alert('Service approved successfully!');
+        await appDialog.alert('Service approved successfully!');
     } catch (error) {
         console.error('Error approving service:', error);
-        alert('Failed to approve service');
+        await appDialog.alert('Failed to approve service');
     }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this service?')) {
+    if (await appDialog.confirm('Are you sure you want to delete this service?')) {
         try {
             await serviceApi.delete(id);
             await fetchServices();
-            alert('Service deleted successfully');
+            await appDialog.alert('Service deleted successfully');
         } catch (error) {
             console.error('Error deleting service:', error);
-            alert('Failed to delete service');
+            await appDialog.alert('Failed to delete service');
         }
     }
   };
 
 
   const handleClearAll = async () => {
-    if (window.confirm('CRITICAL ACTION: This will delete ALL master and custom services. Are you absolutely sure?')) {
+    if (await appDialog.confirm('CRITICAL ACTION: This will delete ALL master and custom services. Are you absolutely sure?')) {
         try {
             setLoading(true);
             const response = await fetch(`${BASE_URL}/admin/services-clear-all`, {
@@ -160,14 +162,14 @@ export default function Services() {
             });
             const result = await response.json();
             if (response.ok) {
-                alert(result.message);
+                await appDialog.alert(result.message);
                 fetchServices();
             } else {
-                alert(result.message || 'Operation failed');
+                await appDialog.alert(result.message || 'Operation failed');
             }
         } catch (err) {
             console.error('Clear services error:', err);
-            alert('Failed to clear services');
+            await appDialog.alert('Failed to clear services');
         } finally {
             setLoading(false);
         }
@@ -592,6 +594,7 @@ export default function Services() {
 
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
         {/* Tabs for Filtering */}
+        <FilterLabel label="Show" className="mb-2" info="All Services lists every service. Pending Approvals lists services vendors have submitted that still need your approval." />
         <div className="flex gap-8 border-b border-slate-200 mb-6 font-bold text-[10px] uppercase tracking-[0.2em]">
             <button 
                 onClick={() => setActiveTab('All')}

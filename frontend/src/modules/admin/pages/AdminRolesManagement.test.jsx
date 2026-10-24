@@ -18,7 +18,7 @@ afterEach(() => vi.unstubAllGlobals());
 const open = async () => {
     const user = userEvent.setup();
     render(<MemoryRouter><AdminRolesManagement /></MemoryRouter>);
-    await user.click(screen.getByRole('button', { name: 'Create New Admin' }));
+    await user.click(screen.getByRole('button', { name: 'Add New Role' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Geofence restrictions' })).toBeEnabled());
     return user;
 };

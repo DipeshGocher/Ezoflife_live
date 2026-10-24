@@ -50,7 +50,7 @@ const AdminInvoiceSettings = () => {
     };
 
     const handleChange = (field, value) => {
-        setSettings(prev => ({ ...prev, [field]: value }));
+        setSettings(prev => ({ ...prev, [field]: value, ...(field === 'businessAddress' ? { registeredAddress: value } : {}) }));
     };
 
     const sampleCustomerOrder = {
@@ -134,6 +134,9 @@ const AdminInvoiceSettings = () => {
                             ] },
                             { title: 'Invoice details', fields: [
                                 ['invoiceTitle', 'Invoice title', 'text', 60, true],
+                                ['platformSacCode', 'Platform service accounting code', 'text', 8],
+                                ['logisticsSacCode', 'Logistics service accounting code', 'text', 8],
+                                ['promotionSacCode', 'Promotion service accounting code', 'text', 8],
                                 ['paymentInstructions', 'Payment instructions', 'textarea', 1000],
                                 ['customTerms', 'Terms and conditions', 'textarea', 2000],
                                 ['invoiceNote', 'Footer note', 'textarea', 500]

@@ -84,7 +84,7 @@ export default function PricingConfig() {
       const dActive = data.find(c => c.key === 'is_global_discounted_multiplier_active');
       if (dActive) setIsDiscountedActive(dActive.value === true || dActive.value === 'true');
 
-      const gst = data.find(c => c.key === 'gst_percentage');
+      const gst = data.find(c => c.key === 'gst_percent');
       if (gst) setGstPercentage(gst.value);
 
       const advance = data.find(c => c.key === 'advance_percentage');
@@ -130,7 +130,7 @@ export default function PricingConfig() {
         shippingConfigApi.updateConfig('is_global_base_multiplier_active', isBaseActive),
         shippingConfigApi.updateConfig('global_discounted_price_multiplier', Number(discountedPriceMultiplier)),
         shippingConfigApi.updateConfig('is_global_discounted_multiplier_active', isDiscountedActive),
-        shippingConfigApi.updateConfig('gst_percentage', Number(gstPercentage)),
+        shippingConfigApi.updateConfig('gst_percent', Number(gstPercentage)),
         shippingConfigApi.updateConfig('advance_percentage', Number(advancePercentage)),
         shippingConfigApi.updateConfig('delivery_day', deliveryDay),
         shippingConfigApi.updateConfig('platform_fee_multiplier', Number(platformFeeMultiplier))

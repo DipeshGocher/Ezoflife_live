@@ -16,6 +16,8 @@ const FRONTEND_ROOT = dirname(fileURLToPath(new URL('.', import.meta.url)));
 const BACKEND_ROOT = join(FRONTEND_ROOT, '..', 'backend');
 const mongoose = createRequire(join(BACKEND_ROOT, 'package.json'))('mongoose');
 const STATE_FILE = join(tmpdir(), 'ezoflife-e2e-state.json');
+// Emails the backend sends during E2E land here (JSON lines) instead of SMTP.
+export const MAIL_OUTBOX = join(tmpdir(), 'ezoflife-e2e-mail.jsonl');
 
 const waitFor = async (check, { timeoutMs = 90_000, intervalMs = 400, label = 'service' } = {}) => {
     const started = Date.now();
@@ -34,6 +36,7 @@ const tcpOpen = port => new Promise(resolve => {
 
 export const startStack = async () => {
     const dbPath = mkdtempSync(join(tmpdir(), 'ezoflife-e2e-db-'));
+    try { unlinkSync(MAIL_OUTBOX); } catch { /* none yet */ }
     // Fixed ports: Playwright reads baseURL from config at load time, before
     // globalSetup runs, so the web port must be known up front.
     const mongoPort = Number(process.env.E2E_MONGO_PORT || 27099);
@@ -55,6 +58,27 @@ export const startStack = async () => {
     try {
         await fixtureDb.collection('users').updateOne({ _id: new mongoose.Types.ObjectId('6a7d56c980a151d5ad8b17d0') }, { $setOnInsert: { role: 'Admin', status: 'approved', phone: '9990009999', displayName: 'Fixture Admin', adminAccessType: 'Read/Write' } }, { upsert: true });
     } finally { await fixtureDb.close(); }
+    // Fixture service some checkout journeys order by id (orders are priced
+    // from the database, so it must exist) — mirrors backend/tests/helpers.
+    const seed = await mongoose.createConnection(`mongodb://127.0.0.1:${mongoPort}/ezoflife_e2e`).asPromise();
+    await seed.collection('masterservices').updateOne(
+        { _id: new mongoose.Types.ObjectId('000000000000000000000001') },
+        { $setOnInsert: {
+            itemName: 'Wash & Fold', categoryId: new mongoose.Types.ObjectId(), basePrice: 100,
+            discountedPrice: 100, gst: 5, sacCode: '9994', unit: 'per_item', isActive: true,
+            createdAt: new Date(), updatedAt: new Date()
+        } },
+        { upsert: true }
+    );
+    await seed.collection('systemconfigs').insertMany([
+        { key: 'gst_percent', value: 18 },
+        { key: 'platform_fee_fixed', value: 20 },
+        { key: 'platform_fee_gst_percent', value: 18 },
+        { key: 'logistics_fee_gst_percent', value: 18 },
+        { key: 'spinzyt_gstin', value: '23ABCDE1234F1Z5' },
+        { key: 'invoice_settings', value: { businessName: 'Spinzyt Test', registeredAddress: '1 Test Road, Indore, Madhya Pradesh 452001', platformSacCode: '998311', logisticsSacCode: '996511', promotionSacCode: '9983' } }
+    ]);
+    await seed.close();
 
     // 2. real backend, pointed at the throwaway database
     backend = spawn('node', ['server.js'], {
@@ -64,6 +88,10 @@ export const startStack = async () => {
             NODE_ENV: 'test',
             SHIPROCKET_ENABLED: 'false',
             WHATSAPP_ENABLED: 'false',
+                FIREBASE_PRIVATE_KEY: '',
+                FIREBASE_CLIENT_EMAIL: '',
+                FIREBASE_PROJECT_ID: '',
+                RAZORPAY_ROUTE_ENABLED: 'false',
             RAZORPAY_KEY_ID: 'rzp_test_isolated',
             RAZORPAY_KEY_SECRET: 'isolated_test_secret_key',
             SIGNZY_API_KEY: '',
@@ -75,6 +103,7 @@ export const startStack = async () => {
             MONGODB_URI: `mongodb://127.0.0.1:${mongoPort}/ezoflife_e2e`,
             PORT: String(apiPort),
             FRONTEND_URL: `http://127.0.0.1:${webPort}`,
+            EMAIL_OUTBOX_FILE: MAIL_OUTBOX,
             JWT_SECRET: process.env.JWT_SECRET || 'e2e_secret_key'
         },
         // ROUTE_LOG=<file> records every request for endpoint-coverage runs.

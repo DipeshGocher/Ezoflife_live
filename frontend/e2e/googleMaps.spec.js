@@ -75,9 +75,23 @@ test('the Maps SDK actually loads into the page', async ({ page }) => {
     expect(loaded, 'window.google.maps never became available').toBe(true);
 });
 
+/**
+ * `window.google.maps` exists before its libraries are attached, so waiting on
+ * the namespace alone races the load ("Geocoder is not a constructor").
+ * Wait for what the tests actually use.
+ */
+const waitForMapsLibraries = (page) =>
+    page.waitForFunction(
+        () => typeof window.google?.maps?.Geocoder === 'function'
+            && Boolean(window.google.maps.places)
+            && Boolean(window.google.maps.geometry),
+        null,
+        { timeout: 30_000 }
+    );
+
 test('the required Maps libraries are present', async ({ page }) => {
     await page.goto('/user/auth');
-    await page.waitForFunction(() => typeof window.google?.maps?.Geocoder === 'function' && Boolean(window.google.maps.places) && Boolean(window.google.maps.geometry), null, { timeout: 30_000 });
+    await waitForMapsLibraries(page).catch(() => {}); // assertions below name what is missing
 
     const available = await page.evaluate(() => ({
         geocoder: typeof window.google.maps.Geocoder === 'function',
@@ -92,7 +106,7 @@ test('the required Maps libraries are present', async ({ page }) => {
 
 test('reverse geocoding works in-browser (no CORS failure)', async ({ page }) => {
     await page.goto('/user/auth');
-    await page.waitForFunction(() => typeof window.google?.maps?.Geocoder === 'function' && Boolean(window.google.maps.places) && Boolean(window.google.maps.geometry), null, { timeout: 30_000 });
+    await waitForMapsLibraries(page);
 
     // Exercise the same SDK path locationService now uses.
     const result = await page.evaluate(async () => {

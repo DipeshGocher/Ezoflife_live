@@ -1,3 +1,4 @@
+import { servicePricing } from '../../../lib/servicePricing';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,12 +18,11 @@ const AllServicesPage = () => {
   const fetchServices = async () => {
     try {
       setLoading(true);
-      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-      const customerType = (userData.customerType || localStorage.getItem('userType') || 'individual').toLowerCase();
 
+      // All customers use the standard catalogue, including GST-registered businesses.
       const [masterRes, customRes] = await Promise.all([
-        masterServiceApi.getAll({ serviceType: customerType, activeOnly: true }),
-        serviceApi.getAll({ approvedOnly: true, serviceType: customerType })
+        masterServiceApi.getAll({ serviceType: 'individual', activeOnly: true }),
+        serviceApi.getAll({ approvedOnly: true, serviceType: 'individual' })
       ]);
 
       const combined = [
@@ -167,13 +167,13 @@ const AllServicesPage = () => {
                               {service.categoryId?.subCategory} • {service.description}
                             </p>
                             <div className="mt-2 flex items-center gap-2">
-                              {(allowDiscount !== false && (service.basePrice || 0) > (service.discountedPrice || 0)) && (
+                              {servicePricing(service, { pricingFactor, allowDiscount, isExpress, expressMultiplier, isHeritage, heritageMultiplier }).hasDiscount && (
                                 <span className="text-[10px] font-bold text-slate-400 line-through">
-                                  ₹{Math.round((service.basePrice || 0) * (pricingFactor || 1) * (isExpress ? (expressMultiplier || 1) : 1) * (isHeritage ? (heritageMultiplier || 1) : 1))}
+                                  ₹{servicePricing(service, { pricingFactor, allowDiscount, isExpress, expressMultiplier, isHeritage, heritageMultiplier }).originalPrice}
                                 </span>
                               )}
                               <span className="text-[12px] font-black text-primary uppercase tracking-widest">
-                                ₹{Math.round(((allowDiscount !== false ? (service.discountedPrice || service.basePrice) : service.basePrice) || 0) * (pricingFactor || 1) * (isExpress ? (expressMultiplier || 1) : 1) * (isHeritage ? (heritageMultiplier || 1) : 1))}/{service.unit?.replace('_', ' ')}
+                                ₹{servicePricing(service, { pricingFactor, allowDiscount, isExpress, expressMultiplier, isHeritage, heritageMultiplier }).price}/{service.unit?.replace('_', ' ')}
                               </span>
                             </div>
                           </div>

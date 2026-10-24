@@ -7,6 +7,7 @@ import {
     TrendingUp, LayoutGrid, List, CheckCircle2, AlertOctagon, HelpCircle
 } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
+import { FilterLabel } from "../components/common/FilterLabel";
 
 const AreaPricingOverrides = () => {
     const [areas, setAreas] = useState([]);
@@ -125,7 +126,7 @@ const AreaPricingOverrides = () => {
             {/* Selection Hub */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
                 <div className="lg:col-span-2 space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Active Service Region</label>
+                    <FilterLabel label="Service region" className="mb-1 ml-1" info="Choose the service area whose price overrides you want to view and edit. Overrides apply only to customers in that area." />
                     <div className="relative group">
                         <MapPin size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-primary group-hover:scale-110 transition-transform" />
                         <select 

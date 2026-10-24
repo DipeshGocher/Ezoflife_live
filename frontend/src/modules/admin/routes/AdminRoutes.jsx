@@ -24,13 +24,14 @@ import FAQManagement from '../pages/FAQManagement';
 import FeedbackManagement from '../pages/FeedbackManagement';
 import MediaConfig from '../pages/MediaConfig';
 import PartnershipInquiries from '../pages/PartnershipInquiries';
-import LaborManagement from '../pages/LaborManagement';
 import NotificationsPage from '../pages/NotificationsPage';
 import CareerModeration from '../pages/CareerModeration';
 import RoleDetails from '../pages/RoleDetails';
 import Suppliers from '../pages/Suppliers';
 import AdminAdvertisementPage from '../pages/AdminAdvertisementPage';
 import B2BEscrowManagement from '../pages/B2BEscrowManagement';
+import PlatformFeeSettings from '../pages/PlatformFeeSettings';
+import VendorSupplyOrders from '../pages/VendorSupplyOrders';
 import AdminLegalPage from '../pages/AdminLegalPage';
 import ServiceAreas from '../pages/ServiceAreas';
 import AdminSupplierRequestsPage from '../pages/AdminSupplierRequestsPage';
@@ -56,13 +57,13 @@ import ServiceGeofenceTable from '../pages/ServiceGeofenceTable';
 import GeofencePincodeMapping from '../pages/GeofencePincodeMapping';
 import PricingPreview from '../pages/PricingPreview';
 import AreaPricingOverrides from '../pages/AreaPricingOverrides';
-import CustomerPayments from '../pages/CustomerPayments';
 import AdminInvoiceSettings from '../pages/AdminInvoiceSettings';
 import ReferralManagement from '../pages/ReferralManagement';
 import AdminSettings from '../pages/AdminSettings';
 import MasterPricingRegistry from '../pages/MasterPricingRegistry';
 import AdminRolesManagement from '../pages/AdminRolesManagement';
-import AdminActivate from '../pages/AdminActivate';
+import AdminAcceptInvite from '../pages/AdminAcceptInvite';
+import { canAccessPath, firstAllowedPath } from '../config/adminAccess';
 
 // Simple Guard Component
 const AdminGuard = ({ children }) => {
@@ -105,11 +106,36 @@ const AdminGuard = ({ children }) => {
     localStorage.removeItem('adminAuth');
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminData');
+    // Admin login also writes the generic session keys. If they belong to this
+    // stale admin session, clear them too, otherwise the customer app keeps
+    // treating the browser as an admin and redirects here.
+    if ((localStorage.getItem('userRole') || '').toLowerCase() === 'admin') {
+      ['token', 'user_auth_token', 'userRole', 'user', 'userData', 'userId'].forEach(k => localStorage.removeItem(k));
+    }
     return <Navigate to="/admin/login" state={{ from: location }} replace />;
+  }
+
+  // Role-based access: a sub-admin only reaches the modules they were granted
+  const adminData = JSON.parse(adminDataStr);
+  if (!canAccessPath(adminData, location.pathname)) {
+    const fallback = firstAllowedPath(adminData);
+    if (fallback && fallback !== location.pathname) {
+      return <Navigate to={fallback} replace />;
+    }
+    return <NoModuleAccess />;
   }
 
   return children;
 };
+
+const NoModuleAccess = () => (
+  <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-6 text-center">
+    <h2 className="text-lg font-black text-slate-900">No modules assigned</h2>
+    <p className="text-xs font-bold text-slate-500 mt-2 max-w-sm">
+      Your admin role has no pages assigned yet. Ask a Master Admin to update your permissions.
+    </p>
+  </div>
+);
 
 const AdminRoutes = () => {
   return (
@@ -117,7 +143,9 @@ const AdminRoutes = () => {
       {/* Public Admin Routes */}
       <Route path="/login" element={<AdminLogin />} />
       <Route path="/otp" element={<AdminOtp />} />
-      <Route path="/activate" element={<AdminActivate />} />
+      <Route path="/accept-invite" element={<AdminAcceptInvite />} />
+      {/* Old invitation links */}
+      <Route path="/activate" element={<AdminAcceptInvite />} />
 
       {/* Protected Admin Routes */}
       <Route 
@@ -155,6 +183,15 @@ const AdminRoutes = () => {
         <Route path="/faqs" element={<FAQManagement />} />
         <Route path="/media" element={<MediaConfig />} />
         <Route path="/partnerships" element={<PartnershipInquiries />} />
+        <Route path="/payments" element={<Payouts />} />
+        {/* Older URLs for pages merged into the ones above */}
+        <Route path="/payouts" element={<Navigate to="/admin/payments?tab=vendor" replace />} />
+        <Route path="/customer-payments" element={<Navigate to="/admin/payments?tab=customer" replace />} />
+        <Route path="/b2b-leads" element={<Navigate to="/admin/partnerships" replace />} />
+        {/* Reports & Analytics and Labor Management were removed */}
+        <Route path="/analytics" element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="/reports" element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="/labor" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="/careers" element={<CareerModeration creatorFilter="Admin" />} />
         <Route path="/careers/admin-posts" element={<CareerModeration creatorFilter="Admin" />} />
         <Route path="/careers/vendor-posts" element={<CareerModeration creatorFilter="Vendor" />} />
@@ -165,6 +202,8 @@ const AdminRoutes = () => {
         <Route path="/vendor-supply-pricing/supplies" element={<VendorMasterSupplyManagement />} />
         <Route path="/vendor-supply-pricing/products" element={<VendorProductTableManagement />} />
         <Route path="/vendor-supply-pricing/zones" element={<SupplierServiceZoneManagement />} />
+        <Route path="/vendor-supply-pricing/platform-fee" element={<PlatformFeeSettings />} />
+        <Route path="/vendor-supply-pricing/orders" element={<VendorSupplyOrders />} />
 
 
         <Route path="/privacy-policy" element={<AdminLegalPage type="privacy-policy" />} />

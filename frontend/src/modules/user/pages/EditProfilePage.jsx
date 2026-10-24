@@ -1,3 +1,4 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -37,7 +38,7 @@ const EditProfilePage = () => {
     const userId = user.id || user._id;
 
     if (!userId) {
-        alert('Authentication error. Please login again.');
+        await appDialog.alert('Authentication error. Please login again.');
         return;
     }
 
@@ -60,7 +61,7 @@ const EditProfilePage = () => {
         navigate('/user/profile');
     } catch (error) {
         console.error('Update Profile Error:', error);
-        alert('Failed to update profile: ' + error.message);
+        await appDialog.alert('Failed to update profile: ' + error.message);
     } finally {
         setIsLoading(false);
     }

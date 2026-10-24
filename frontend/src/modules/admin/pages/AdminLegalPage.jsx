@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { legalApi, mediaApi, UPLOADS_URL, BASE_URL } from '../../../lib/api';
+import { legalApi, mediaApi, UPLOADS_URL, BASE_URL, getAdminToken } from '../../../lib/api';
 import toast from 'react-hot-toast';
 
 const AdminLegalPage = ({ type }) => {
@@ -75,6 +75,8 @@ const AdminLegalPage = ({ type }) => {
 
         const xhr = new XMLHttpRequest();
         xhr.open('POST', `${BASE_URL}/media/upload-pdf`, true);
+        // XHR bypasses the fetch interceptor, so send the admin token explicitly
+        xhr.setRequestHeader('Authorization', `Bearer ${getAdminToken()}`);
 
         xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {
@@ -88,6 +90,8 @@ const AdminLegalPage = ({ type }) => {
                 const data = JSON.parse(xhr.responseText);
                 setPdfUrl(data.fileUrl);
                 toast.success('PDF uploaded successfully');
+            } else if (xhr.status === 401 || xhr.status === 403) {
+                toast.error('Your admin session has expired. Please log in again.');
             } else {
                 toast.error('Upload failed');
             }

@@ -14,6 +14,7 @@ import SupplierLaborRequestPage from "../pages/SupplierLaborRequestPage";
 import SupplierCreateJobRequisition from "../pages/SupplierCreateJobRequisition";
 import SupplierAddressesPage from "../pages/SupplierAddressesPage";
 import SupplierNotifications from "../pages/SupplierNotifications";
+import SupplierInsights from "../pages/SupplierInsights";
 
 import SupplierAuth from "../pages/SupplierAuth";
 import SupplierOtp from "../pages/SupplierOtp";
@@ -40,6 +41,7 @@ const SupplierRoutes = () => {
         <Route path="/profile" element={<SupplierProfile />} />
         <Route path="/addresses" element={<SupplierAddressesPage />} />
         <Route path="/more" element={<SupplierMorePage />} />
+        <Route path="/insights" element={<SupplierInsights />} />
         <Route path="/labor-request" element={<SupplierLaborRequestPage />} />
         <Route
           path="/labor-request/create"

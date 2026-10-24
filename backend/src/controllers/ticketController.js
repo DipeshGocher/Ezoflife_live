@@ -39,12 +39,15 @@ const requireOrderAccess = async (req, orderId) => {
 export const createTicket = async (req, res) => {
     try {
         const actor = supportActor(req);
-        const { subject, category, description, orderId, attachments } = req.body;
+        const { subject, category, attachments } = req.body;
+        const description = req.body.description || req.body.message || subject || 'Support request';
+        const orderId = req.body.orderId || req.body.order;
+        const userType = ['Vendor', 'Supplier'].includes(actor.role) ? actor.role : 'Customer';
         const customer = actor.role === 'Admin' ? (req.body.customer || actor.id) : actor.id;
         if (!await User.exists({ _id: customer })) throw supportError('Customer not found', 404);
         if (orderId) await requireOrderAccess(req, orderId);
         await requireSupportAccess(req, { customer, order: orderId || null });
-        const newTicket = await Ticket.create({ customer, subject, category, description, order: orderId || null,
+        const newTicket = await Ticket.create({ customer, userType, vendor: userType === 'Vendor' ? actor.id : null, supplier: userType === 'Supplier' ? actor.id : null, subject: subject || `${userType} Support Ticket`, category: category || 'Others', description, order: orderId || null,
             messages: [{ sender: actor.id, senderRole: actor.role, message: description, attachments: attachments || [] }] });
         await emit('admins_pool', 'new_ticket', { ticketId: newTicket._id, subject: newTicket.subject });
         res.status(201).json(ticketResponse(req, newTicket));
@@ -66,6 +69,7 @@ export const getTicketByOrder = async (req, res) => {
         await requireOrderAccess(req, req.params.orderId);
         const actor = supportActor(req);
         const query = { order: req.params.orderId };
+        if (req.query.role) query.userType = req.query.role;
         if (actor.role !== 'Admin') query.customer = actor.id;
         const ticket = await Ticket.findOne(query).sort({ createdAt: -1 });
         if (ticket) await requireSupportAccess(req, ticket);
@@ -75,7 +79,7 @@ export const getTicketByOrder = async (req, res) => {
 
 export const getAllTickets = async (req, res) => {
     try {
-        const tickets = await Ticket.find().populate('customer', customerFields).populate('order', orderFields).populate('assignedTo', 'displayName').sort({ createdAt: -1 });
+        const tickets = await Ticket.find().populate('customer', customerFields).populate('vendor', 'displayName phone email role shopDetails').populate('supplier', 'displayName phone email role supplierDetails').populate('order', orderFields).populate('assignedTo', 'displayName').sort({ createdAt: -1 });
         const visible = await Promise.all(tickets.map(ticket => canAccessSupport(req, ticket)));
         res.status(200).json(ticketResponse(req, tickets.filter((ticket, index) => visible[index])));
     } catch (error) { fail(res, error); }

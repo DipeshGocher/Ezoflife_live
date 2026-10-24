@@ -3,7 +3,6 @@ import express from 'express';
 import { 
     requestOtp, 
     verifyOtp, 
-    adminLogin, 
     completeVendorProfile, 
     getStatus, 
     getUserProfile, 
@@ -20,33 +19,43 @@ import {
     updateProfileImage,
     getDraftCart,
     updateDraftCart,
-    lookupCustomerByPhone,
-    getSubAdminActivationDetails,
-    activateSubAdmin
+    lookupCustomerByPhone
 } from '../controllers/authController.js';
+import { getAdminInvite, acceptAdminInvite } from '../controllers/adminInviteController.js';
 import { getVendorPayoutHistory } from '../controllers/adminController.js';
 import upload from '../middleware/upload.js';
-import { verifyAdmin, verifyUser } from '../middleware/authMiddleware.js';
+import { verifyAdmin, verifyUser, requireSelfOrAdmin, requireRole } from '../middleware/authMiddleware.js';
+
+// Account routes addressed by id: the caller must be that account or an Admin
+const self = (param = 'id') => [verifyUser, requireSelfOrAdmin(param)];
+
+// For routes that address the account by the phone in the (multipart) body
+const ownPhoneOrAdmin = (req, res, next) => {
+    if (req.user?.role === 'Admin' || String(req.body?.phone || '') === String(req.user?.phone || '')) return next();
+    return res.status(403).json({ success: false, message: 'You can only update your own account.' });
+};
 
 const router = express.Router();
 
-router.get('/sub-admin-activation-details', getSubAdminActivationDetails);
-router.post('/activate-sub-admin', activateSubAdmin);
+// Sub-admin invitation (public: the emailed token is the credential)
+router.get('/admin-invite', getAdminInvite);
+router.post('/admin-invite/accept', acceptAdminInvite);
 
 // DEV SCAFFOLDING — provisions a hardcoded account with a known OTP. Gated to
 // Admin so it is no longer a public backdoor; it should be deleted outright once
 // nothing depends on it.
-router.post('/temp-seed', verifyAdmin, tempSeedUser);
+router.post('/temp-seed', (req, res, next) => (
+    process.env.NODE_ENV === 'production' ? res.status(404).json({ message: 'Not found' }) : next()
+), verifyAdmin, tempSeedUser);
 router.post('/request-otp', requestOtp);
 router.post('/verify-otp', verifyOtp);
 router.post('/update-fcm-token', verifyUser, requireProfileAccess({ resolveId: req => req.body.userId }), updateFcmToken);
-router.post('/admin-login', adminLogin);
-router.post('/register-vendor', registerVendor);
+router.post('/register-vendor', verifyAdmin, registerVendor);
 router.post('/vendor-login', vendorLogin);
 router.post('/complete-vendor-profile', verifyUser, requireProfileAccess({ resolveId: req => req.user.id, applicant: true }), upload.fields([
     { name: 'gstDoc', maxCount: 1 },
     { name: 'msmeDoc', maxCount: 1 }
-]), completeVendorProfile);
+]), ownPhoneOrAdmin, completeVendorProfile);
 
 router.get('/get-status', verifyUser, requireProfileAccess({ resolveId: req => req.user.id }), getStatus);
 router.get('/profile/:id', verifyUser, requireProfileAccess(), getUserProfile);

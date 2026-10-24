@@ -1,5 +1,6 @@
 import { matchesFilter } from '../utils/filters';
 import MultiSelectFilter from '../components/common/MultiSelectFilter';
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { promotionApi, BASE_URL } from '../../../lib/api';
 import { toast } from 'react-hot-toast';
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 import DataGrid from '../components/tables/DataGrid';
+import FilterField from "../components/common/FilterLabel";
 
 const AdminPromotionTable = () => {
     const [promotions, setPromotions] = useState([]);
@@ -307,7 +309,7 @@ const AdminPromotionTable = () => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this promotion?')) {
+        if (await appDialog.confirm('Are you sure you want to delete this promotion?')) {
             try {
                 await promotionApi.delete(id);
                 toast.success('Promotion deleted successfully');
@@ -439,7 +441,8 @@ const AdminPromotionTable = () => {
                     showSearch={false}
                     actions={
                         <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
-                            <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-2">
+                            <div className="flex w-full sm:w-auto items-end justify-between sm:justify-start gap-2">
+                                <FilterField label="Promotion status" info="Active = the promotion is currently offered. Inactive = paused, so customers can't use it.">
                                 <MultiSelectFilter
                                     value={filters.status}
                                     onChange={(e) => handleFilterChange('status', e.target.value)}
@@ -449,6 +452,7 @@ const AdminPromotionTable = () => {
                                     <option value="Active">Active</option>
                                     <option value="Paused">Inactive</option>
                                 </MultiSelectFilter>
+                                </FilterField>
                                 
                                 <div className="flex items-center gap-2">
                                     {filters.status && (

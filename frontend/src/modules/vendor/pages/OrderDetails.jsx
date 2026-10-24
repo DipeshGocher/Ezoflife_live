@@ -1,7 +1,133 @@
+import { appDialog } from '../../../shared/stores/appDialogStore';
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { orderApi, logisticsApi } from "../../../lib/api";
+import { getOrderWeight } from "../../../lib/orderWeight";
+
+const WEIGHABLE_STATUSES = ["RECEIVED_BY_VENDOR", "PROCESSING", "READY_FOR_DISPATCH"];
+
+/** Shows the order's weight and lets the vendor record the weighed weight. */
+const OrderWeightCard = ({ order, onSaved }) => {
+  const weight = getOrderWeight(order);
+  const canRecord = WEIGHABLE_STATUSES.includes(order.status);
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const num = Number(value);
+  const valid = value !== "" && num > 0 && num <= 200;
+
+  const save = async () => {
+    if (!valid) {
+      setError("Enter a weight between 0.1 and 200 kg");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      const res = await orderApi.recordWeight(order._id, num);
+      onSaved(res.weight);
+      setEditing(false);
+      setValue("");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section
+      data-testid="order-weight-card"
+      className="bg-white rounded-[2rem] p-5 border border-slate-100 shadow-sm space-y-3">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-slate-50 text-slate-600 flex items-center justify-center shrink-0 border border-slate-100">
+            <span className="material-symbols-outlined text-xl">scale</span>
+          </div>
+          <div>
+            <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight">
+              Weight
+            </h4>
+            <p className="text-sm font-black text-slate-900" data-testid="order-weight-value">
+              {weight.text}
+              {weight.label && (
+                <span className="ml-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  {weight.label}
+                </span>
+              )}
+            </p>
+            {order.customerWeight && weight.source === "weighed" && (
+              <p className="text-[10px] text-slate-400 font-bold">
+                Customer said ~{order.customerWeight} kg
+              </p>
+            )}
+          </div>
+        </div>
+        {canRecord && !editing && (
+          <button
+            type="button"
+            onClick={() => {
+              setEditing(true);
+              setValue(weight.exact ? String(weight.kg) : "");
+            }}
+            className="px-4 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-black transition-colors shrink-0 shadow-sm">
+            {weight.exact ? "Update" : "Record weight"}
+          </button>
+        )}
+      </div>
+      {canRecord && editing && (
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                id="record-weight"
+                type="number"
+                inputMode="decimal"
+                min="0.1"
+                max="200"
+                step="0.1"
+                autoFocus
+                placeholder="Weighed weight"
+                value={value}
+                onChange={(e) => {
+                  setValue(e.target.value);
+                  setError("");
+                }}
+                onKeyDown={(e) => e.key === "Enter" && save()}
+                aria-label="Weighed weight in kg"
+                aria-invalid={!!error}
+                className="w-full bg-slate-50 border border-slate-200 pl-3 pr-10 py-2.5 rounded-xl text-sm font-bold outline-none focus:bg-white focus:border-slate-400"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">
+                kg
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              className="px-4 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-wider disabled:opacity-50">
+              {saving ? "Saving..." : "Save"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(false);
+                setError("");
+              }}
+              className="px-3 py-2.5 text-slate-500 text-[10px] font-black uppercase tracking-wider">
+              Cancel
+            </button>
+          </div>
+          {error && <p className="text-[11px] text-rose-500 font-medium">{error}</p>}
+        </div>
+      )}
+    </section>
+  );
+};
 
 const OrderDetails = () => {
   const navigate = useNavigate();
@@ -292,7 +418,7 @@ const OrderDetails = () => {
 
   const handleVerifyHandshake = async () => {
     const otpString = otp.join("");
-    if (otpString.length !== 4) return alert("Please enter 4-digit OTP");
+    if (otpString.length !== 4) return await appDialog.alert("Please enter 4-digit OTP");
 
     try {
       setVerifying(true);
@@ -305,7 +431,7 @@ const OrderDetails = () => {
       }
       window.location.reload();
     } catch (err) {
-      alert(err.message || "Verification failed");
+      await appDialog.alert(err.message || "Verification failed");
     } finally {
       setVerifying(false);
     }
@@ -334,6 +460,17 @@ const OrderDetails = () => {
               </h1>
             </div>
           </div>
+
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => navigate(`/vendor/order-chat/${order._id}`)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200/80 hover:bg-rose-100 transition-all font-black text-[10px] uppercase tracking-wider shadow-xs"
+            title="Report Issue to Admin / Support">
+            <span className="material-symbols-outlined text-sm">
+              support_agent
+            </span>
+            Need Help?
+          </motion.button>
         </header>
 
         {/* ORDER PROGRESS TIMELINE */}
@@ -647,6 +784,36 @@ const OrderDetails = () => {
         )}
 
         {/* 5. BOTTOM ACTION & INFORMATION AREA */}
+        {/* 5. ORDER ISSUE & SUPPORT CARD */}
+        <section className="bg-white rounded-[2rem] p-5 border border-slate-100 shadow-sm flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 border border-rose-100">
+              <span className="material-symbols-outlined text-xl">
+                report_problem
+              </span>
+            </div>
+            <div>
+              <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight">
+                Report Issue to Admin
+              </h4>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                Missing items, rider delays, or order concerns
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate(`/vendor/order-chat/${order._id}`)}
+            className="px-4 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-black transition-colors shrink-0 shadow-sm">
+            Chat Support
+          </button>
+        </section>
+
+        <OrderWeightCard
+          order={order}
+          onSaved={(w) => setOrder((prev) => ({ ...prev, ...w }))}
+        />
+
+        {/* 6. BOTTOM ACTION & INFORMATION AREA */}
         <section className="flex flex-col items-center gap-4 mt-2">
           {/* Read-Only Statuses */}
           {["PICKUP_ASSIGNED", "RIDER_ARRIVING"].includes(order.status) && (
@@ -684,7 +851,7 @@ const OrderDetails = () => {
                       setActiveHandshakePhase("Inbound");
                       setIsHandshakeModalOpen(true);
                     } catch (err) {
-                      alert("Failed to request Inbound OTP. Please try again.");
+                      await appDialog.alert("Failed to request Inbound OTP. Please try again.");
                     } finally {
                       setVerifying(false);
                     }
@@ -762,7 +929,7 @@ const OrderDetails = () => {
                   await orderApi.markOrderReady(order._id);
                   window.location.reload();
                 } catch (err) {
-                  alert("Error marking as ready");
+                  await appDialog.alert("Error marking as ready");
                 }
               }}
               className="bg-black text-white w-full py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.1em] flex items-center justify-center gap-3 shadow-xl shadow-black/20 mt-2">
