@@ -1,3 +1,5 @@
+> **Latest invoice release — 24 October 2026:** See [invoice release verification](INVOICE_TEMPLATES_VERIFICATION.md) for current source results, including 106 passing production-build browser journeys. Historical reports below retain their original scope. Existing lint, dependency and staging/provider limitations remain.
+
 > **Latest main merge:** See [main merge verification](MAIN_MERGE_VERIFICATION.md) for the combined local/GitHub source, updated test counts and remaining release limitations. Results below describe the earlier pre-merge verification and are retained as historical evidence. Production status remains HOLD.
 
 # Application production readiness verification

@@ -1,3 +1,5 @@
+import { usesCustomerReferenceTemplate, customerInvoiceGst } from '../../../lib/customerInvoiceGst';
+import { renderRegisteredCustomerInvoice } from '../../../lib/registeredCustomerInvoice';
 import RecordedInvoicePrint from './RecordedInvoicePrint';
 import { invoiceMoney } from '../../../shared/utils/invoiceFormat';
 import InvoiceDocument from '../../../shared/components/InvoiceDocument';
@@ -7,35 +9,13 @@ const InvoicePrint = ({ order, invoice = null, settings = {}, recordedOnly = fal
     if (!invoice && !order.invoices?.customerInvoice && !order.gstSnapshot) return <RecordedInvoicePrint order={order} settings={settings} recordedOnly={recordedOnly} />;
 
     const custInv = invoice || order.invoices?.customerInvoice;
+    if (usesCustomerReferenceTemplate(custInv)) return <div dangerouslySetInnerHTML={{ __html: renderRegisteredCustomerInvoice(order, settings, custInv) }} />;
+    const gst = customerInvoiceGst(order, settings, custInv);
     const isFinalized = custInv?.documentStatus === 'FINALIZED';
 
     const customerObj = order.customer || order.user;
-    const customerGstin = custInv ? (custInv.recipientGstin || '') : (order.gstSnapshot?.customerGstin || customerObj?.gstNumber || '');
-    const isCustRD = order.gstSnapshot?.customerRegistered ?? Boolean(custInv?.gstScenario === 'RD_RD');
-
     const vendorObj = order.vendor;
-    const vendorGstin = custInv ? (custInv.supplierGstin || '') : (order.gstSnapshot?.vendorGstin || vendorObj?.shopDetails?.gst || vendorObj?.gstNumber || order.vendorSnapshot?.gstNumber || '');
-    const isVendRD = order.gstSnapshot?.vendorRegistered ?? Boolean(['RD_RD', 'URD_RD'].includes(custInv?.gstScenario));
-
-    let scenario = custInv?.scenario;
-    if (!scenario) {
-        if (isCustRD && isVendRD) scenario = 'A';
-        else if (!isCustRD && isVendRD) scenario = 'B';
-        else scenario = 'C';
-    }
-
-    let displayGstNo = custInv?.displayGstinNo;
-    let displayGstLabel = custInv?.displayGstinLabel;
-    if (scenario === 'A') {
-        displayGstNo ||= customerGstin;
-        displayGstLabel ||= 'Customer GSTIN';
-    } else if (scenario === 'B') {
-        displayGstNo ||= vendorGstin;
-        displayGstLabel ||= 'Vendor GSTIN';
-    } else {
-        displayGstNo ||= order.gstSnapshot?.spinzytGstin || settings.gstNumber || '';
-        displayGstLabel ||= 'Spinzyt GSTIN';
-    }
+    const scenario = gst.scenario || 'C';
 
     const baseWithArea = Number(order.priceBreakdown?.baseWithArea || 0) || (order.items || []).reduce((s, i) => s + (i.price * (i.quantity || i.qty || 1)), 0);
     const expressSurcharge = Number(order.priceBreakdown?.expressSurcharge || 0);
@@ -74,7 +54,7 @@ const InvoicePrint = ({ order, invoice = null, settings = {}, recordedOnly = fal
     return <InvoiceDocument
         id="invoice-content"
         title={`Invoice 1 · ${scenario === 'C' ? 'Customer Invoice' : 'Customer Tax Invoice'}`}
-        issuerName={supplierName} gstin={displayGstNo ? `${displayGstLabel}: ${displayGstNo}` : ''}
+        issuerName={supplierName} gstin={gst.placement === 'header' && gst.value ? `GST # ${gst.value}` : ''}
         finalized={isFinalized} settings={settings}
         metadata={[
             { title: 'Invoice details', rows: [
@@ -82,12 +62,12 @@ const InvoicePrint = ({ order, invoice = null, settings = {}, recordedOnly = fal
                 { label: 'Order Ref', value: order.orderId || order.orderNo || order._id || '—' },
                 { label: 'Date', value: invoiceDate },
                 { label: 'Supplier Address', value: custInv?.supplierAddress || order.gstSnapshot?.vendorAddress || '—' },
-                { label: 'Vendor GSTIN', value: vendorGstin },
+                { label: 'Vendor GST', value: gst.placement === 'vendor' ? gst.value : undefined },
             ] },
             { title: 'Billed to', rows: [
                 { label: 'Customer Name', value: order.gstSnapshot?.customerName || order.customerSnapshot?.displayName || customerObj?.displayName || 'Customer' },
                 { label: 'Recipient Address', value: custInv?.recipientAddress || order.gstSnapshot?.customerAddress || '—' },
-                { label: 'Customer GSTIN', value: customerGstin },
+                { label: 'Customer GST', value: gst.placement === 'customer' ? gst.value : undefined },
                 { label: 'Place of supply', value: custInv?.placeOfSupplyStateCode ? `State code ${custInv.placeOfSupplyStateCode}` : undefined },
             ] },
         ]}

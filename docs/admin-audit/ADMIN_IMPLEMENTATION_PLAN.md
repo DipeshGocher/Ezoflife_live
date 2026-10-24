@@ -1,5 +1,13 @@
 # Admin panel implementation plan
 
+> **Invoice release verification — 24 October 2026:** Five approved invoice templates verified with 163 unit tests, 1,174 API tests, 47 tax verification tests, 261 frontend tests and 106 production-build browser journeys. npm/pnpm builds and frozen pnpm installation pass. See [release verification](../release-verification/INVOICE_TEMPLATES_VERIFICATION.md). Existing lint/dependency/staging limitations remain.
+
+> **Invoice 2 registered-vendor template — 24 October 2026:** Applied the supplied Spinzyt-to-vendor reference to registered vendor/registered customer and registered vendor/unregistered customer orders. Both include Service GST and show only Spinzyt GST in the banner. Stored financial amounts are preserved. See [registered-vendor Invoice 2 notes](REGISTERED_VENDOR_INVOICE_2.md). Included in the verified invoice release; deployment status is tracked separately.
+
+> **Invoice 2 unregistered-vendor template — 24 October 2026:** Added the supplied Spinzyt-to-vendor layout for unregistered vendor/unregistered customer orders, with Spinzyt GST only in the banner and stored service/fee/payout values. Other Invoice 2 layouts are preserved. See [Invoice 2 notes](UNREGISTERED_VENDOR_INVOICE_2.md). Included in the verified invoice release; deployment status is tracked separately.
+
+> **Customer invoice templates — 24 October 2026:** Applied all three supplied vendor-to-customer layouts with exactly one GST identity: customer GST for registered/registered, vendor GST for registered/unregistered, Spinzyt GST in the header only for unregistered/unregistered. Payment calculations are unchanged. See [invoice template notes](REGISTERED_CUSTOMER_INVOICE_TEMPLATE.md). Included in the verified invoice release; deployment status is tracked separately.
+
 > **Pre-production verification — 24 October 2026:** Functional suites and production-style browser tests pass after targeted fixes, but the production push remains on hold for dependency advisories, the lint backlog, low full-source frontend coverage and staging/provider/pricing acceptance. See [PRODUCTION_READINESS.md](../release-verification/PRODUCTION_READINESS.md) for results and release blockers. No push or deployment was performed.
 
 > **Supplier analytics — 24 October 2026:** Added a dedicated Supplier overview with current supplier/account counts, entity-type chart, supply-order workload, selected-period booked value and supplier order summaries. Customer-only filtering now explains why supplier analytics are hidden and provides an All-channel shortcut. Permission boundaries and payment behaviour are unchanged. See [DASHBOARD_DELIVERY.md](DASHBOARD_DELIVERY.md).

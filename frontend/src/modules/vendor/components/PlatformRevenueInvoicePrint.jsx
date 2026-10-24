@@ -1,3 +1,4 @@
+import { usesPlatformReferenceTemplate, renderPlatformReferenceInvoice } from '../../../lib/platformReferenceInvoice';
 import { invoiceMoney } from '../../../shared/utils/invoiceFormat';
 import InvoiceDocument from "../../../shared/components/InvoiceDocument";
 
@@ -9,6 +10,7 @@ const PlatformRevenueInvoicePrint = ({
   if (!order) return null;
 
   const platInv = invoice || order.invoices?.platformInvoice || {};
+  if (usesPlatformReferenceTemplate(order, platInv)) return <div dangerouslySetInnerHTML={{ __html: renderPlatformReferenceInvoice(order, settings, platInv).replace('id="invoice-content"', 'id="platform-invoice-content"') }} />;
   const isFinalized = platInv.documentStatus === "FINALIZED";
 
   const businessName = platInv.issuerName || settings.businessName || "EZOFLIFE TECHNOLOGY LLP";

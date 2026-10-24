@@ -111,3 +111,40 @@ describe('GST invoices and ledger', () => {
     assert.equal(financialYearFor('2026-03-31T18:29:59Z'), '25-26');
     assert.equal(financialYearFor('2026-03-31T18:30:00Z'), '26-27');
 });
+
+test('registered-pair presentation snapshots the existing financial ledger without repricing it', async () => {
+    const result = await generateOrderInvoices({ order, customer: { ...customer('23ABCDE1234F1Z5'), _id: 'customer-id' }, vendor: { ...vendor('27ABCDE1234F1Z5'), _id: 'vendor-id' }, configs });
+    const details = result.customerInvoice.presentation;
+    assert.equal(details.customerId, 'customer-id'); assert.equal(details.vendorId, 'vendor-id');
+    assert.equal(details.serviceLineCount, 1); assert.equal(details.serviceSubtotal, 1000);
+    assert.equal(details.serviceTax, 180);
+    assert.equal(details.platformFee, result.platformInvoice.platformFee);
+    assert.equal(details.platformFeeTax, result.platformInvoice.platformFeeTax);
+    assert.equal(details.logisticsFeeTax, result.platformInvoice.logisticsFeeTax);
+    assert.equal(details.vendorNetPayout, result.ledger.vendorNetPayout);
+    assert.equal(result.customerInvoice.totalAmount, result.ledger.invoice1Total);
+});
+
+test('unregistered vendor/customer Invoice 2 snapshots reference services and original customer total', async () => {
+    const result = await generateOrderInvoices({ order, customer: customer(''), vendor: vendor(''), configs });
+    const details = result.platformInvoice.presentation;
+    assert.equal(details.scenario, 'C'); assert.equal(details.services.length, order.items.length);
+    assert.equal(details.serviceSubtotal, result.customerInvoice.presentation.serviceSubtotal);
+    assert.equal(details.customerTotal, result.customerInvoice.totalAmount);
+    assert.equal(details.vendorNetPayout, result.ledger.vendorNetPayout);
+    assert.equal(details.services[0].description, 'Laundry');
+    const registered = await generateOrderInvoices({ order, customer: customer(''), vendor: vendor('27ABCDE1234F1Z5'), configs });
+    assert.equal(registered.platformInvoice.presentation.scenario, 'B');
+    assert.equal(registered.platformInvoice.presentation.serviceTax, registered.customerInvoice.presentation.serviceTax);
+    assert.equal(registered.platformInvoice.presentation.customerTotal, registered.customerInvoice.totalAmount);
+});
+
+test('both registered-vendor Invoice 2 combinations snapshot service GST and the existing payout', async () => {
+    for (const gst of ['23ABCDE1234F1Z5','']) {
+        const result = await generateOrderInvoices({ order, customer: customer(gst), vendor: vendor('27ABCDE1234F1Z5'), configs });
+        assert.equal(result.platformInvoice.presentation.scenario, gst ? 'A' : 'B');
+        assert.equal(result.platformInvoice.presentation.serviceTax, result.customerInvoice.presentation.serviceTax);
+        assert.equal(result.platformInvoice.presentation.vendorNetPayout, result.ledger.vendorNetPayout);
+        assert.equal(result.platformInvoice.presentation.customerTotal, result.customerInvoice.totalAmount);
+    }
+});

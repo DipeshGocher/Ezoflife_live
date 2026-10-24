@@ -121,7 +121,15 @@ test('finalized invoices display accurately for A, B, C, promotion, interstate a
                     assert.ok(text.includes(`${p.platformFeeTaxPercent}%`) && text.includes(`${p.logisticsFeeTaxPercent}%`));
                     if (name === 'promotion') assert.ok(text.includes('Spinzyt Promo Share') && text.includes('₹50.00'));
                 } else {
-                    assert.ok(text.includes(c.displayGstinNo));
+                    const expectedGst = c.scenario === 'A' ? c.recipientGstin : c.scenario === 'B' ? c.supplierGstin : order.gstSnapshot.spinzytGstin;
+                    assert.ok(text.includes(expectedGst));
+                    assert.equal(text.split(expectedGst).length - 1, 1, `${name}/${view}: selected GST appears once`);
+                    for (const number of new Set([c.recipientGstin, c.supplierGstin, order.gstSnapshot.spinzytGstin].filter(Boolean))) {
+                        if (number !== expectedGst) assert.ok(!text.includes(number), `${name}/${view}: other party GST is hidden`);
+                    }
+                    const gstNode = page.locator('[data-invoice-gst]');
+                    assert.equal(await gstNode.count(), 1, `${name}/${view}: one GST identity`);
+                    assert.equal(await gstNode.evaluate(el => Boolean(el.closest('header'))), c.scenario === 'C', `${name}/${view}: only Spinzyt GST belongs in header`);
                     assert.ok(!text.includes('Spinzyt Promo Share'));
                     if (name === 'promotion') {
                         assert.ok(text.includes('₹50.00'));

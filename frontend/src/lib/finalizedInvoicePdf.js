@@ -1,10 +1,15 @@
+import { usesPlatformReferenceTemplate } from './platformReferenceInvoice';
+import { usesCustomerReferenceTemplate, customerInvoiceGst } from './customerInvoiceGst';
+import { downloadRegisteredCustomerInvoicePdf } from './registeredCustomerInvoicePdf';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 /** Export the server's finalized amounts and identity without repricing them. */
-export function downloadFinalizedInvoice(order, type = 'customer') {
+export function downloadFinalizedInvoice(order, type = 'customer', settings = {}) {
     const invoice = type === 'customer' ? order.invoices?.customerInvoice : order.invoices?.platformInvoice;
     if (invoice?.documentStatus !== 'FINALIZED' || !invoice.invoiceNo) throw new Error('The final invoice is available after delivery.');
+    if (type === 'customer' && usesCustomerReferenceTemplate(invoice)) return downloadRegisteredCustomerInvoicePdf(order, settings);
+    if (type === 'platform_vendor' && usesPlatformReferenceTemplate(order, invoice)) return downloadRegisteredCustomerInvoicePdf(order, settings, true);
     const doc = new jsPDF();
     const money = value => Number(value || 0).toFixed(2);
     doc.setFontSize(18);
@@ -15,8 +20,13 @@ export function downloadFinalizedInvoice(order, type = 'customer') {
     doc.text(`Date: ${new Date(invoice.invoiceDate).toLocaleDateString('en-IN')}`, 15, 44);
     doc.text(`Supplier: ${invoice.supplierAddress || ''}`, 15, 53, { maxWidth: 180 });
     doc.text(`Recipient: ${invoice.recipientAddress || ''}`, 15, 66, { maxWidth: 180 });
-    if (invoice.supplierGstin) doc.text(`Supplier GSTIN: ${invoice.supplierGstin}`, 15, 79);
-    if (invoice.recipientGstin) doc.text(`Recipient GSTIN: ${invoice.recipientGstin}`, 15, 86);
+    if (type === 'customer') {
+        const gst = customerInvoiceGst(order, settings, invoice);
+        if (gst.value) doc.text(gst.placement === 'header' ? `GST # ${gst.value}` : `${gst.label}: ${gst.value}`, 15, gst.placement === 'header' ? 50 : 79);
+    } else {
+        if (invoice.supplierGstin) doc.text(`Supplier GSTIN: ${invoice.supplierGstin}`, 15, 79);
+        if (invoice.recipientGstin) doc.text(`Recipient GSTIN: ${invoice.recipientGstin}`, 15, 86);
+    }
     autoTable(doc, {
         startY: 94,
         head: [['Description', 'Service code', 'Quantity', 'Unit price', 'Tax', 'Total']],

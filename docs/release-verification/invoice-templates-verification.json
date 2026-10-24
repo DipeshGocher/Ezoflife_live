@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-24",
+  "baseCommit": "5b35b44",
+  "backendUnit": {
+    "passed": 163,
+    "failed": 0
+  },
+  "apiIntegrationSocket": {
+    "passed": 1174,
+    "failed": 0,
+    "cancelled": 0
+  },
+  "gstRules": {
+    "passed": 47,
+    "failed": 0
+  },
+  "gstChromiumDisplay": {
+    "passed": 1,
+    "failed": 0
+  },
+  "frontend": {
+    "passed": 261,
+    "files": 33,
+    "failed": 0
+  },
+  "pnpmFrozenInstall": "passed",
+  "pnpmFrontendTests": {
+    "passed": 261,
+    "failed": 0
+  },
+  "productionBuilds": {
+    "npm": "passed",
+    "pnpm": "passed"
+  },
+  "productionBrowser": {
+    "passed": 106,
+    "failed": 0,
+    "skipped": 0
+  },
+  "syntax": "passed",
+  "focusedLint": "passed",
+  "fullFrontendLint": {
+    "errors": 421,
+    "warnings": 95,
+    "status": "pre-existing backlog unresolved"
+  },
+  "limitations": [
+    "Live Google Maps journeys excluded",
+    "Live provider and staging acceptance not performed",
+    "Prior dependency advisories unresolved",
+    "Load and volume suites not repeated for invoice presentation changes"
+  ],
+  "sourceFingerprint": "invoice-templates-source-fingerprint.json"
+}

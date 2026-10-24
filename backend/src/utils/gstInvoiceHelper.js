@@ -247,5 +247,32 @@ export const generateOrderInvoices = async ({ order, customer, vendor, configs =
         promoOwnerType: totalPromoDiscount > 0 ? 'VENDOR' : (order.ledger?.promoOwnerType || 'NONE'),
         invoice1Total, invoice2Total: totalInvoice2Amount, spinzytPromoShare
     };
+    if (['A', 'B', 'C'].includes(legacyScenario)) {
+        const services = customerLines.slice(0, (order.items || []).length);
+        customerInvoice.presentation = {
+            version: 'registered-pair-reference-v1',
+            businessName: activeConfigs.invoiceSettings.businessName || '',
+            spinzytGstin: snapshot.spinzytGstin,
+            customerId: String(customer?._id || order.customer?._id || order.customer || ''),
+            vendorId: String(vendor?._id || order.vendor?._id || order.vendor || ''),
+            serviceLineCount: services.length,
+            serviceTypes: (order.items || []).map(item => item.serviceType || item.unit || 'Service'),
+            serviceSubtotal: money(services.reduce((sum, line) => sum + line.taxableValue, 0)),
+            serviceTax: money(services.reduce((sum, line) => sum + line.cgstAmount + line.sgstAmount + line.igstAmount, 0)),
+            platformFee: vendorPlatformFee, platformFeeTax,
+            logisticsFee, logisticsFeeTax, vendorNetPayout
+        };
+    }
+    if (['A','B','C'].includes(legacyScenario)) {
+        platformInvoice.presentation = {
+            version: 'platform-reference-v1', scenario: legacyScenario,
+            vendorId: customerInvoice.presentation.vendorId, vendorName: snapshot.vendorName,
+            services: customerInvoice.lineItems.slice(0, customerInvoice.presentation.serviceLineCount).map(line => ({ ...line })),
+            serviceTypes: [...customerInvoice.presentation.serviceTypes],
+            serviceSubtotal: customerInvoice.presentation.serviceSubtotal,
+            serviceTax: customerInvoice.presentation.serviceTax,
+            customerTotal: customerInvoice.totalAmount, vendorNetPayout
+        };
+    }
     return { customerInvoice, platformInvoice, ledger, gstSnapshot: snapshot };
 };

@@ -31,7 +31,28 @@ import {
 
 const customerSafeOrder = order => {
     const value = typeof order?.toObject === 'function' ? order.toObject() : { ...order };
-    if (value.invoices) value.invoices = { customerInvoice: value.invoices.customerInvoice };
+    if (value.invoices) {
+        const customer = value.invoices.customerInvoice;
+        const platform = value.invoices.platformInvoice;
+        // Historical finalized invoices already contain these frozen charges.
+        // Expose only the reference template's amounts, without returning Invoice 2.
+        if (['A', 'B', 'C'].includes(customer?.scenario) && !customer.presentation && platform?.documentStatus === 'FINALIZED') {
+            const services = (customer.lineItems || []).slice(0, (value.items || []).length);
+            const money = value => Math.round(Number(value) * 100) / 100;
+            customer.presentation = {
+                version: 'registered-pair-reference-v1', businessName: platform.issuerName,
+                spinzytGstin: value.gstSnapshot?.spinzytGstin || platform.spinzytGstin || '',
+                customerId: String(value.customer?._id || value.customer || ''), vendorId: String(value.vendor?._id || value.vendor || ''),
+                serviceLineCount: services.length, serviceTypes: (value.items || []).map(item => item.serviceType || item.unit || 'Service'),
+                serviceSubtotal: money(services.reduce((sum, line) => sum + Number(line.taxableValue || 0), 0)),
+                serviceTax: money(services.reduce((sum, line) => sum + Number(line.cgstAmount || 0) + Number(line.sgstAmount || 0) + Number(line.igstAmount || 0), 0)),
+                platformFee: platform.platformFee, platformFeeTax: platform.platformFeeTax,
+                logisticsFee: platform.logisticsFee, logisticsFeeTax: platform.logisticsFeeTax,
+                vendorNetPayout: value.ledger?.vendorNetPayout
+            };
+        }
+        value.invoices = { customerInvoice: customer };
+    }
     delete value.vendorSettlement;
     return value;
 };

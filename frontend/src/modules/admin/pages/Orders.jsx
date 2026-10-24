@@ -1,3 +1,4 @@
+import { customerInvoiceGst } from '../../../lib/customerInvoiceGst';
 import { downloadFinalizedInvoice } from '../../../lib/finalizedInvoicePdf';
 import { normalizeInvoiceSettings, drawInvoiceBusinessName, drawInvoiceContactDetails, drawInvoiceFooter } from '../../../lib/invoiceSettings';
 import FilterSearchParams from '../../../lib/FilterSearchParams';
@@ -240,9 +241,10 @@ export default function Orders() {
     try {
       if (order.gstSnapshot || order.invoiceFinalizationStatus === 'FINALIZED') {
         const record = await adminApi.getOrderDetail(order._id);
-        return downloadFinalizedInvoice(record.order || record, 'customer');
+        return await downloadFinalizedInvoice(record.order || record, 'customer', invoiceSettings);
       }
       const calc = getCustomerInvoiceCalculations(order);
+      const gst = customerInvoiceGst(order, invoiceSettings);
       const doc = new jsPDF();
       
       doc.setFillColor(15, 23, 42);
@@ -279,11 +281,12 @@ export default function Orders() {
       
       doc.text(`Shop Name: ${order.vendor?.shopDetails?.name || 'Spinzyt Partner'}`, 15, 62);
       doc.text(`Phone: ${order.vendor?.phone || 'N/A'}`, 15, 67);
-      doc.text(`GSTIN: ${order.vendor?.gstNumber || 'URD (Unregistered)'}`, 15, 72);
+      if (gst.placement === 'vendor' && gst.value) doc.text(`Vendor GST: ${gst.value}`, 15, 72);
       
       doc.text(`Name: ${order.customer?.displayName || 'Valued Customer'}`, 110, 62);
       doc.text(`Phone: ${order.customer?.phone || 'N/A'}`, 110, 67);
-      doc.text(`GSTIN: ${order.customer?.gstNumber || 'URD (Individual)'}`, 110, 72);
+      if (gst.placement === 'customer' && gst.value) doc.text(`Customer GST: ${gst.value}`, 110, 72);
+      if (gst.placement === 'header' && gst.value) { doc.setTextColor(255,255,255); doc.text(`GST # ${gst.value}`, 15, 39); doc.setTextColor(70,70,70); }
 
       doc.setDrawColor(220, 220, 220);
       doc.line(15, 80, 195, 80);
@@ -328,7 +331,7 @@ export default function Orders() {
       doc.setFontSize(8);
       doc.setFont('helvetica', 'italic');
       doc.setTextColor(100, 100, 100);
-      doc.text(`GSTIN Reference: ${calc.gstinOnInvoice}`, 15, finalY + 25);
+
       doc.text('Note: This is an electronically generated invoice raised by the Vendor to the Customer on Spinzyt.', 15, finalY + 30);
 
       drawInvoiceFooter(doc, invoiceSettings, finalY + 38);
@@ -344,7 +347,7 @@ export default function Orders() {
     try {
       if (order.gstSnapshot || order.invoiceFinalizationStatus === 'FINALIZED') {
         const record = await adminApi.getOrderDetail(order._id);
-        return downloadFinalizedInvoice(record.order || record, 'platform_vendor');
+        return await downloadFinalizedInvoice(record.order || record, 'platform_vendor', invoiceSettings);
       }
       const customerCalc = getCustomerInvoiceCalculations(order);
       const calc = getVendorInvoiceCalculations(order, customerCalc);

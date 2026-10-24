@@ -1,3 +1,4 @@
+import { customerInvoiceGst } from '../../../lib/customerInvoiceGst';
 import { normalizeInvoiceSettings } from '../../../lib/invoiceSettings';
 import React from 'react';
 
@@ -40,35 +41,9 @@ const RecordedInvoicePrint = ({ order, settings: savedSettings = {}, recordedOnl
     const expressSurcharge = recordedOnly ? (order.priceBreakdown?.expressSurcharge || 0) : 0;
     const subtotal = grandTotal - platformFee - gstAmount - logisticsFee - expressSurcharge + discount;
 
-    // GST Display Logic
     const customerObj = order.user || order.customer;
-    const customerGstType = customerObj?.customerType === 'retail' ? 'RD' : 'URD';
-    const customerGstin = customerObj?.gstNumber || '';
-
-    const vendorObj = order.vendor;
-    const vendorGstin = vendorObj?.shopDetails?.gst || vendorObj?.gstNumber || '';
-    const vendorGstType = vendorGstin ? 'RD' : 'URD';
-
-    let displayGstNo = '';
-    let displayGstLabel = '';
-    let gstNotice = '';
-
-    if (customerGstType === 'RD' && vendorGstType === 'RD') {
-        displayGstNo = customerGstin;
-        displayGstLabel = "Customer GSTIN";
-        gstNotice = "B2B Invoice - Tax Credit Available";
-    } else if (customerGstType === 'URD' && vendorGstType === 'RD') {
-        displayGstNo = vendorGstin;
-        displayGstLabel = "Vendor GSTIN";
-        gstNotice = "B2C Invoice";
-    } else {
-        // Includes URD-URD and fallback
-        displayGstNo = settings.gstNumber;
-        displayGstLabel = "Spinzyt GSTIN";
-        gstNotice = "Marketplace / Platform Invoice";
-    }
-
-    if (recordedOnly) gstNotice = '';
+    const gst = customerInvoiceGst(order, settings);
+    const gstNotice = recordedOnly ? '' : 'Vendor to Customer Invoice';
 
     // Use settings or fallbacks
     const businessName = settings.businessName;
@@ -86,8 +61,8 @@ const RecordedInvoicePrint = ({ order, settings: savedSettings = {}, recordedOnl
                         <p className="tracking-tight">{contactEmail}</p>
                         {settings.contactPhone && <p>{settings.contactPhone}</p>}
                         {settings.businessAddress && <p className="whitespace-pre-line break-words max-w-[420px]">{settings.businessAddress}</p>}
-                        {displayGstNo && (
-                            <p className="tracking-tight">{displayGstLabel} # {displayGstNo}</p>
+                        {gst.placement === 'header' && gst.value && (
+                            <p className="tracking-tight">GST # {gst.value}</p>
                         )}
                     </div>
                 </div>
@@ -121,8 +96,8 @@ const RecordedInvoicePrint = ({ order, settings: savedSettings = {}, recordedOnl
                 <div className="space-y-2">
                     <p className="text-[13px] font-black uppercase tracking-tight text-slate-900">Invoice No: <span className="font-bold text-slate-600 ml-2">{order.invoiceNo || (recordedOnly ? 'Not issued' : `SZ-CUST-2026-${order.id?.slice(-4) || '1001'}`)}</span></p>
                     <p className="text-[13px] font-black uppercase tracking-tight text-slate-900">Customer Name: <span className="font-bold text-slate-600 ml-2">{customerObj?.displayName || order.user?.name || '[Customer Name]'}</span></p>
-                    {customerGstType === 'RD' && customerGstin && (
-                        <p className="text-[13px] font-black uppercase tracking-tight text-slate-900">Customer GSTIN: <span className="font-bold text-slate-600 ml-2">{customerGstin}</span></p>
+                    {gst.placement !== 'header' && gst.value && (
+                        <p className="text-[13px] font-black uppercase tracking-tight text-slate-900">{gst.label}: <span className="font-bold text-slate-600 ml-2">{gst.value}</span></p>
                     )}
                     {settings.showVendorDetails !== false && (
                         <p className="text-[13px] font-black uppercase tracking-tight text-slate-900">Vendor ID : <span className="font-bold text-slate-600 ml-2">{order.vendor?.id || (recordedOnly ? 'Not recorded' : 'VEN-001')}</span></p>
