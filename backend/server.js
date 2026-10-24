@@ -1,3 +1,4 @@
+import { requireUnrestrictedAdmin } from './src/middleware/adminAccountScope.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -134,10 +135,10 @@ app.get('/api/admin/config', getSystemConfig);
 
 // ─── Protected Admin Routes (JWT required) ────────────────────────────────────
 // All routes below require a valid Admin JWT in Authorization: Bearer <token>
-app.post('/api/admin/config', verifyAdmin, updateSystemConfig);
+app.post('/api/admin/config', verifyAdmin, requireUnrestrictedAdmin, updateSystemConfig);
 app.use('/api/admin/dashboard-analytics', verifyAdmin, dashboardAnalyticsRoutes);
 app.use('/api/admin', verifyAdmin, adminRoutes);
-app.post('/api/admin/force-clear-orders', verifyAdmin, async (req, res) => {
+app.post('/api/admin/force-clear-orders', verifyAdmin, requireUnrestrictedAdmin, async (req, res) => {
     try {
         const Order = (await import('./src/models/Order.js')).default;
         await Order.deleteMany({});
@@ -332,7 +333,9 @@ mongoose.connect(MONGODB_URI)
     })
     .catch((err) => console.error('❌ MongoDB Connection Error:', err));
 
-app.get('/api/maintenance/seed-vendor-promos', async (req, res) => {
+app.use('/api/maintenance', verifyAdmin, requireUnrestrictedAdmin, (req, res, next) => ['GET', 'HEAD'].includes(req.method) ? res.status(405).json({ message: 'Maintenance changes require an explicit POST request.' }) : next());
+
+app.post('/api/maintenance/seed-vendor-promos', async (req, res) => {
     try {
         const User = (await import('./src/models/User.js')).default;
         const Promotion = (await import('./src/models/Promotion.js')).default;
@@ -374,7 +377,7 @@ app.get('/api/maintenance/seed-vendor-promos', async (req, res) => {
     }
 });
 
-app.get('/api/maintenance/seed-test-users', async (req, res) => {
+app.post('/api/maintenance/seed-test-users', async (req, res) => {
     try {
         const User = (await import('./src/models/User.js')).default;
         const testUsers = [
@@ -415,7 +418,7 @@ app.get('/api/maintenance/seed-test-users', async (req, res) => {
     }
 });
 
-app.get('/api/maintenance/seed-accounts', async (req, res) => {
+app.post('/api/maintenance/seed-accounts', async (req, res) => {
     try {
         const User = (await import('./src/models/User.js')).default;
         const targetUsers = [
@@ -446,7 +449,7 @@ app.get('/api/maintenance/seed-accounts', async (req, res) => {
     }
 });
 
-app.get('/api/maintenance/seed-materials', async (req, res) => {
+app.post('/api/maintenance/seed-materials', async (req, res) => {
     try {
         const Material = (await import('./src/models/Material.js')).default;
         const materials = [
@@ -473,7 +476,7 @@ app.get('/api/maintenance/seed-materials', async (req, res) => {
     }
 });
 
-app.get('/api/maintenance/seed-labor', async (req, res) => {
+app.post('/api/maintenance/seed-labor', async (req, res) => {
     try {
         const Specialist = (await import('./src/models/Specialist.js')).default;
         const specialists = [
@@ -496,7 +499,7 @@ app.get('/api/maintenance/seed-labor', async (req, res) => {
     }
 });
 
-app.get('/api/maintenance/fix-master-categories', async (req, res) => {
+app.post('/api/maintenance/fix-master-categories', async (req, res) => {
     try {
         const MasterService = (await import('./src/models/MasterService.js')).default;
         const Category = (await import('./src/models/Category.js')).default;

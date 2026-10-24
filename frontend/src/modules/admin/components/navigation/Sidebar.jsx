@@ -7,7 +7,6 @@ import {
     Store,
     Truck,
     Monitor,
-    BarChart3,
     Settings,
     LogOut,
     ChevronLeft,
@@ -17,11 +16,9 @@ import {
     UserCircle,
     CreditCard,
     FileText,
-    TrendingUp,
     Package,
     Tags,
     Star,
-    Clock,
     HelpCircle,
     Home,
     Bike,
@@ -180,6 +177,7 @@ const navItems = [
         group: 'Settings', items: [
             { icon: Settings, label: 'Settings', path: '/admin/settings' },
             { icon: FileText, label: 'Invoice Design', path: '/admin/invoice-settings' },
+            { icon: ShieldCheck, label: 'Audit History', path: '/admin/audit-history' },
         ]
     }
 ];
@@ -253,7 +251,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobileOpen, set
             const filteredItems = group.items.filter(item => {
                 if (!adminPermissions) return true;
                 return adminPermissions.some(perm => 
-                    perm.trim().toLowerCase() === item.label.trim().toLowerCase()
+                    perm.trim().toLowerCase() === ({ 'Audit History': 'Settings' }[item.label] || item.label).trim().toLowerCase()
                 );
             });
             return { ...group, items: filteredItems };

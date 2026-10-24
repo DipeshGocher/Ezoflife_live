@@ -1,3 +1,6 @@
+import { matchesFilter } from '../utils/filters';
+import FilterSearchParams from '../../../lib/FilterSearchParams';
+import MultiSelectFilter from '../components/common/MultiSelectFilter';
 import React, { useEffect, useState, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -31,7 +34,7 @@ import PageHeader from '../components/common/PageHeader';
 export default function OnboardingApprovals() {
   const location = useLocation();
   const navigate = useNavigate();
-  const queryParams = new URLSearchParams(location.search);
+  const queryParams = new FilterSearchParams(location.search);
   const initialTab = queryParams.get('tab') === 'Supplier' ? 'Supplier' : 'Vendor';
 
   const [rawUsers, setRawUsers] = useState([]);
@@ -65,15 +68,19 @@ export default function OnboardingApprovals() {
   };
 
   // Fetch filtered list from backend
+  const latestFilterRequest = React.useRef(0);
   const fetchPending = async (filters = {}) => {
+    const requestId = ++latestFilterRequest.current;
     setLoading(true);
     try {
       const pending = await adminApi.getPendingApprovals(filters);
+      if (requestId !== latestFilterRequest.current) return;
       setRawUsers(pending);
     } catch (err) {
+      if (requestId !== latestFilterRequest.current) return;
       console.error('Fetch Pending Error:', err);
     } finally {
-      setLoading(false);
+      if (requestId === latestFilterRequest.current) setLoading(false);
     }
   };
 
@@ -103,7 +110,7 @@ export default function OnboardingApprovals() {
   }, [activeTab]);
 
   useEffect(() => {
-    const tabFromUrl = new URLSearchParams(location.search).get('tab') === 'Supplier' ? 'Supplier' : 'Vendor';
+    const tabFromUrl = new FilterSearchParams(location.search).get('tab') === 'Supplier' ? 'Supplier' : 'Vendor';
     setActiveTab(tabFromUrl);
     setPage(1); // Reset page on tab change
   }, [location.search]);
@@ -202,7 +209,7 @@ export default function OnboardingApprovals() {
 
       // 2. Verification Status Filter
       if (selectedStatus) {
-        if (item.status.toLowerCase() !== selectedStatus.toLowerCase()) {
+        if (!matchesFilter(selectedStatus, item.status)) {
           return false;
         }
       }
@@ -359,7 +366,7 @@ export default function OnboardingApprovals() {
 
                 {/* Dropdown Filters on the Right */}
                 <div className="flex flex-wrap items-center gap-2 justify-end">
-                    <select
+                    <MultiSelectFilter
                         value={selectedVendor}
                         onChange={(e) => setSelectedVendor(e.target.value)}
                         className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -368,8 +375,8 @@ export default function OnboardingApprovals() {
                         {uniqueVendors.map(name => (
                             <option key={name} value={name}>{name}</option>
                         ))}
-                    </select>
-                    <select
+                    </MultiSelectFilter>
+                    <MultiSelectFilter
                         value={selectedBusiness}
                         onChange={(e) => setSelectedBusiness(e.target.value)}
                         className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -378,8 +385,8 @@ export default function OnboardingApprovals() {
                         {uniqueBusinesses.map(name => (
                             <option key={name} value={name}>{name}</option>
                         ))}
-                    </select>
-                    <select
+                    </MultiSelectFilter>
+                    <MultiSelectFilter
                         value={selectedPhone}
                         onChange={(e) => setSelectedPhone(e.target.value)}
                         className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-28 uppercase tracking-wider cursor-pointer"
@@ -388,8 +395,8 @@ export default function OnboardingApprovals() {
                         {uniquePhones.map(phone => (
                             <option key={phone} value={phone}>{phone}</option>
                         ))}
-                    </select>
-                    <select
+                    </MultiSelectFilter>
+                    <MultiSelectFilter
                         value={selectedStatus}
                         onChange={(e) => {
                             setSelectedStatus(e.target.value);
@@ -401,7 +408,7 @@ export default function OnboardingApprovals() {
                         <option value="pending">Pending</option>
                         <option value="approved">Approved</option>
                         <option value="rejected">Rejected</option>
-                    </select>
+                    </MultiSelectFilter>
                     {(selectedVendor || selectedBusiness || selectedPhone || searchQuery || selectedStatus) && (
                         <button
                             onClick={() => {

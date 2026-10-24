@@ -1,0 +1,128 @@
+{
+  "date": "2026-10-24",
+  "timezone": "Asia/Kolkata",
+  "recommendation": "hold",
+  "backendUnit": {
+    "passed": 123,
+    "failed": 0
+  },
+  "backendApiIntegrationSocket": {
+    "passed": 912,
+    "failed": 0
+  },
+  "frontendTests": {
+    "passed": 92,
+    "failed": 0,
+    "files": 18
+  },
+  "productionStyleBrowser": {
+    "passed": 72,
+    "failed": 0,
+    "skipped": 0
+  },
+  "syntax": {
+    "checked": 152,
+    "failures": []
+  },
+  "frontendCoverage": {
+    "lines": {
+      "total": 19986,
+      "covered": 941,
+      "skipped": 0,
+      "pct": 4.7
+    },
+    "statements": {
+      "total": 21769,
+      "covered": 1111,
+      "skipped": 0,
+      "pct": 5.1
+    },
+    "functions": {
+      "total": 5857,
+      "covered": 297,
+      "skipped": 0,
+      "pct": 5.07
+    },
+    "branches": {
+      "total": 19573,
+      "covered": 942,
+      "skipped": 0,
+      "pct": 4.81
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "lint": {
+    "errors": 437,
+    "warnings": 100,
+    "filesWithErrors": 162,
+    "errorRules": {
+      "no-unused-vars": 365,
+      "react-hooks/immutability": 31,
+      "no-useless-escape": 12,
+      "react-hooks/preserve-manual-memoization": 1,
+      "no-empty": 7,
+      "react-hooks/refs": 3,
+      "react-hooks/purity": 8,
+      "react-hooks/static-components": 9,
+      "react-refresh/only-export-components": 1
+    }
+  },
+  "productionDependencyAdvisories": {
+    "backend": {
+      "info": 0,
+      "low": 0,
+      "moderate": 11,
+      "high": 9,
+      "critical": 1,
+      "total": 21
+    },
+    "frontend": {
+      "info": 0,
+      "low": 2,
+      "moderate": 0,
+      "high": 7,
+      "critical": 1,
+      "total": 10
+    }
+  },
+  "noDeploymentPerformed": true,
+  "finalAffectedBrowserRerun": {
+    "passed": 4,
+    "failed": 0,
+    "scenarios": "Successful and rejected media upload on desktop and mobile after final error-handling correction"
+  },
+  "loadTests": {
+    "read": {
+      "requests": 26190,
+      "errors": 0,
+      "p95Ms": 9
+    },
+    "write": {
+      "requests": 3290,
+      "errors": 0,
+      "p95Ms": 56
+    },
+    "volume": {
+      "insertedOrders": 1500,
+      "errors": 0,
+      "p95Ms": 99
+    },
+    "stress": {
+      "steps": [
+        1,
+        5,
+        10,
+        20
+      ],
+      "errors": 0,
+      "peakRequestsPerSecond": 368,
+      "p95AtPeakMs": 102
+    },
+    "qualification": "Short local loopback checks, not production capacity acceptance"
+  }
+}

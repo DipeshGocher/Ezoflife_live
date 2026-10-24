@@ -2,7 +2,7 @@ import JobApplication from '../models/JobApplication.js';
 import Notification from '../models/Notification.js';
 import Job from '../models/Job.js';
 import User from '../models/User.js';
-import { getIO } from '../socket.js';
+import { getEventPublisher } from '../socket.js';
 import { sendJobApplicationConfirmation, sendAdminJobApplicationNotification } from '../utils/emailHelper.js';
 import { httpStatusForError } from '../utils/errorResponse.js';
 
@@ -20,7 +20,7 @@ export const submitApplication = async (req, res) => {
         // --- Create Notifications ---
         const job = await Job.findById(application.jobId);
         if (job) {
-            const io = getIO();
+            const io = getEventPublisher();
             
             // 1. Notify Job Creator (Vendor, Supplier or Admin)
             const creatorNotification = await Notification.create({

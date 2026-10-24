@@ -1,7 +1,7 @@
 import Specialist from '../models/Specialist.js';
 import LaborRequisition from '../models/LaborRequisition.js';
 import Notification from '../models/Notification.js';
-import { getIO } from '../socket.js';
+import { getEventPublisher } from '../socket.js';
 import { httpStatusForError } from '../utils/errorResponse.js';
 
 export const addSpecialist = async (req, res) => {
@@ -63,7 +63,7 @@ export const createRequisition = async (req, res) => {
         
         // Emit Socket Event
         try {
-            const io = getIO();
+            const io = getEventPublisher();
             io.emit('new_notification', {
                 recipient: '66112c3f8e4b8a2e5c8b4568',
                 role: 'admin',
@@ -110,7 +110,7 @@ export const assignRequisition = async (req, res) => {
         
         // Emit Socket Event
         try {
-            const io = getIO();
+            const io = getEventPublisher();
             io.emit('new_notification', {
                 recipient: requisition.vendorId,
                 role: 'vendor',

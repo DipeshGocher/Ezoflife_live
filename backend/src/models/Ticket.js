@@ -8,7 +8,7 @@ const messageSchema = new mongoose.Schema({
     },
     senderRole: {
         type: String,
-        enum: ['Customer', 'Admin'],
+        enum: ['Customer', 'Vendor', 'Supplier', 'Rider', 'Admin'],
         required: true
     },
     message: {
@@ -67,12 +67,24 @@ const ticketSchema = new mongoose.Schema({
         enum: ['Low', 'Medium', 'High'],
         default: 'Medium'
     },
+    assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    assignmentVersion: { type: Number, default: 0 },
+    assignedAt: Date,
+    assignmentHistory: [{
+        from: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+        to: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+        actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+        reason: { type: String, required: true },
+        at: { type: Date, default: Date.now }
+    }],
     messages: [messageSchema],
     lastMessageAt: {
         type: Date,
         default: Date.now
     }
 }, { timestamps: true });
+
+ticketSchema.index({ assignedTo: 1, status: 1 });
 
 const Ticket = mongoose.model('Ticket', ticketSchema);
 export default Ticket;

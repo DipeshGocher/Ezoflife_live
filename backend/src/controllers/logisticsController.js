@@ -103,8 +103,8 @@ export const verifyHandshake = async (req, res) => {
                 .populate('vendor', 'shopDetails address location')
                 .populate('rider', 'displayName phone location');
 
-            const { getIO } = await import('../socket.js');
-            const io = getIO();
+            const { getEventPublisher } = await import('../socket.js');
+            const io = getEventPublisher();
             if (io) {
                 const orderRoom = `order_${order._id.toString()}`;
                 console.log(`[DEBUG] Emitting order status update to room: ${orderRoom} -> ${order.status}`);

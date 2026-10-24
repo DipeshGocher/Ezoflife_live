@@ -249,6 +249,7 @@ const orderSchema = new mongoose.Schema({
         type: Date,
         default: null
     },
+    pricingPolicySnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
     ledger: {
         vendorNetPayout: { type: Number, default: 0 },
         customerWalletCredit: { type: Number, default: 0 },

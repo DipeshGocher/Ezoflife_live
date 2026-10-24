@@ -1,33 +1,37 @@
+import { normalizeInvoiceSettings } from '../../../lib/invoiceSettings';
 import React from 'react';
 import { FileText, MapPin, Phone, Mail, Hash, Calendar, ShoppingBag, ShieldCheck } from 'lucide-react';
 
-const B2BInvoicePrint = ({ order, settings = {} }) => {
+const B2BInvoicePrint = ({ order, settings: savedSettings = {} }) => {
+    const settings = normalizeInvoiceSettings(savedSettings);
     if (!order) return null;
 
-    const accentColor = settings.accentColor || '#0F172A';
-    const businessName = settings.businessName || 'EzOfLife B2B';
-    const contactEmail = settings.contactEmail || 'b2b@ezoflife.com';
-    const gstNumber = settings.gstNumber || '27AAAEZ1234F1Z1';
+    const businessName = settings.businessName;
+    const contactEmail = settings.contactEmail;
+    const gstNumber = settings.gstNumber || 'Not provided';
 
     return (
         <div id="b2b-invoice-content" className="bg-white min-h-[1100px] w-full p-16 font-sans text-slate-800 border-[20px] border-slate-50">
             {/* Top Bar */}
             <div className="flex justify-between items-center mb-12 pb-8 border-b-2 border-slate-100">
                 <div className="flex items-center gap-4">
-                    {settings.logo ? (
+                    {settings.showLogo && (settings.logo ? (
                         <img src={settings.logo} alt="Logo" className="h-12 object-contain" />
                     ) : (
                         <div className="w-12 h-12 rounded-xl bg-slate-900 flex items-center justify-center text-white shadow-lg">
                             <ShoppingBag size={24} />
                         </div>
-                    )}
+                    ))}
                     <div>
                         <h1 className="text-2xl font-black tracking-tighter text-slate-900 uppercase leading-none">{businessName}</h1>
                         <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mt-1">Industrial Supply Chain</p>
+                        {settings.businessAddress && <p className="text-xs text-slate-500 whitespace-pre-line max-w-[300px] mt-2">{settings.businessAddress}</p>}
+                        {settings.contactPhone && <p className="text-xs text-slate-500 mt-1">{settings.contactPhone}</p>}
+                        {settings.website && <p className="text-xs text-slate-500 mt-1">{settings.website}</p>}
                     </div>
                 </div>
                 <div className="text-right">
-                    <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter leading-none mb-1">Tax Invoice</h2>
+                    <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter leading-none mb-1">{settings.invoiceTitle}</h2>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Original for Recipient</p>
                 </div>
             </div>
@@ -155,14 +159,12 @@ const B2BInvoicePrint = ({ order, settings = {} }) => {
             {/* Footer */}
             <div className="flex justify-between items-end pt-12 border-t-2 border-slate-900">
                 <div className="space-y-6">
-                    <div className="space-y-2">
+                    {settings.showTerms && <div className="space-y-2">
                         <h5 className="text-[10px] font-black uppercase tracking-widest text-slate-900">Terms of Supply</h5>
-                        <ul className="text-[9px] font-bold text-slate-400 space-y-1 list-disc pl-4 uppercase tracking-wider">
-                            <li>Subject to EzOfLife Escrow Settlement Terms</li>
-                            <li>Electronic Receipt - No Signature required</li>
-                            <li>GST component is subject to supplier filing</li>
-                        </ul>
-                    </div>
+                        <p className="text-[10px] text-slate-500 whitespace-pre-line max-w-[400px]">{settings.customTerms}</p>
+                    </div>}
+                    {settings.paymentInstructions && <p className="text-[10px] text-slate-500 whitespace-pre-line max-w-[400px]">{settings.paymentInstructions}</p>}
+                    <p className="text-[10px] text-slate-400 whitespace-pre-line max-w-[400px]">{settings.invoiceNote}</p>
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
                             <Mail size={14} />

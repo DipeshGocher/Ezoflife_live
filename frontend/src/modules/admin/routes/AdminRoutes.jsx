@@ -1,3 +1,5 @@
+import AdminUserHistory from '../pages/AdminUserHistory';
+import AdminAuditHistory from '../pages/AdminAuditHistory';
 import React from 'react';
 import { Route, Routes, Navigate, useLocation } from 'react-router-dom';
 import AdminLayout from '../layouts/AdminLayout';
@@ -128,6 +130,9 @@ const AdminRoutes = () => {
         <Route path="/ads" element={<AdminAdvertisementPage />} />
         <Route path="/advertise" element={<AdminBrandInquiries />} />
         <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/vendor-ranking" element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="/operations" element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="/reports" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/orders" element={<Orders />} />
         <Route path="/orders/:id" element={<AdminOrderDetail />} />
@@ -173,6 +178,8 @@ const AdminRoutes = () => {
         <Route path="/feedback" element={<FeedbackManagement />} />
         <Route path="/supplier-requests" element={<AdminSupplierRequestsPage />} />
         <Route path="/supplier-requests/:id" element={<AdminSupplierRequestDetailPage />} />
+        <Route path="/users/:id/history" element={<AdminUserHistory />} />
+        <Route path="/audit-history" element={<AdminAuditHistory />} />
         <Route path="/invoice-settings" element={<AdminInvoiceSettings />} />
         <Route path="/referral-settings" element={<ReferralManagement />} />
         <Route path="/promotions" element={<AdminPromotions />} />

@@ -1,3 +1,4 @@
+import MultiSelectFilter from '../components/common/MultiSelectFilter';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { vendorMasterSupplyApi, vendorSupplyCategoryApi, mediaApi } from '../../../lib/api';
 import { toast } from 'react-hot-toast';
@@ -61,13 +62,16 @@ const VendorProductTableManagement = () => {
         }
     };
 
+    const latestFilterRequest = React.useRef(0);
     const fetchSupplies = async (page = 1, activeFilters = filters) => {
+        const requestId = ++latestFilterRequest.current;
         try {
             setLoading(true);
             const result = await vendorMasterSupplyApi.getPaginated(page, pagination.limit, {
                 ...activeFilters,
                 isTemplate: 'y'
             });
+            if (requestId !== latestFilterRequest.current) return;
             
             if (result.data && result.pagination) {
                 setSupplies(result.data);
@@ -76,9 +80,10 @@ const VendorProductTableManagement = () => {
                 setSupplies(Array.isArray(result) ? result : []);
             }
         } catch (error) {
+            if (requestId !== latestFilterRequest.current) return;
             toast.error('Failed to fetch supplies');
         } finally {
-            setLoading(false);
+            if (requestId === latestFilterRequest.current) setLoading(false);
         }
     };
 
@@ -182,6 +187,7 @@ const VendorProductTableManagement = () => {
                 const normalised = jsonData.map((row, idx) => {
                     const materialName = row['materialName'] || row['Material Name'] || row['name'] || row['Name'] || '';
                     const mainCat = row['mainCategory'] || row['Main Category'] || row['category'] || row['Category'] || '';
+                    const subCat = row['subCategory'] || row['Sub Category'] || row['subcategory'] || '';
                     const hsnCode = row['hsnCode'] || row['HSN Code'] || row['hsn'] || '-';
                     const gst = row['gst'] || row['GST'] || 18;
                     const brand = row['brand'] || row['Brand'] || 'Generic';
@@ -547,7 +553,7 @@ const VendorProductTableManagement = () => {
                     actions={
                         <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
                             <div className="w-full sm:w-auto">
-                                <select
+                                <MultiSelectFilter
                                     value={filters.categoryId}
                                     onChange={(e) => handleFilterChange('categoryId', e.target.value)}
                                     className="w-full sm:w-52 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none uppercase tracking-wider cursor-pointer"
@@ -558,10 +564,10 @@ const VendorProductTableManagement = () => {
                                             {cat.mainCategory} — {cat.subCategory}
                                         </option>
                                     ))}
-                                </select>
+                                </MultiSelectFilter>
                             </div>
                             <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-2">
-                                <select
+                                <MultiSelectFilter
                                     value={filters.isActive}
                                     onChange={(e) => handleFilterChange('isActive', e.target.value)}
                                     className="w-auto sm:w-28 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none uppercase tracking-wider cursor-pointer"
@@ -569,7 +575,7 @@ const VendorProductTableManagement = () => {
                                     <option value="">All Status</option>
                                     <option value="y">Active (Y)</option>
                                     <option value="n">Inactive (N)</option>
-                                </select>
+                                </MultiSelectFilter>
                                 
                                 <div className="flex items-center gap-2">
                                     {(filters.categoryId || filters.isActive !== '') && (

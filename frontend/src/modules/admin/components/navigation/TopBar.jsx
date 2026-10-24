@@ -3,7 +3,7 @@ import { Search, Bell, Menu, User, Calendar, Home, ChevronRight, Globe, LifeBuoy
 import { useLocation, useNavigate } from 'react-router-dom';
 import { notificationApi } from '../../../../lib/api';
 import toast from 'react-hot-toast';
-import socket from '../../../../lib/socket';
+import socket, { subscribeSocketRooms } from '../../../../lib/socket';
 
 export default function TopBar({ onMenuClick }) {
     const location = useLocation();
@@ -52,13 +52,10 @@ export default function TopBar({ onMenuClick }) {
 
         socket.on('new_notification', handleNewNotification);
 
-        // Join Admin Room
-        if (adminId) {
-            socket.emit('join_room', `user_${adminId}`);
-            socket.emit('join_room', 'admins_pool'); // Case-insensitive or common room
-        }
+        const unsubscribeRooms = adminId ? subscribeSocketRooms(socket, [`user_${adminId}`, 'admins_pool']) : () => {};
 
         return () => {
+            unsubscribeRooms();
             socket.off('new_notification', handleNewNotification);
         };
     }, [adminId]);
@@ -68,6 +65,7 @@ export default function TopBar({ onMenuClick }) {
             {/* Context Explorer (Breadcrumbs) */}
             <div className="flex items-center gap-4">
                 <button 
+                    aria-label="Open navigation"
                     onClick={onMenuClick}
                     className="lg:hidden w-10 h-10 flex items-center justify-center rounded-sm text-slate-500 hover:bg-slate-50 transition-all"
                 >

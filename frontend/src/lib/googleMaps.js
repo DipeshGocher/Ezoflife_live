@@ -32,12 +32,13 @@ export const GOOGLE_MAPS_LOADER_OPTIONS = {
  * being undefined.
  */
 export const waitForGoogleMaps = (timeoutMs = 10000) => {
-    if (window.google?.maps) return Promise.resolve(window.google.maps);
+    const ready = () => typeof window.google?.maps?.Geocoder === 'function';
+    if (ready()) return Promise.resolve(window.google.maps);
 
     return new Promise((resolve, reject) => {
         const startedAt = Date.now();
         const poll = setInterval(() => {
-            if (window.google?.maps) {
+            if (ready()) {
                 clearInterval(poll);
                 resolve(window.google.maps);
             } else if (Date.now() - startedAt > timeoutMs) {

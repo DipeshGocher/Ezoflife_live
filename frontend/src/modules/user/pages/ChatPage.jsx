@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ticketApi, mediaApi } from '../../../lib/api';
-import io from 'socket.io-client';
+import { createAuthenticatedSocket, subscribeSocketRooms } from '../../../lib/socket';
 import toast from 'react-hot-toast';
 
 const ChatPage = () => {
@@ -83,8 +83,7 @@ const ChatPage = () => {
         };
 
         initChat();
-        const socketUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-        socketRef.current = io(socketUrl);
+        socketRef.current = createAuthenticatedSocket();
         
         return () => {
             if (socketRef.current) socketRef.current.disconnect();
@@ -92,8 +91,9 @@ const ChatPage = () => {
     }, [orderId]);
 
     useEffect(() => {
-        if (ticket && socketRef.current) {
-            socketRef.current.emit('join_room', `ticket_${ticket._id}`);
+        const client = socketRef.current;
+        const unsubscribeRooms = ticket && client ? subscribeSocketRooms(client, [`ticket_${ticket._id}`]) : () => {};
+        if (ticket && client) {
             
             socketRef.current.on('new_message', (data) => {
                 if (data.ticketId === ticket._id) {
@@ -115,9 +115,10 @@ const ChatPage = () => {
             });
         }
         return () => {
-            if (socketRef.current) {
-                socketRef.current.off('new_message');
-                socketRef.current.off('status_updated');
+            unsubscribeRooms();
+            if (client) {
+                client.off('new_message');
+                client.off('status_updated');
             }
         };
     }, [ticket?._id]);

@@ -1,4 +1,6 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import { matchesFilter } from '../utils/filters';
+import MultiSelectFilter from '../components/common/MultiSelectFilter';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
   CreditCard, 
@@ -38,25 +40,24 @@ export default function Payments() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('All');
+  const [reportErrors, setReportErrors] = useState({});
+  const latestFetch = useRef(0);
+  const activeReportError = activeTab === 'Customer Payments' ? reportErrors.customer : activeTab === 'Vendor Payouts' ? reportErrors.vendor : null;
 
   const fetchAllData = async () => {
-    try {
-        setLoading(true);
-        const [cRes, vRes] = await Promise.all([
-            adminApi.getCustomerPayments(),
-            adminApi.getVendorPayments()
-        ]);
-        setCustomerData(cRes);
-        setVendorData(vRes);
-    } catch (err) {
-        console.error('Error fetching payment data:', err);
-    } finally {
-        setLoading(false);
-    }
+    const request = ++latestFetch.current;
+    setLoading(true); setReportErrors({});
+    const [customers, vendors] = await Promise.allSettled([adminApi.getCustomerPayments(), adminApi.getVendorPayments()]);
+    if (request !== latestFetch.current) return;
+    setCustomerData(customers.status === 'fulfilled' ? customers.value : []);
+    setVendorData(vendors.status === 'fulfilled' ? vendors.value : []);
+    setReportErrors({ customer: customers.status === 'rejected' ? customers.reason.message || 'Customer payments are unavailable.' : '', vendor: vendors.status === 'rejected' ? vendors.reason.message || 'Vendor settlements are unavailable.' : '' });
+    setLoading(false);
   };
 
   useEffect(() => {
     fetchAllData();
+    return () => { latestFetch.current++; };
   }, []);
 
   const handleReconcile = async (row) => {
@@ -163,8 +164,7 @@ export default function Payments() {
     return paymentsData.filter(item => {
       if (selectedStatus !== 'All') {
         const itemStatus = item.status ? item.status.toString().toLowerCase() : '';
-        const targetStatus = selectedStatus.toLowerCase();
-        if (itemStatus !== targetStatus) return false;
+        if (!matchesFilter(selectedStatus, itemStatus)) return false;
       }
       if (startDate || endDate) {
         const dateStr = item.lastPayout || item.createdAt || item.date || item.paidOn;
@@ -614,7 +614,7 @@ export default function Payments() {
 
       <div className="p-6 space-y-4 max-w-[1600px] mx-auto w-full">
         {/* Master Transaction Index */}
-        <DataGrid 
+        {activeReportError ? <div role="alert" className="rounded border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{activeReportError} <button className="underline ml-2" onClick={fetchAllData}>Retry report</button></div> : <DataGrid
           title=""
           showTotalEntities={false}
           showSearch={false}
@@ -654,7 +654,7 @@ export default function Payments() {
             <div className="flex items-center gap-3 justify-end">
               {/* Status Filter */}
               <div className="relative flex items-center w-[150px]">
-                <select
+                <MultiSelectFilter
                   value={selectedStatus}
                   onChange={(e) => {
                     setSelectedStatus(e.target.value);
@@ -667,8 +667,7 @@ export default function Payments() {
                   <option value="Refund">Refund</option>
                   <option value="Settled">Settled</option>
                   <option value="Pending">Pending</option>
-                </select>
-                <ChevronDown size={12} className="absolute right-3 pointer-events-none text-slate-400" />
+                </MultiSelectFilter>
               </div>
 
               {/* Settlement Cycle Filter (only for Vendor Payouts) */}
@@ -693,7 +692,7 @@ export default function Payments() {
               )}
             </div>
           }
-        />
+        />}
       </div>
     </div>
   );

@@ -57,9 +57,9 @@ const MediaConfig = () => {
             setFile(null);
             const fileInput = document.getElementById('media-upload');
             if (fileInput) fileInput.value = null;
-            fetchHistory();
+            await fetchData();
         } catch (error) {
-            toast.error('Upload failed');
+            toast.error(error.message || 'Upload failed');
         } finally {
             setUploading(false);
         }
@@ -107,6 +107,7 @@ const MediaConfig = () => {
 
                         <button 
                             type="submit"
+                            aria-label={uploading ? 'Uploading media kit' : 'Publish Media Kit'}
                             disabled={uploading || !file}
                             className={`w-full py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-3 transition-all ${
                                 uploading || !file ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-primary text-white hover:scale-105 shadow-primary/20'

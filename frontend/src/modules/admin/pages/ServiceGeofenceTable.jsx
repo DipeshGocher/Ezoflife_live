@@ -1,3 +1,5 @@
+import FilterSearchParams from '../../../lib/FilterSearchParams';
+import MultiSelectFilter from '../components/common/MultiSelectFilter';
 import React, { useState, useEffect, useMemo } from 'react';
 import { BASE_URL } from '../../../lib/api';
 import { toast } from 'react-hot-toast';
@@ -25,10 +27,12 @@ const ServiceGeofenceTable = () => {
     const [searchHeritageMultiplier, setSearchHeritageMultiplier] = useState('');
     const [searchDiscountMultiplier, setSearchDiscountMultiplier] = useState('');
 
+    const latestFilterRequest = React.useRef(0);
     const fetchAreas = async () => {
+        const requestId = ++latestFilterRequest.current;
         try {
             setLoading(true);
-            const queryParams = new URLSearchParams();
+            const queryParams = new FilterSearchParams();
             
             const activeAreaName = selectedAreaName || searchAreaNameInput;
             if (activeAreaName) {
@@ -48,12 +52,15 @@ const ServiceGeofenceTable = () => {
             }
 
             const res = await fetch(`${BASE_URL}/geofence/areas?${queryParams.toString()}`);
+            if (requestId !== latestFilterRequest.current) return;
             const data = await res.json();
+            if (requestId !== latestFilterRequest.current) return;
             setAreas(data);
         } catch (err) {
+            if (requestId !== latestFilterRequest.current) return;
             toast.error('Failed to load geofence data');
         } finally {
-            setLoading(false);
+            if (requestId === latestFilterRequest.current) setLoading(false);
         }
     };
 
@@ -376,7 +383,7 @@ const ServiceGeofenceTable = () => {
                     actions={
                         <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto max-w-[280px] sm:max-w-[380px] md:max-w-[520px] lg:max-w-[650px] xl:max-w-[850px] 2xl:max-w-[1100px] py-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                             {/* Area Name Dropdown */}
-                            <select
+                            <MultiSelectFilter
                                 value={selectedAreaName}
                                 onChange={(e) => {
                                     setSelectedAreaName(e.target.value);
@@ -390,7 +397,7 @@ const ServiceGeofenceTable = () => {
                                 {uniqueAreaNames.map(name => (
                                     <option key={name} value={name}>{name}</option>
                                 ))}
-                            </select>
+                            </MultiSelectFilter>
 
                             {/* Area Name Input */}
                             <input
@@ -407,7 +414,7 @@ const ServiceGeofenceTable = () => {
                             />
 
                             {/* Base Multiplier Dropdown */}
-                            <select
+                            <MultiSelectFilter
                                 value={searchBaseMultiplier}
                                 onChange={(e) => setSearchBaseMultiplier(e.target.value)}
                                 className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[9px] font-black uppercase tracking-tight outline-none focus:bg-white focus:border-slate-300 transition-all cursor-pointer text-slate-900 w-28 shrink-0"
@@ -416,10 +423,10 @@ const ServiceGeofenceTable = () => {
                                 {uniqueBaseMultipliers.map(mult => (
                                     <option key={mult} value={String(mult)}>{mult}x</option>
                                 ))}
-                            </select>
+                            </MultiSelectFilter>
 
                             {/* Express Multiplier Dropdown */}
-                            <select
+                            <MultiSelectFilter
                                 value={searchExpressMultiplier}
                                 onChange={(e) => setSearchExpressMultiplier(e.target.value)}
                                 className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[9px] font-black uppercase tracking-tight outline-none focus:bg-white focus:border-slate-300 transition-all cursor-pointer text-slate-900 w-32 shrink-0"
@@ -428,10 +435,10 @@ const ServiceGeofenceTable = () => {
                                 {uniqueExpressMultipliers.map(mult => (
                                     <option key={mult} value={String(mult)}>{mult}x</option>
                                 ))}
-                            </select>
+                            </MultiSelectFilter>
 
                             {/* Heritage Multiplier Dropdown */}
-                            <select
+                            <MultiSelectFilter
                                 value={searchHeritageMultiplier}
                                 onChange={(e) => setSearchHeritageMultiplier(e.target.value)}
                                 className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[9px] font-black uppercase tracking-tight outline-none focus:bg-white focus:border-slate-300 transition-all cursor-pointer text-slate-900 w-32 shrink-0"
@@ -440,10 +447,10 @@ const ServiceGeofenceTable = () => {
                                 {uniqueHeritageMultipliers.map(mult => (
                                     <option key={mult} value={String(mult)}>{mult}x</option>
                                 ))}
-                            </select>
+                            </MultiSelectFilter>
 
                             {/* Discount Multiplier Dropdown */}
-                            <select
+                            <MultiSelectFilter
                                 value={searchDiscountMultiplier}
                                 onChange={(e) => setSearchDiscountMultiplier(e.target.value)}
                                 className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[9px] font-black uppercase tracking-tight outline-none focus:bg-white focus:border-slate-300 transition-all cursor-pointer text-slate-900 w-32 shrink-0"
@@ -452,7 +459,7 @@ const ServiceGeofenceTable = () => {
                                 {uniqueDiscountMultipliers.map(mult => (
                                     <option key={mult} value={String(mult)}>{mult}x</option>
                                 ))}
-                            </select>
+                            </MultiSelectFilter>
                         </div>
                     }
                     columns={columns}

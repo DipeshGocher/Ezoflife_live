@@ -1,3 +1,5 @@
+import { matchesFilter } from '../utils/filters';
+import MultiSelectFilter from '../components/common/MultiSelectFilter';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { vendorSupplyCategoryApi } from '../../../lib/api';
 import { toast } from 'react-hot-toast';
@@ -54,15 +56,18 @@ const VendorSupplyCategoryManagement = () => {
 
     const uniqueSubCategories = useMemo(() => {
         const filtered = filters.mainCategory 
-            ? allCategoriesList.filter(c => c.mainCategory === filters.mainCategory)
+            ? allCategoriesList.filter(c => matchesFilter(filters.mainCategory, c.mainCategory))
             : allCategoriesList;
         return Array.from(new Set(filtered.map(c => c.subCategory))).filter(Boolean).sort();
     }, [allCategoriesList, filters.mainCategory]);
 
+    const latestFilterRequest = React.useRef(0);
     const fetchCategories = async (page = 1, activeFilters = filters) => {
+        const requestId = ++latestFilterRequest.current;
         try {
             setLoading(true);
             const result = await vendorSupplyCategoryApi.getPaginated(page, pagination.limit, activeFilters);
+            if (requestId !== latestFilterRequest.current) return;
             
             if (result.data && result.pagination) {
                 setCategories(result.data);
@@ -72,14 +77,15 @@ const VendorSupplyCategoryManagement = () => {
             }
             fetchAllCategoriesList();
         } catch (error) {
+            if (requestId !== latestFilterRequest.current) return;
             toast.error('Failed to fetch supply categories');
         } finally {
-            setLoading(false);
+            if (requestId === latestFilterRequest.current) setLoading(false);
         }
     };
 
     const handleFilterChange = (key, value) => {
-        const updatedFilters = { ...filters, [key]: value };
+        const updatedFilters = { ...filters, [key]: value, ...(key === 'mainCategory' ? { subCategory: '' } : {}) };
         setFilters(updatedFilters);
         fetchCategories(1, updatedFilters);
     };
@@ -357,7 +363,7 @@ const VendorSupplyCategoryManagement = () => {
                     showSearch={false}
                     actions={
                         <div className="flex items-center flex-wrap gap-2 w-full">
-                            <select
+                            <MultiSelectFilter
                                 value={filters.mainCategory}
                                 onChange={(e) => handleFilterChange('mainCategory', e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -366,8 +372,8 @@ const VendorSupplyCategoryManagement = () => {
                                 {uniqueMainCategories.map(cat => (
                                     <option key={cat} value={cat}>{cat}</option>
                                 ))}
-                            </select>
-                            <select
+                            </MultiSelectFilter>
+                            <MultiSelectFilter
                                 value={filters.subCategory}
                                 onChange={(e) => handleFilterChange('subCategory', e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -376,8 +382,8 @@ const VendorSupplyCategoryManagement = () => {
                                 {uniqueSubCategories.map(sub => (
                                     <option key={sub} value={sub}>{sub}</option>
                                 ))}
-                            </select>
-                            <select
+                            </MultiSelectFilter>
+                            <MultiSelectFilter
                                 value={filters.isActive}
                                 onChange={(e) => handleFilterChange('isActive', e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-28 uppercase tracking-wider cursor-pointer"
@@ -385,7 +391,7 @@ const VendorSupplyCategoryManagement = () => {
                                 <option value="">All Status</option>
                                 <option value="true">Active</option>
                                 <option value="false">Inactive</option>
-                            </select>
+                            </MultiSelectFilter>
 
                             <button 
                                 onClick={handleDownload}

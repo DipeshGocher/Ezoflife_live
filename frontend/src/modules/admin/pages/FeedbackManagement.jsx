@@ -1,3 +1,4 @@
+import MultiSelectFilter from '../components/common/MultiSelectFilter';
 import React, { useState, useEffect, useMemo } from 'react';
 import { feedbackApi } from '../../../lib/api';
 import PageHeader from '../components/common/PageHeader';
@@ -15,15 +16,19 @@ const FeedbackManagement = () => {
     const [filters, setFilters] = useState({ userName: '', email: '', category: '', rating: '', submitted: '' });
     const [filterOptions, setFilterOptions] = useState({ userNames: [], emails: [], categories: [], ratings: [], dates: [] });
 
+    const latestFilterRequest = React.useRef(0);
     const fetchFeedbacks = async (currentFilters = filters) => {
+        const requestId = ++latestFilterRequest.current;
         try {
             setLoading(true);
             const data = await feedbackApi.getAll(currentFilters);
+            if (requestId !== latestFilterRequest.current) return;
             setFeedbacks(data);
         } catch (error) {
+            if (requestId !== latestFilterRequest.current) return;
             toast.error('Failed to fetch feedbacks');
         } finally {
-            setLoading(false);
+            if (requestId === latestFilterRequest.current) setLoading(false);
         }
     };
 
@@ -197,7 +202,7 @@ const FeedbackManagement = () => {
                     showSearch={false}
                     actions={
                         <div className="flex items-center gap-2">
-                            <select
+                            <MultiSelectFilter
                                 value={filters.userName}
                                 onChange={(e) => handleFilterChange('userName', e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -206,8 +211,8 @@ const FeedbackManagement = () => {
                                 {filterOptions.userNames.map(name => (
                                     <option key={name} value={name}>{name}</option>
                                 ))}
-                            </select>
-                            <select
+                            </MultiSelectFilter>
+                            <MultiSelectFilter
                                 value={filters.email}
                                 onChange={(e) => handleFilterChange('email', e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -216,8 +221,8 @@ const FeedbackManagement = () => {
                                 {filterOptions.emails.map(email => (
                                     <option key={email} value={email}>{email}</option>
                                 ))}
-                            </select>
-                            <select
+                            </MultiSelectFilter>
+                            <MultiSelectFilter
                                 value={filters.category}
                                 onChange={(e) => handleFilterChange('category', e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-32 uppercase tracking-wider cursor-pointer"
@@ -226,8 +231,8 @@ const FeedbackManagement = () => {
                                 {filterOptions.categories.map(cat => (
                                     <option key={cat} value={cat}>{cat}</option>
                                 ))}
-                            </select>
-                            <select
+                            </MultiSelectFilter>
+                            <MultiSelectFilter
                                 value={filters.rating}
                                 onChange={(e) => handleFilterChange('rating', e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-32 uppercase tracking-wider cursor-pointer"
@@ -236,8 +241,8 @@ const FeedbackManagement = () => {
                                 {filterOptions.ratings.map(rating => (
                                     <option key={rating} value={rating}>{rating} Star{rating > 1 ? 's' : ''}</option>
                                 ))}
-                            </select>
-                            <select
+                            </MultiSelectFilter>
+                            <MultiSelectFilter
                                 value={filters.submitted}
                                 onChange={(e) => handleFilterChange('submitted', e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-32 uppercase tracking-wider cursor-pointer"
@@ -246,7 +251,7 @@ const FeedbackManagement = () => {
                                 {filterOptions.dates.map(date => (
                                     <option key={date} value={date}>{new Date(date).toLocaleDateString('en-GB')}</option>
                                 ))}
-                            </select>
+                            </MultiSelectFilter>
                             {(filters.userName || filters.email || filters.category || filters.rating || filters.submitted) && (
                                 <button 
                                     onClick={handleResetFilters}

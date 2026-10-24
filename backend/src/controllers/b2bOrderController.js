@@ -1,3 +1,4 @@
+import { createAdminReportScope } from '../utils/adminReportScope.js';
 import B2BOrder from '../models/B2BOrder.js';
 import User from '../models/User.js';
 import Razorpay from 'razorpay';
@@ -387,6 +388,11 @@ export const getSupplierOrders = async (req, res) => {
         .sort({ createdAt: -1 });
 
         console.log(`✅ [FETCH_POOL] Found ${orders.length} potential orders`);
+        if ((req.user || req.admin)?.role === 'Admin') {
+            const scope = await createAdminReportScope(req, ['B2BOrder']);
+            const permitted = new Set(await B2BOrder.distinct('_id', scope.query('B2BOrder')));
+            return res.status(200).json(orders.filter(order => [...permitted].some(key => String(key) === String(order._id))));
+        }
         res.status(200).json(orders);
     } catch (err) {
         console.error('Fetch Pool Error:', err);
@@ -403,6 +409,11 @@ export const getVendorOrders = async (req, res) => {
             .populate('supplier', 'displayName phone supplierDetails')
             .sort({ createdAt: -1 });
 
+        if ((req.user || req.admin)?.role === 'Admin') {
+            const scope = await createAdminReportScope(req, ['B2BOrder']);
+            const permitted = new Set(await B2BOrder.distinct('_id', scope.query('B2BOrder')));
+            return res.status(200).json(orders.filter(order => [...permitted].some(key => String(key) === String(order._id))));
+        }
         res.status(200).json(orders);
     } catch (err) {
         res.status(500).json({ message: 'Error fetching vendor orders' });
@@ -620,7 +631,8 @@ export const releaseSupplierPayment = async (req, res) => {
 // 4. Admin gets all "Paid & Held" orders for payout management
 export const getAdminEscrowOrders = async (req, res) => {
     try {
-        const orders = await B2BOrder.find({ paymentStatus: 'Paid' })
+        const scope = await createAdminReportScope(req, ['B2BOrder']);
+        const orders = await B2BOrder.find(scope.query('B2BOrder', { paymentStatus: 'Paid' }))
             .populate('vendor', 'displayName shopDetails')
             .populate('supplier', 'displayName supplierDetails phone')
             .sort({ updatedAt: -1 });

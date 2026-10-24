@@ -61,9 +61,9 @@ export default function Vendors() {
         id: v._id,
         name: v.displayName || 'Unnamed Vendor',
         shop: v.shopDetails?.name || 'Main Hub',
-        rating: '4.8', // Mock since not in schema yet
+        rating: v.rating == null ? 'Unavailable' : v.rating.toFixed(1),
         orders: v.ordersCount || 0,
-        revenue: '₹0',
+        revenue: 'Unavailable',
         status: v.status || 'pending',
         email: v.email,
         phone: v.phone,

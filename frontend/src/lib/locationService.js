@@ -54,12 +54,14 @@ const geocode = async (request) => {
     });
 };
 
+const safeFetch = (...args) => Promise.resolve().then(() => fetch(...args));
+
 /** Fast parallel IP-based geolocation fallback */
 const getFallbackCoordinatesFromIP = async () => {
     const fetchers = [
-        fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(2000) })
+        safeFetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(2000) })
             .then(res => res.ok ? res.json() : null)
-            .then(data => data && data.latitude ? {
+            .then(data => data && data.latitude != null && data.longitude != null && Number.isFinite(Number(data.latitude)) && Number.isFinite(Number(data.longitude)) ? {
                 lat: Number(data.latitude),
                 lng: Number(data.longitude),
                 city: data.city || '',
@@ -70,9 +72,9 @@ const getFallbackCoordinatesFromIP = async () => {
                 isFromIP: true
             } : null)
             .catch(() => null),
-        fetch('https://freeipapi.com/api/json', { signal: AbortSignal.timeout(2000) })
+        safeFetch('https://freeipapi.com/api/json', { signal: AbortSignal.timeout(2000) })
             .then(res => res.ok ? res.json() : null)
-            .then(data => data && data.latitude ? {
+            .then(data => data && data.latitude != null && data.longitude != null && Number.isFinite(Number(data.latitude)) && Number.isFinite(Number(data.longitude)) ? {
                 lat: Number(data.latitude),
                 lng: Number(data.longitude),
                 city: data.cityName || '',
@@ -102,7 +104,7 @@ export const locationService = {
         const ipPromise = getFallbackCoordinatesFromIP();
 
         // 2. Launch browser geolocation with 5-minute cache and 1.8s timeout
-        let browserGeoPromise = Promise.reject(new Error('Geolocation unavailable'));
+        let browserGeoPromise = Promise.resolve(null);
         if (typeof navigator !== 'undefined' && navigator.geolocation) {
             browserGeoPromise = new Promise((resolve, reject) => {
                 navigator.geolocation.getCurrentPosition(

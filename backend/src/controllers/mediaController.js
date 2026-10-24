@@ -1,3 +1,4 @@
+import { filterCondition } from '../utils/queryFilters.js';
 import Media from '../models/Media.js';
 import AdInquiry from '../models/AdInquiry.js';
 import { sendInquiryConfirmation, sendAdminInquiryNotification } from '../utils/emailHelper.js';
@@ -113,16 +114,16 @@ export const getAllInquiries = async (req, res) => {
         const { brandName, email, phone, budget } = req.query;
         const filter = {};
         if (brandName) {
-            filter.brandName = brandName;
+            filter.brandName = filterCondition(brandName);
         }
         if (email) {
-            filter.email = email;
+            filter.email = filterCondition(email);
         }
         if (phone) {
-            filter.phone = phone;
+            filter.phone = filterCondition(phone);
         }
         if (budget) {
-            filter.budget = Number(budget);
+            filter.budget = filterCondition(budget, Number);
         }
 
         const inquiries = await AdInquiry.find(filter).sort({ createdAt: -1 });

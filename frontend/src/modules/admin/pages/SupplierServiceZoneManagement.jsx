@@ -1,3 +1,4 @@
+import MultiSelectFilter from '../components/common/MultiSelectFilter';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supplierServiceZoneApi, adminApi } from '../../../lib/api';
 import { toast } from 'react-hot-toast';
@@ -44,10 +45,13 @@ const SupplierServiceZoneManagement = () => {
     const [bulkError, setBulkError] = useState('');
     const fileInputRef = useRef(null);
 
+    const latestFilterRequest = React.useRef(0);
     const fetchZones = async (page = 1, activeFilters = filters) => {
+        const requestId = ++latestFilterRequest.current;
         try {
             setLoading(true);
             const result = await supplierServiceZoneApi.getPaginated(page, pagination.limit, activeFilters);
+            if (requestId !== latestFilterRequest.current) return;
             
             if (result.data && result.pagination) {
                 setZones(result.data);
@@ -56,9 +60,10 @@ const SupplierServiceZoneManagement = () => {
                 setZones(Array.isArray(result) ? result : []);
             }
         } catch (error) {
+            if (requestId !== latestFilterRequest.current) return;
             toast.error('Failed to fetch supplier service zones');
         } finally {
-            setLoading(false);
+            if (requestId === latestFilterRequest.current) setLoading(false);
         }
     };
 
@@ -415,7 +420,7 @@ const SupplierServiceZoneManagement = () => {
                                 />
                             </div>
                             <div className="flex items-center gap-2 w-full sm:w-auto">
-                                <select
+                                <MultiSelectFilter
                                     value={filters.isActive}
                                     onChange={(e) => handleFilterChange('isActive', e.target.value)}
                                     className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-28 sm:w-36 uppercase tracking-wider cursor-pointer"
@@ -423,7 +428,7 @@ const SupplierServiceZoneManagement = () => {
                                     <option value="">All Status</option>
                                     <option value="true">Active</option>
                                     <option value="false">Inactive</option>
-                                </select>
+                                </MultiSelectFilter>
                                 {(filters.zoneName || filters.isActive !== '') && (
                                     <button 
                                         onClick={() => {

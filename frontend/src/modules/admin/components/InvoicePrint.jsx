@@ -1,10 +1,11 @@
+import { normalizeInvoiceSettings } from '../../../lib/invoiceSettings';
 import React from 'react';
 
-const InvoicePrint = ({ order, settings = {} }) => {
+const InvoicePrint = ({ order, settings: savedSettings = {}, recordedOnly = false }) => {
+    const settings = normalizeInvoiceSettings(savedSettings);
     if (!order) return null;
 
     const itemsTotal = (order.items || []).reduce((sum, item) => {
-        const qty = parseFloat(item.quantity || item.qty || 1);
         if (item.quantity !== undefined) {
             return sum + (item.price * item.quantity);
         } else {
@@ -12,12 +13,12 @@ const InvoicePrint = ({ order, settings = {} }) => {
         }
     }, 0);
 
-    const isMock = !order.priceBreakdown;
+    const isMock = !recordedOnly && !order.priceBreakdown;
     const isHeritage = order.tier === 'Heritage' || order.serviceTier === 'Heritage';
-    const gstPercent = isHeritage ? 18 : 5;
+    const gstPercent = recordedOnly ? order.priceBreakdown?.gstPercent : (isHeritage ? 18 : 5);
     
     const grandTotal = order.total || order.totalAmount || 0;
-    const discount = order.discountAmount || (order.priceBreakdown?.discount !== undefined ? order.priceBreakdown.discount : (isMock && settings.showDiscount !== false ? 50 : 0));
+    const discount = order.discountAmount || (order.priceBreakdown?.discount !== undefined ? order.priceBreakdown.discount : (!recordedOnly && isMock && settings.showDiscount !== false ? 50 : 0));
     
     let platformFee = 0;
     if (!isMock) {
@@ -35,7 +36,9 @@ const InvoicePrint = ({ order, settings = {} }) => {
         gstAmount = target - taxable;
     }
 
-    const subtotal = grandTotal - platformFee - gstAmount + discount;
+    const logisticsFee = recordedOnly ? (order.priceBreakdown?.logisticsFee || 0) : 0;
+    const expressSurcharge = recordedOnly ? (order.priceBreakdown?.expressSurcharge || 0) : 0;
+    const subtotal = grandTotal - platformFee - gstAmount - logisticsFee - expressSurcharge + discount;
 
     // GST Display Logic
     const customerObj = order.user || order.customer;
@@ -60,40 +63,44 @@ const InvoicePrint = ({ order, settings = {} }) => {
         gstNotice = "B2C Invoice";
     } else {
         // Includes URD-URD and fallback
-        displayGstNo = settings.gstNumber || 'ZA1223324435435';
+        displayGstNo = settings.gstNumber;
         displayGstLabel = "Spinzyt GSTIN";
         gstNotice = "Marketplace / Platform Invoice";
     }
 
+    if (recordedOnly) gstNotice = '';
+
     // Use settings or fallbacks
-    const accentColor = settings.accentColor || '#5B21B6';
-    const businessName = settings.businessName || 'EZOFLIFE TECHNOLOGY LLP';
-    const contactEmail = settings.contactEmail || 'connect@spinzyt.com';
+    const businessName = settings.businessName;
+    const contactEmail = settings.contactEmail;
 
     return (
         <div className="bg-white p-12 max-w-[850px] mx-auto font-sans text-slate-900" id="invoice-content">
             {/* Header Section */}
             <div className="bg-[#f3f4f6] p-10 flex justify-between items-center relative overflow-hidden rounded-t-sm border border-slate-200">
                 <div className="relative z-10 space-y-4">
-                    <h1 className="text-[32px] font-black tracking-tight leading-none text-slate-900">{businessName}</h1>
+                    <h1 className="text-[32px] font-black break-words max-w-[420px] tracking-tight leading-none text-slate-900">{businessName}</h1>
+                    <p className="text-[11px] font-bold uppercase tracking-widest">{settings.invoiceTitle}</p>
                     <div className="space-y-1 text-[13px] font-bold text-slate-600">
-                        <p className="tracking-tight">www.spinzyt.com</p>
+                        <p className="tracking-tight">{settings.website}</p>
                         <p className="tracking-tight">{contactEmail}</p>
+                        {settings.contactPhone && <p>{settings.contactPhone}</p>}
+                        {settings.businessAddress && <p className="whitespace-pre-line break-words max-w-[420px]">{settings.businessAddress}</p>}
                         {displayGstNo && (
                             <p className="tracking-tight">{displayGstLabel} # {displayGstNo}</p>
                         )}
                     </div>
                 </div>
-                {settings.showLogo !== false && (
+                {settings.showLogo !== false && settings.logo && (
                     <div className="relative z-10 flex flex-col items-center">
                         <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg mb-3">
                             <img 
-                                src="https://spinzyt.com/wp-content/uploads/2023/12/spinzyt-logo-new.png" 
+                                src={settings.logo}
                                 alt="Logo" 
                                 className="w-12 h-12 object-contain"
                             />
                         </div>
-                        <span className="text-2xl font-black tracking-[0.2em] leading-none text-slate-900">SPINZYT</span>
+                        <span className="text-2xl font-black break-words max-w-[160px] text-center tracking-[0.2em] leading-none text-slate-900">{businessName}</span>
                     </div>
                 )}
                 {/* Subtle Geometric Background Pattern */}
@@ -112,21 +119,21 @@ const InvoicePrint = ({ order, settings = {} }) => {
             {/* Order Info Section */}
             <div className="py-10 px-2 flex justify-between items-start border-x border-slate-200">
                 <div className="space-y-2">
-                    <p className="text-[13px] font-black uppercase tracking-tight text-slate-900">Invoice No: <span className="font-bold text-slate-600 ml-2">{order.invoiceNo || `SZ-CUST-2026-${order.id?.slice(-4) || '1001'}`}</span></p>
+                    <p className="text-[13px] font-black uppercase tracking-tight text-slate-900">Invoice No: <span className="font-bold text-slate-600 ml-2">{order.invoiceNo || (recordedOnly ? 'Not issued' : `SZ-CUST-2026-${order.id?.slice(-4) || '1001'}`)}</span></p>
                     <p className="text-[13px] font-black uppercase tracking-tight text-slate-900">Customer Name: <span className="font-bold text-slate-600 ml-2">{customerObj?.displayName || order.user?.name || '[Customer Name]'}</span></p>
                     {customerGstType === 'RD' && customerGstin && (
                         <p className="text-[13px] font-black uppercase tracking-tight text-slate-900">Customer GSTIN: <span className="font-bold text-slate-600 ml-2">{customerGstin}</span></p>
                     )}
                     {settings.showVendorDetails !== false && (
-                        <p className="text-[13px] font-black uppercase tracking-tight text-slate-900">Vendor ID : <span className="font-bold text-slate-600 ml-2">{order.vendor?.id || 'VEN-001'}</span></p>
+                        <p className="text-[13px] font-black uppercase tracking-tight text-slate-900">Vendor ID : <span className="font-bold text-slate-600 ml-2">{order.vendor?.id || (recordedOnly ? 'Not recorded' : 'VEN-001')}</span></p>
                     )}
                     {gstNotice && (
                         <p className="text-[10px] font-black uppercase tracking-widest text-purple-600 mt-2">{gstNotice}</p>
                     )}
                 </div>
                 <div className="space-y-2 text-right">
-                    <p className="text-[13px] font-black uppercase tracking-tight text-slate-900">Order No: <span className="font-bold text-slate-600 ml-2">{order.orderNo || order.id || '#SPZ-98765'}</span></p>
-                    <p className="text-[13px] font-black uppercase tracking-tight text-slate-900">Date: <span className="font-bold text-slate-600 ml-2">{order.date || 'May 05, 2026'}</span></p>
+                    <p className="text-[13px] font-black uppercase tracking-tight text-slate-900">Order No: <span className="font-bold text-slate-600 ml-2">{order.orderNo || order.id || (recordedOnly ? 'Not recorded' : '#SPZ-98765')}</span></p>
+                    <p className="text-[13px] font-black uppercase tracking-tight text-slate-900">Date: <span className="font-bold text-slate-600 ml-2">{order.date || (recordedOnly ? 'Not recorded' : 'May 05, 2026')}</span></p>
                 </div>
             </div>
 
@@ -147,10 +154,10 @@ const InvoicePrint = ({ order, settings = {} }) => {
                         {(order.items || []).map((item, i) => (
                             <tr key={i} className="hover:bg-slate-50/50">
                                 <td className="border-r border-slate-200 px-6 py-4 text-[13px] font-bold text-slate-700">{item.name}</td>
-                                <td className="border-r border-slate-200 px-4 py-4 text-center text-[13px] font-bold text-slate-500">9994</td>
-                                <td className="border-r border-slate-200 px-6 py-4 text-[13px] font-bold text-slate-600">{item.serviceType || 'Laundry'}</td>
+                                <td className="border-r border-slate-200 px-4 py-4 text-center text-[13px] font-bold text-slate-500">{recordedOnly ? (item.sacCode || 'Not recorded') : '9994'}</td>
+                                <td className="border-r border-slate-200 px-6 py-4 text-[13px] font-bold text-slate-600">{item.serviceType || (recordedOnly ? 'Not recorded' : 'Laundry')}</td>
                                 <td className="border-r border-slate-200 px-4 py-4 text-center text-[13px] font-bold text-slate-700">{item.qty}</td>
-                                <td className="border-r border-slate-200 px-6 py-4 text-right text-[13px] font-bold text-slate-700">₹{(item.price / parseFloat(item.qty || 1)).toFixed(2)}</td>
+                                <td className="border-r border-slate-200 px-6 py-4 text-right text-[13px] font-bold text-slate-700">₹{(item.unitPrice ?? (item.price / parseFloat(item.qty || 1))).toFixed(2)}</td>
                                 <td className="px-6 py-4 text-right text-[13px] font-black text-slate-900">₹{item.price.toFixed(2)}</td>
                             </tr>
                         ))}
@@ -172,15 +179,23 @@ const InvoicePrint = ({ order, settings = {} }) => {
                                 <td className="px-6 py-3 text-right text-[13px] font-black text-slate-900">₹{platformFee.toFixed(2)}</td>
                             </tr>
                         )}
+                        {recordedOnly && logisticsFee > 0 && <tr>
+                            <td colSpan={5} className="border-r border-slate-200 px-6 py-3 text-left text-[11px] font-black uppercase tracking-widest text-slate-500">Delivery Fee</td>
+                            <td className="px-6 py-3 text-right text-[13px] font-black text-slate-900">₹{logisticsFee.toFixed(2)}</td>
+                        </tr>}
+                        {recordedOnly && expressSurcharge > 0 && <tr>
+                            <td colSpan={5} className="border-r border-slate-200 px-6 py-3 text-left text-[11px] font-black uppercase tracking-widest text-slate-500">Express Surcharge</td>
+                            <td className="px-6 py-3 text-right text-[13px] font-black text-slate-900">₹{expressSurcharge.toFixed(2)}</td>
+                        </tr>}
                         {settings.showDiscount !== false && discount > 0 && (
                             <tr>
                                 <td colSpan={5} className="border-r border-slate-200 px-6 py-3 text-left text-[11px] font-black uppercase tracking-widest text-slate-500">Promotional Discount</td>
                                 <td className="px-6 py-3 text-right text-[13px] font-black text-slate-900">- ₹{discount.toFixed(2)}</td>
                             </tr>
                         )}
-                        {settings.showTaxes !== false && (
+                        {settings.showTaxes !== false && (!recordedOnly || order.priceBreakdown?.gstAmount !== undefined) && (
                             <tr>
-                                <td colSpan={5} className="border-r border-slate-200 px-6 py-3 text-left text-[11px] font-black uppercase tracking-widest text-slate-500">GST (${gstPercent}%)</td>
+                                <td colSpan={5} className="border-r border-slate-200 px-6 py-3 text-left text-[11px] font-black uppercase tracking-widest text-slate-500">GST{gstPercent !== undefined ? ` (${gstPercent}%)` : ''}</td>
                                 <td className="px-6 py-3 text-right text-[13px] font-black text-slate-900">₹{gstAmount.toFixed(2)}</td>
                             </tr>
                         )}
@@ -195,11 +210,12 @@ const InvoicePrint = ({ order, settings = {} }) => {
             {/* Footer Section */}
             <div className="mt-12 text-center space-y-4">
                 <div className="py-4 border-y border-slate-100">
-                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em]">{settings.invoiceNote || 'This is a computer generated invoice and does not require a physical signature.'}</p>
+                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em]">{settings.invoiceNote}</p>
                 </div>
                 <div className="pt-2">
+                    {settings.paymentInstructions && <p className="text-[11px] text-slate-500 whitespace-pre-line mb-3">{settings.paymentInstructions}</p>}
                     {settings.showTerms !== false && (
-                        <p className="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-widest italic">{settings.customTerms}</p>
+                        <p className="text-[10px] font-bold text-slate-400 mb-2 whitespace-pre-line uppercase tracking-widest italic">{settings.customTerms}</p>
                     )}
                     <h3 className="text-[12px] font-black tracking-[0.3em] uppercase text-slate-900">{businessName}</h3>
                 </div>

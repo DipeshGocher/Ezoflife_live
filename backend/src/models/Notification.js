@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 
 const notificationSchema = new mongoose.Schema({
+    eventKey: { type: String, unique: true, sparse: true },
     recipient: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
@@ -21,7 +22,7 @@ const notificationSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['order_placed', 'order_available', 'pickup_available', 'ready', 'assigned', 'picked_up', 'delivered', 'job_application', 'supplier_onboarding', 'b2b_chat'],
+        enum: ['order_placed', 'order_available', 'pickup_available', 'ready', 'assigned', 'picked_up', 'delivered', 'job_application', 'supplier_onboarding', 'b2b_chat', 'vendor_activated'],
         default: 'order_placed'
     },
     orderId: {

@@ -1,3 +1,5 @@
+import { matchesFilter } from '../utils/filters';
+import MultiSelectFilter from '../components/common/MultiSelectFilter';
 import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { jobApi, UPLOADS_URL } from "../../../lib/api";
@@ -345,7 +347,7 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
   const filteredJobs = useMemo(() => {
     return jobs.filter((job) => {
       const matchesStatus = !jobFilterStatus || job.status === jobFilterStatus;
-      const matchesRole = !jobFilterRole || job.title === jobFilterRole;
+      const matchesRole = matchesFilter(jobFilterRole, job.title);
       return matchesStatus && matchesRole;
     });
   }, [jobs, jobFilterStatus, jobFilterRole]);
@@ -358,11 +360,9 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
         app.jobId?._id === selectedJobIdForApps ||
         app.job === selectedJobIdForApps ||
         app.jobId === selectedJobIdForApps;
-      const matchesStatus = !appFilterStatus || app.status === appFilterStatus;
+      const matchesStatus = matchesFilter(appFilterStatus, app.status);
       const matchesRole =
-        !appFilterRole ||
-        app.job?.title === appFilterRole ||
-        app.jobId?.title === appFilterRole;
+        matchesFilter(appFilterRole, app.job?.title) || matchesFilter(appFilterRole, app.jobId?.title);
       return matchesJob && matchesStatus && matchesRole;
     });
   }, [applications, appFilterStatus, appFilterRole, selectedJobIdForApps]);
@@ -752,7 +752,7 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
             actions={
               <div className="flex items-center gap-2">
                 {/* Role Filter */}
-                <select
+                <MultiSelectFilter
                   value={jobFilterRole}
                   onChange={(e) => setJobFilterRole(e.target.value)}
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer">
@@ -762,7 +762,7 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
                       {role}
                     </option>
                   ))}
-                </select>
+                </MultiSelectFilter>
               </div>
             }
           />
@@ -794,7 +794,7 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
                   </div>
                 )}
                 {/* Job Title Filter */}
-                <select
+                <MultiSelectFilter
                   value={appFilterRole}
                   onChange={(e) => setAppFilterRole(e.target.value)}
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer">
@@ -804,10 +804,10 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
                       {role}
                     </option>
                   ))}
-                </select>
+                </MultiSelectFilter>
 
                 {/* Candidate Status Filter */}
-                <select
+                <MultiSelectFilter
                   value={appFilterStatus}
                   onChange={(e) => setAppFilterStatus(e.target.value)}
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer">
@@ -826,7 +826,7 @@ const CareerModeration = ({ creatorFilter = "Admin" }) => {
                   <option value="Pre-onboarding">Pre-onboarding</option>
                   <option value="Rejected">Rejected</option>
                   <option value="Candidate Withdrew">Candidate Withdrew</option>
-                </select>
+                </MultiSelectFilter>
               </div>
             }
           />

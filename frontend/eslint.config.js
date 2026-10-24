@@ -34,4 +34,7 @@ export default defineConfig([
       ],
     },
   },
+  { files: ['e2e/**/*.js', '*.config.js'], languageOptions: { globals: globals.node } },
+  { files: ['src/**/*.test.{js,jsx}', 'src/test/**/*.js'], languageOptions: { globals: { ...globals.node, ...globals.vitest } } },
+  { files: ['public/firebase-messaging-sw.js'], languageOptions: { globals: { ...globals.serviceworker, firebase: 'readonly' } } },
 ])

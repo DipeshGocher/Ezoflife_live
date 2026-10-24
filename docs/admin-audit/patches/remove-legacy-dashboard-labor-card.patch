@@ -1,0 +1,65 @@
+--- a/frontend/src/modules/admin/pages/Dashboard.jsx
++++ b/frontend/src/modules/admin/pages/Dashboard.jsx
+@@ -1172,7 +1172,7 @@
+         )}
+ 
+         {activeTab === "catalogs" && (
+-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
++          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in">
+             {/* Service catalog health */}
+             <div className="bg-white border border-slate-200 p-6 rounded-[2rem] shadow-sm">
+               <h3 className="text-sm font-black uppercase tracking-wider text-slate-800 mb-6">
+@@ -1255,52 +1255,8 @@
+               </div>
+             </div>
+ 
+-            {/* ATS pipeline */}
+-            <div className="bg-white border border-slate-200 p-6 rounded-[2rem] shadow-sm">
+-              <h3 className="text-sm font-black uppercase tracking-wider text-slate-800 mb-6">
+-                Labor Exchange Pipeline
+-              </h3>
+-              <div className="h-[200px] w-full">
+-                <ResponsiveContainer width="100%" height="100%">
+-                  <BarChart
+-                    data={[
+-                      {
+-                        name: "Corporate",
+-                        applicants: analytics?.atsLaborExchange.admin,
+-                      },
+-                      {
+-                        name: "Vendors",
+-                        applicants: analytics?.atsLaborExchange.vendor,
+-                      },
+-                      {
+-                        name: "Warehouse",
+-                        applicants: analytics?.atsLaborExchange.supplier,
+-                      },
+-                    ]}>
+-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+-                    <XAxis
+-                      dataKey="name"
+-                      tick={{ fill: "#64748b", fontSize: 10, fontWeight: 800 }}
+-                    />
+-                    <YAxis
+-                      tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 700 }}
+-                    />
+-                    <Tooltip />
+-                    <Bar
+-                      dataKey="applicants"
+-                      fill="#f59e0b"
+-                      radius={[4, 4, 0, 0]}
+-                    />
+-                  </BarChart>
+-                </ResponsiveContainer>
+-              </div>
+-              <div className="text-[10px] font-bold text-slate-400 uppercase text-center mt-6">
+-                ATS Job Requisitions active in last 60 days
+-              </div>
+-            </div>
+-
+             {/* Sentiment Word Cloud replacement / key terms */}
+-            <div className="bg-white border border-slate-200 p-6 rounded-[2rem] shadow-sm lg:col-span-3">
++            <div className="bg-white border border-slate-200 p-6 rounded-[2rem] shadow-sm lg:col-span-2">
+               <h3 className="text-sm font-black uppercase tracking-wider text-slate-800 mb-6">
+                 Feedback Sentiment Keyword Analysis
+               </h3>

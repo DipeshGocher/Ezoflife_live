@@ -1,3 +1,5 @@
+import { matchesFilter } from '../utils/filters';
+import MultiSelectFilter from '../components/common/MultiSelectFilter';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -173,10 +175,10 @@ const MasterServiceManagement = () => {
 
     const filteredServices = useMemo(() => {
         return services.filter(service => {
-            const matchesCatId = !filterCatId || String(service.excelCategoryId) === String(filterCatId) || String(service.categoryId?.excelCategoryId) === String(filterCatId);
-            const matchesCurrInd = !filterCurrInd || String(service.curr_ind).toLowerCase() === String(filterCurrInd).toLowerCase();
-            const matchesItemName = !filterItemName || String(service.itemName).toLowerCase() === String(filterItemName).toLowerCase();
-            const matchesSkuId = !filterSkuId || String(service.skuId).toLowerCase() === String(filterSkuId).toLowerCase();
+            const matchesCatId = !filterCatId || matchesFilter(filterCatId, String(service.excelCategoryId)) || matchesFilter(filterCatId, String(service.categoryId?.excelCategoryId));
+            const matchesCurrInd = matchesFilter(filterCurrInd, service.curr_ind);
+            const matchesItemName = matchesFilter(filterItemName, service.itemName);
+            const matchesSkuId = matchesFilter(filterSkuId, service.skuId);
             return matchesCatId && matchesCurrInd && matchesItemName && matchesSkuId;
         });
     }, [services, filterCatId, filterCurrInd, filterItemName, filterSkuId]);
@@ -410,34 +412,34 @@ const MasterServiceManagement = () => {
                     showSearch={false}
                     actions={
                         <div className="flex items-center flex-wrap gap-2 w-full">
-                            <select 
+                            <MultiSelectFilter
                                 value={filterCatId}
                                 onChange={e => setFilterCatId(e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
                             >
                                 <option value="">All Cat IDs</option>
                                 {catIdList.map(id => <option key={id} value={id}>{id}</option>)}
-                            </select>
+                            </MultiSelectFilter>
 
-                            <select 
+                            <MultiSelectFilter
                                 value={filterItemName}
                                 onChange={e => setFilterItemName(e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
                             >
                                 <option value="">All Items</option>
                                 {itemNameList.map(name => <option key={name} value={name}>{name}</option>)}
-                            </select>
+                            </MultiSelectFilter>
 
-                            <select 
+                            <MultiSelectFilter
                                 value={filterSkuId}
                                 onChange={e => setFilterSkuId(e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
                             >
                                 <option value="">All SKU IDs</option>
                                 {skuIdList.map(sku => <option key={sku} value={sku}>{sku}</option>)}
-                            </select>
+                            </MultiSelectFilter>
 
-                            <select 
+                            <MultiSelectFilter
                                 value={filterCurrInd}
                                 onChange={e => setFilterCurrInd(e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -445,7 +447,7 @@ const MasterServiceManagement = () => {
                                 <option value="">All Status</option>
                                 <option value="y">Y</option>
                                 <option value="n">N</option>
-                            </select>
+                            </MultiSelectFilter>
 
                             <button 
                                 onClick={handleDownload}

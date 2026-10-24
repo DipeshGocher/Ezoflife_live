@@ -15,6 +15,7 @@ const payoutSchema = new mongoose.Schema({
     },
     amount: {
         type: Number,
+        min: 0.01,
         required: true
     },
     transactionId: {

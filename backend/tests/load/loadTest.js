@@ -120,7 +120,7 @@ const scenarios = {
         const { latencies, errors } = await drive(
             async () => {
                 const res = await api(baseUrl, '/api/orders', {
-                    method: 'POST', body: orderPayload(ctx.customerId)
+                    method: 'POST', body: orderPayload(ctx.customerId), token: ctx.customerToken
                 });
                 return res.status === 201;
             },
@@ -147,7 +147,7 @@ const scenarios = {
             const { latencies, errors } = await drive(
                 async () => {
                     const res = await api(baseUrl, '/api/orders', {
-                        method: 'POST', body: orderPayload(ctx.customerId)
+                        method: 'POST', body: orderPayload(ctx.customerId), token: ctx.customerToken
                     });
                     return res.status === 201;
                 },
@@ -201,7 +201,8 @@ const scenarios = {
 
         const timeRead = async () => {
             const t0 = performance.now();
-            await api(baseUrl, `/api/orders/my?customerId=${ctx.customerId}`);
+            const response = await api(baseUrl, `/api/orders/my?customerId=${ctx.customerId}`, { token: ctx.customerToken });
+            if (response.status !== 200 || !Array.isArray(response.body)) throw new Error(`Volume verification read failed: HTTP ${response.status}`);
             return performance.now() - t0;
         };
 
@@ -210,16 +211,20 @@ const scenarios = {
 
         const started = Date.now();
         let inserted = 0, failed = 0;
+        const writeLatencies = [];
         const BATCH = 25;
 
         for (let i = 0; i < ORDER_COUNT; i += BATCH) {
             const size = Math.min(BATCH, ORDER_COUNT - i);
             const results = await Promise.all(
-                Array.from({ length: size }, () =>
-                    api(baseUrl, '/api/orders', { method: 'POST', body: orderPayload(ctx.customerId) })
-                        .then(r => r.status === 201)
-                        .catch(() => false)
-                )
+                Array.from({ length: size }, async () => {
+                    const start = performance.now();
+                    try {
+                        const response = await api(baseUrl, '/api/orders', { method: 'POST', body: orderPayload(ctx.customerId), token: ctx.customerToken });
+                        if (response.status === 201) { writeLatencies.push(performance.now() - start); return true; }
+                        return false;
+                    } catch { return false; }
+                })
             );
             inserted += results.filter(Boolean).length;
             failed += results.filter(r => !r).length;
@@ -239,7 +244,7 @@ const scenarios = {
             console.log('   ⚠️  reads degrade sharply with volume — check indexes on Order.customer');
         }
 
-        return report('VOLUME  bulk insert', [], failed, elapsed, {
+        return report('VOLUME  bulk insert', writeLatencies, failed, elapsed, {
             inserted,
             'insert rate': `${(inserted / (elapsed / 1000)).toFixed(1)} orders/s`,
             'read baseline': `${baseline.toFixed(0)}ms`,
@@ -264,7 +269,8 @@ const main = async () => {
 
     try {
         const user = await createUser(api, baseUrl, `9${Date.now() % 1000000000}`, 'Customer');
-        const ctx = { customerId: user.id };
+        const ctx = { customerId: user.id, customerToken: user.token };
+        if (!ctx.customerToken) throw new Error('could not authenticate the load-test customer');
         if (!ctx.customerId) throw new Error('could not create a load-test customer');
 
         const chosen = SCENARIO === 'all' ? ['load', 'write', 'volume'] : [SCENARIO];

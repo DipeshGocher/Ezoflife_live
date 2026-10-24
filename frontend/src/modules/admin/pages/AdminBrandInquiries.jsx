@@ -1,3 +1,4 @@
+import MultiSelectFilter from '../components/common/MultiSelectFilter';
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { mediaApi } from '../../../lib/api';
@@ -20,16 +21,20 @@ const AdminBrandInquiries = () => {
     const [filters, setFilters] = useState({ brandName: '', email: '', phone: '', budget: '' });
     const [filterOptions, setFilterOptions] = useState({ brands: [], emails: [], phones: [], budgets: [] });
 
+    const latestFilterRequest = React.useRef(0);
     const fetchInquiries = async (currentFilters = filters) => {
+        const requestId = ++latestFilterRequest.current;
         try {
             setLoading(true);
             const data = await mediaApi.getAllInquiries(currentFilters);
+            if (requestId !== latestFilterRequest.current) return;
             setInquiries(Array.isArray(data) ? data : []);
         } catch (error) {
+            if (requestId !== latestFilterRequest.current) return;
             toast.error('Failed to fetch inquiries');
             setInquiries([]);
         } finally {
-            setLoading(false);
+            if (requestId === latestFilterRequest.current) setLoading(false);
         }
     };
 
@@ -260,7 +265,7 @@ const AdminBrandInquiries = () => {
                     showSearch={false}
                     actions={
                         <div className="flex items-center flex-wrap gap-2">
-                            <select
+                            <MultiSelectFilter
                                 value={filters.brandName}
                                 onChange={(e) => handleFilterChange('brandName', e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -269,8 +274,8 @@ const AdminBrandInquiries = () => {
                                 {filterOptions.brands.map(brand => (
                                     <option key={brand} value={brand}>{brand}</option>
                                 ))}
-                            </select>
-                            <select
+                            </MultiSelectFilter>
+                            <MultiSelectFilter
                                 value={filters.email}
                                 onChange={(e) => handleFilterChange('email', e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -279,8 +284,8 @@ const AdminBrandInquiries = () => {
                                 {filterOptions.emails.map(email => (
                                     <option key={email} value={email}>{email}</option>
                                 ))}
-                            </select>
-                            <select
+                            </MultiSelectFilter>
+                            <MultiSelectFilter
                                 value={filters.phone}
                                 onChange={(e) => handleFilterChange('phone', e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -289,8 +294,8 @@ const AdminBrandInquiries = () => {
                                 {filterOptions.phones.map(phone => (
                                     <option key={phone} value={phone}>{phone}</option>
                                 ))}
-                            </select>
-                            <select
+                            </MultiSelectFilter>
+                            <MultiSelectFilter
                                 value={filters.budget}
                                 onChange={(e) => handleFilterChange('budget', e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-32 uppercase tracking-wider cursor-pointer"
@@ -299,7 +304,7 @@ const AdminBrandInquiries = () => {
                                 {filterOptions.budgets.map(budget => (
                                     <option key={budget} value={budget}>₹{budget.toLocaleString()}</option>
                                 ))}
-                            </select>
+                            </MultiSelectFilter>
                             {(filters.brandName || filters.email || filters.phone || filters.budget) && (
                                 <button 
                                     onClick={handleResetFilters}

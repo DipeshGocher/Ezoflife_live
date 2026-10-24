@@ -1,57 +1,49 @@
+import { DEFAULT_INVOICE_SETTINGS, normalizeInvoiceSettings } from '../../../lib/invoiceSettings';
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { adminApi } from '../../../lib/api';
 import { toast } from 'react-hot-toast';
 import InvoicePrint from '../components/InvoicePrint';
 import B2BInvoicePrint from '../../vendor/components/B2BInvoicePrint';
 
 const AdminInvoiceSettings = () => {
-    const [settings, setSettings] = useState({
-        showLogo: true,
-        showVendorDetails: true,
-        showTerms: true,
-        customTerms: 'Thank you for taking our services..',
-        invoiceNote: 'This is a computer generated invoice.',
-        showTaxes: false,
-        showServiceFee: true,
-        showDeliveryFee: true,
-        showSurge: true,
-        showDiscount: true,
-        showAdvance: true,
-        accentColor: '#000000',
-        businessName: 'SPINZYT',
-        contactEmail: 'support@spinzyt.com',
-        gstNumber: 'ZA1223324435435'
-    });
+    const [settings, setSettings] = useState({ ...DEFAULT_INVOICE_SETTINGS });
+    const [loadError, setLoadError] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [activeTab, setActiveTab] = useState('Customer'); // 'Customer' or 'B2B'
 
-    useEffect(() => {
-        fetchSettings();
-    }, []);
-
     const fetchSettings = async () => {
+        setLoading(true);
+        setLoadError('');
         try {
             const configs = await adminApi.getConfig();
+            if (!Array.isArray(configs)) throw new Error('Invalid configuration response');
             const invoiceConfig = configs.find(c => c.key === 'invoice_settings');
             if (invoiceConfig) {
-                setSettings(invoiceConfig.value);
+                setSettings(normalizeInvoiceSettings(invoiceConfig.value));
             }
         } catch (err) {
             console.error('Failed to fetch invoice settings:', err);
+            setLoadError('Invoice settings could not be loaded. Please retry before making changes.');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleSave = async () => {
+    useEffect(() => {
+        fetchSettings();
+    }, []);
+
+    const handleSave = async (event) => {
+        event.preventDefault();
         try {
             setSaving(true);
-            await adminApi.updateConfig('invoice_settings', settings);
+            const validated = normalizeInvoiceSettings(settings, { validate: true });
+            const saved = await adminApi.updateConfig('invoice_settings', validated);
+            setSettings(normalizeInvoiceSettings(saved.value));
             toast.success('Invoice settings updated successfully');
         } catch (err) {
-            toast.error('Failed to update settings');
+            toast.error(err.message || 'Failed to update settings');
         } finally {
             setSaving(false);
         }
@@ -106,7 +98,7 @@ const AdminInvoiceSettings = () => {
             <header className="mb-10 flex flex-col lg:flex-row lg:justify-between lg:items-end gap-6">
                 <div className="text-center lg:text-left">
                     <h1 className="text-3xl lg:text-4xl font-black tracking-tighter text-slate-900 uppercase leading-none">Invoice Customization</h1>
-                    <p className="text-slate-500 font-medium mt-3 text-sm lg:text-base">Configure how your invoices look across the platform.</p>
+                    <p className="text-slate-500 font-medium mt-3 text-sm lg:text-base">Edit the business, contact and footer details used on your invoices.</p>
                 </div>
                 
                 {/* Tab Switcher */}
@@ -124,86 +116,59 @@ const AdminInvoiceSettings = () => {
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                {/* Configuration Panel */}
-                <div className="space-y-8">
-                    <section className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
-                        <h2 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
-                            <span className="material-symbols-outlined text-sm">settings</span>
-                            General Branding
-                        </h2>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Business Name</label>
-                                <input 
-                                    type="text" 
-                                    value={settings.businessName}
-                                    onChange={(e) => handleChange('businessName', e.target.value)}
-                                    className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-slate-900/10 transition-all"
-                                />
+                <form onSubmit={handleSave} className="space-y-6">
+                    {loadError && <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">
+                        <p>{loadError}</p>
+                        <button type="button" onClick={fetchSettings} className="mt-3 font-bold underline">Retry loading</button>
+                    </div>}
+                    <fieldset disabled={saving || !!loadError} className="space-y-6 disabled:opacity-50">
+                        {[
+                            { title: 'Business and contact details', fields: [
+                                ['businessName', 'Business name', 'text', 120, true],
+                                ['contactEmail', 'Contact email', 'email', 254],
+                                ['contactPhone', 'Contact phone', 'tel', 40],
+                                ['website', 'Website', 'text', 200],
+                                ['gstNumber', 'Business GST number', 'text', 15],
+                                ['businessAddress', 'Registered business address', 'textarea', 500],
+                                ['logo', 'Logo image URL', 'url', 2000]
+                            ] },
+                            { title: 'Invoice details', fields: [
+                                ['invoiceTitle', 'Invoice title', 'text', 60, true],
+                                ['paymentInstructions', 'Payment instructions', 'textarea', 1000],
+                                ['customTerms', 'Terms and conditions', 'textarea', 2000],
+                                ['invoiceNote', 'Footer note', 'textarea', 500]
+                            ] }
+                        ].map(section => <section key={section.title} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-5">
+                            <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">{section.title}</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                {section.fields.map(([field, label, type, maxLength, required]) => <div key={field} className={`space-y-2 ${type === 'textarea' || field === 'logo' ? 'md:col-span-2' : ''}`}>
+                                    <label htmlFor={`invoice-${field}`} className="text-[10px] font-black uppercase tracking-widest text-slate-500">{label}</label>
+                                    {type === 'textarea' ? <textarea id={`invoice-${field}`} rows={3} maxLength={maxLength} value={settings[field]}
+                                        onChange={event => handleChange(field, event.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-slate-900/10" /> :
+                                        <input id={`invoice-${field}`} type={type} required={required} maxLength={maxLength} value={settings[field]}
+                                            onChange={event => handleChange(field, event.target.value)}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-slate-900/10" />}
+                                </div>)}
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Contact Email</label>
-                                <input 
-                                    type="email" 
-                                    value={settings.contactEmail}
-                                    onChange={(e) => handleChange('contactEmail', e.target.value)}
-                                    className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-slate-900/10 transition-all"
-                                />
+                        </section>)}
+                        <section className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
+                            <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">Display options</h2>
+                            <div className="grid grid-cols-2 gap-4">
+                                {[
+                                    ['showLogo', 'Show logo'], ['showTerms', 'Show terms'],
+                                    ...(activeTab === 'Customer' ? [['showVendorDetails', 'Show vendor details'], ['showServiceFee', 'Show platform fee'], ['showTaxes', 'Show tax breakdown'], ['showDiscount', 'Show discount']] : [])
+                                ].map(([field, label]) => <label key={field} className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
+                                    <input type="checkbox" checked={settings[field]} onChange={event => handleChange(field, event.target.checked)} className="accent-slate-900" />{label}
+                                </label>)}
                             </div>
-                            <div className="space-y-2 col-span-full">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Global GST Number</label>
-                                <input 
-                                    type="text" 
-                                    value={settings.gstNumber}
-                                    onChange={(e) => handleChange('gstNumber', e.target.value)}
-                                    className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-slate-900/10 transition-all"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex flex-wrap gap-4 pt-4 border-t border-slate-50">
-                            <button 
-                                onClick={() => handleChange('showLogo', !settings.showLogo)}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${settings.showLogo ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}
-                            >
-                                <span className="material-symbols-outlined text-sm">{settings.showLogo ? 'check_circle' : 'circle'}</span>
-                                Show Logo
-                            </button>
-                            {activeTab === 'Customer' && (
-                                <>
-                                    <button 
-                                        onClick={() => handleChange('showVendorDetails', !settings.showVendorDetails)}
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${settings.showVendorDetails ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}
-                                    >
-                                        <span className="material-symbols-outlined text-sm">{settings.showVendorDetails ? 'check_circle' : 'circle'}</span>
-                                        Show Vendor
-                                    </button>
-                                    <button 
-                                        onClick={() => handleChange('showServiceFee', !settings.showServiceFee)}
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${settings.showServiceFee ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}
-                                    >
-                                        <span className="material-symbols-outlined text-sm">{settings.showServiceFee ? 'check_circle' : 'circle'}</span>
-                                        Service Fee
-                                    </button>
-                                </>
-                            )}
-                        </div>
-                    </section>
-
-                    <button 
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="w-full py-5 bg-slate-900 text-white rounded-[2rem] font-black uppercase tracking-[0.2em] shadow-2xl shadow-slate-900/40 flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
-                    >
-                        {saving ? (
-                            <span className="animate-spin material-symbols-outlined">refresh</span>
-                        ) : (
-                            <span className="material-symbols-outlined">save</span>
-                        )}
-                        {saving ? 'Syncing...' : 'Save Configuration'}
-                    </button>
-                </div>
+                            <p className="text-xs text-slate-500 leading-relaxed">Details are shared by customer and B2B invoices. Order items, recipients, amounts and invoice numbers come from the order.</p>
+                        </section>
+                        <button type="submit" disabled={saving || !!loadError} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg disabled:opacity-50">
+                            {saving ? 'Saving...' : 'Save invoice details'}
+                        </button>
+                    </fieldset>
+                </form>
 
                 {/* Preview Panel */}
                 <div className="sticky top-8 h-[calc(100vh-100px)] flex flex-col">

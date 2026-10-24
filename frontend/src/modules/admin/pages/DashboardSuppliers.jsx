@@ -1,0 +1,22 @@
+import { Link } from 'react-router-dom';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import styles from './Dashboard.module.css';
+const money = value => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2 }).format(value);
+export default function DashboardSuppliers({ data, periodLabel, onShowAll }) {
+    const hasOther = data?.available && [data.other.bookedOrders, data.other.activeOrders, data.other.completedOrders, data.other.cancelledOrders].some(value => value > 0);
+    return <section className={`${styles.panel} ${styles.supplierPanel}`} aria-label="Supplier overview">
+        <div className={styles.panelHeader}><div><h2>Supplier overview</h2><p>Supplier accounts and supply-order activity</p></div><Link to="/admin/users?role=Supplier" className={styles.supplierLink}>View suppliers →</Link></div>
+        {!data ? <p className={styles.emptyQueue}>Supplier figures are unavailable. Please refresh.</p> : !data.available ? <div className={styles.supplierNotice}><p>Supplier analytics are hidden while the customer-order channel is selected.</p><button type="button" className={styles.button} onClick={onShowAll}>Show supplier analytics</button></div> : <>
+            <div className={styles.supplierMetrics}>{[['Suppliers', data.totalSuppliers, `${data.activeSuppliers} approved and active accounts`], ['Active supply orders', data.activeOrders, 'Current workload · all booking dates'], ['Booked supply orders', data.bookedOrders, periodLabel], ['Supply-order value', money(data.bookedValue), `${periodLabel} · booked value`]].map(([label, value, hint]) => <div key={label}><h3>{label}</h3><strong>{value}</strong><p>{hint}</p></div>)}</div>
+            <div className={styles.supplierBody}>
+                <div className={styles.supplierTypes}><h3>Supplier types</h3>{data.types.length ? <div className={styles.supplierChart} role="img" aria-label={data.types.map(type => `${type.name}: ${type.count}`).join(', ')}><ResponsiveContainer width="100%" height="100%"><BarChart layout="vertical" data={data.types} margin={{ top: 6, right: 20, bottom: 0, left: 0 }} barSize={16}><CartesianGrid horizontal={false} stroke="#edf0f5" strokeDasharray="3 4" /><XAxis type="number" allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: '#94a0b2', fontSize: 10 }} /><YAxis type="category" dataKey="name" width={140} axisLine={false} tickLine={false} tick={{ fill: '#7c899e', fontSize: 10 }} /><Tooltip cursor={{ fill: '#f6f8fb' }} contentStyle={{ borderRadius: 7, border: '1px solid #e4e9f1', fontSize: 11 }} /><Bar dataKey="count" name="Suppliers" fill="#72b5a7" radius={[0, 3, 3, 0]} isAnimationActive={false} /></BarChart></ResponsiveContainer></div> : <p className={styles.emptyChart}>No supplier accounts match the selected locations.</p>}<p className={styles.chartFoot}>Saved entity types · current accounts</p></div>
+                <div className={styles.supplierTable}><h3>Supplier order summary</h3><div style={{ overflowX: 'auto' }}><table className={styles.queueTable}><thead><tr><th>Supplier</th><th>Booked orders</th><th>Active now</th><th>Completed</th><th>Booked value</th></tr></thead><tbody>
+                    {data.rows.map(row => <tr key={row.id}><td><strong>{row.name}</strong><small>{row.type}</small></td><td>{row.bookedOrders}</td><td>{row.activeOrders}</td><td>{row.completedOrders}</td><td>{money(row.bookedValue)}</td></tr>)}
+                    {hasOther && <tr><td><strong>Other or archived suppliers</strong><small>Account details unavailable in this scope</small></td><td>{data.other.bookedOrders}</td><td>{data.other.activeOrders}</td><td>{data.other.completedOrders}</td><td>{money(data.other.bookedValue)}</td></tr>}
+                    {!data.rows.length && !hasOther && <tr><td colSpan={5}>No supplier activity to display.</td></tr>}
+                </tbody></table></div><p className={styles.chartFoot}>Order values and completed counts use {periodLabel.toLowerCase()}; active counts include all dates.{data.rowCount > data.rows.length && <> Showing {data.rows.length} of {data.rowCount} supplier accounts.</>}</p></div>
+            </div>
+            <div className={styles.financeFoot}><span>{data.completedOrders} completed · {data.cancelledOrders} cancelled or rejected supply orders in the selected period</span><span>Drafts excluded from booked value. This is order value, not supplier payouts.</span></div>
+        </>}
+    </section>;
+}

@@ -1,3 +1,4 @@
+import { normalizeInvoiceSettings, escapeInvoiceText } from '../../../lib/invoiceSettings';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -175,22 +176,9 @@ const OrdersHistoryPage = () => {
     const printWindow = window.open('', '_blank');
     const orderDate = new Date(order.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
     
-    const cfg = invoiceSettings || {
-      showLogo: true,
-      showVendorDetails: true,
-      showTerms: true,
-      customTerms: 'Thank you for taking our services..',
-      invoiceNote: 'This is a computer generated invoice.',
-      showTaxes: true,
-      showServiceFee: true,
-      showDeliveryFee: false,
-      showSurge: false,
-      showDiscount: true,
-      accentColor: '#000000',
-      businessName: 'SPINZYT',
-      contactEmail: 'support@spinzyt.com',
-      gstNumber: 'ZA1223324435435'
-    };
+    if (!printWindow) { toast.error('Allow popups to print the invoice.'); return; }
+    const cfg = normalizeInvoiceSettings(invoiceSettings);
+    const text = escapeInvoiceText;
 
     const itemsTotal = (order.items || []).reduce((sum, item) => {
       const qty = parseFloat(item.quantity || item.qty || 1);
@@ -249,7 +237,7 @@ const OrdersHistoryPage = () => {
         gstNotice = "B2C Invoice";
     } else {
         // Includes URD-URD and fallback
-        displayGstNo = cfg.gstNumber || 'ZA1223324435435';
+        displayGstNo = cfg.gstNumber;
         displayGstLabel = "Spinzyt GSTIN";
         gstNotice = "Marketplace / Platform Invoice";
     }
@@ -285,7 +273,7 @@ const OrdersHistoryPage = () => {
             .business-title { font-size: 32px; font-weight: 900; letter-spacing: -1px; margin-bottom: 15px; line-height: 1; }
             .business-details { font-size: 13px; font-weight: 700; color: #475569; line-height: 1.4; }
             
-            .header-right { text-align: right; position: relative; z-index: 10; display: ${cfg.showLogo ? 'flex' : 'none'}; flex-direction: column; align-items: center; }
+            .header-right { text-align: right; position: relative; z-index: 10; display: ${cfg.showLogo && cfg.logo ? 'flex' : 'none'}; flex-direction: column; align-items: center; }
             .logo-circle { width: 80px; height: 80px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); margin-bottom: 12px; }
             .logo-circle img { width: 48px; height: 48px; object-fit: contain; padding-top: 16px; }
             .brand-name { font-size: 24px; font-weight: 900; letter-spacing: 0.2em; line-height: 1; }
@@ -354,18 +342,21 @@ const OrdersHistoryPage = () => {
           <div class="page">
             <div class="header-container">
               <div class="header-left">
-                <div class="business-title">${cfg.businessName}</div>
+                <div class="business-title">${text(cfg.businessName)}</div>
+                <div class="info-label">${text(cfg.invoiceTitle)}</div>
                 <div class="business-details">
-                  <div>www.spinzyt.com</div>
-                  <div>${cfg.contactEmail}</div>
-                  ${displayGstNo ? `<div>${displayGstLabel} # ${displayGstNo}</div>` : ''}
+                  <div>${text(cfg.website)}</div>
+                  ${cfg.contactPhone ? `<div>${text(cfg.contactPhone)}</div>` : ''}
+                  ${cfg.businessAddress ? `<div style="white-space:pre-line;max-width:420px">${text(cfg.businessAddress)}</div>` : ''}
+                  <div>${text(cfg.contactEmail)}</div>
+                  ${displayGstNo ? `<div>${text(displayGstLabel)} # ${text(displayGstNo)}</div>` : ''}
                 </div>
               </div>
               <div class="header-right">
                 <div class="logo-circle">
-                  <img src="https://spinzyt.com/wp-content/uploads/2023/12/spinzyt-logo-new.png" />
+                  <img src="${text(cfg.logo)}" />
                 </div>
-                <div class="brand-name">SPINZYT</div>
+                <div class="brand-name">${text(cfg.businessName)}</div>
               </div>
             </div>
 
@@ -423,10 +414,10 @@ const OrdersHistoryPage = () => {
                       <td>- ₹${discount.toFixed(2)}</td>
                     </tr>
                   ` : ''}
-                  <tr class="totals-row">
+                  ${cfg.showTaxes ? `<tr class="totals-row">
                     <td colspan="5">GST (${gstPercent}%)</td>
                     <td>₹${gstAmount.toFixed(2)}</td>
-                  </tr>
+                  </tr>` : ''}
                   <tr class="totals-row grand-total-row">
                     <td colspan="5">Grand Total</td>
                     <td class="grand-total-value">₹${grandTotal.toFixed(2)}</td>
@@ -437,11 +428,12 @@ const OrdersHistoryPage = () => {
 
             <div class="footer">
               <div class="footer-line">
-                <div class="footer-note">${cfg.invoiceNote}</div>
+                <div class="footer-note">${text(cfg.invoiceNote)}</div>
               </div>
               <div>
-                <div class="footer-terms">${cfg.customTerms}</div>
-                <div class="footer-brand">${cfg.businessName}</div>
+                ${cfg.paymentInstructions ? `<div style="white-space:pre-line;font-size:11px;margin-bottom:12px">${text(cfg.paymentInstructions)}</div>` : ''}
+                <div class="footer-terms" style="white-space:pre-line">${text(cfg.customTerms)}</div>
+                <div class="footer-brand">${text(cfg.businessName)}</div>
               </div>
             </div>
           </div>

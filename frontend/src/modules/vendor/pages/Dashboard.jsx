@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import VendorHeader from '../components/VendorHeader';
 import { orderApi, authApi, vendorPaymentApi } from '../../../lib/api';
 import useNotificationStore from '../../../shared/stores/notificationStore';
-import socket from '../../../lib/socket';
+import socket, { subscribeSocketRooms } from '../../../lib/socket';
 import { requestForToken } from '../../../lib/firebase';
 
 const IncomingTimer = ({ duration, onExpire }) => {
@@ -334,33 +334,33 @@ const Dashboard = () => {
         setupNotifications();
 
         fetchAllData();
-        // Socket will connect automatically
+        // Subscribe after login and restore rooms on reconnect.
 
-        socket.on('connect', () => {
-            console.log('🔌 [SOCKET] Connected to server');
-            socket.emit('join_room', 'vendors_pool');
-            socket.emit('join_room', `user_${vendorId}`);
-        });
+        const unsubscribeRooms = subscribeSocketRooms(socket, ['vendors_pool', `user_${vendorId}`]);
 
-        socket.on('pool_update', (data) => {
+        const handlePoolUpdate = (data) => {
             console.log('📦 [SOCKET] Pool update received:', data);
             if (data.action === 'removed') {
                 setPoolOrders(prev => prev.filter(o => o._id !== data.orderId));
             } else {
                 fetchPoolOrders();
             }
-        });
+        };
 
-        socket.on('new_order_available', (data) => {
+        const handleOrderAvailable = (data) => {
             console.log('🔔 [SOCKET] New order received real-time:', data);
-            fetchPoolOrders(); 
-        });
+            fetchPoolOrders();
+        };
+        socket.on('pool_update', handlePoolUpdate);
+        socket.on('new_order_available', handleOrderAvailable);
 
         const interval = setInterval(fetchAllData, 1800000); // Polling as fallback (30 minutes)
         
         return () => {
             clearInterval(interval);
-            socket.off('pool_update');
+            unsubscribeRooms();
+            socket.off('pool_update', handlePoolUpdate);
+            socket.off('new_order_available', handleOrderAvailable);
             // socket handled by singleton
         };
     }, [vendorId]);

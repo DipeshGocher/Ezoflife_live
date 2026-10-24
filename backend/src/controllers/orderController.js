@@ -1,3 +1,4 @@
+import { matchesFilter } from '../utils/queryFilters.js';
 import mongoose from 'mongoose';
 import Order from '../models/Order.js';
 import User from '../models/User.js';
@@ -5,7 +6,7 @@ import axios from 'axios';
 import Notification from '../models/Notification.js';
 import { calculateTriggerTime } from '../utils/timeUtils.js';
 import fs from 'fs';
-import { getIO } from '../socket.js';
+import { getEventPublisher } from '../socket.js';
 import { sendWalkInWhatsApp } from '../utils/whatsappHelper.js';
 import { sendSMSMessage, sendWhatsAppMessage } from '../utils/communicationHelper.js';
 import { dispatchReturn } from '../services/logistics/dispatch.js';
@@ -96,7 +97,7 @@ export const getNearbyVendors = async (customerLat, customerLng, radiusKm = 4, s
             logToFile(`⚠️ Customer coordinates outside active ServiceAreas. Falling back to ${radiusKm}km radius.`);
         }
 
-        const query = { role: 'Vendor', status: 'approved' };
+        const query = { role: 'Vendor', status: 'approved', isBlocked: { $ne: true } };
         if (isCustomerRD) {
             query.$or = [
                 { 'shopDetails.gst': { $ne: '', $exists: true } },
@@ -592,6 +593,7 @@ export const createOrder = async (req, res) => {
             walletAmountDeducted: Math.round(walletDeduction),
             specialInstructions: specialInstructions || '',
             customerPhotos: customerPhotos || [],
+            pricingPolicySnapshot: { version: 'current-flow-v1', capturedAt: new Date(), multipliers: { ...multipliers }, minPlatformFee: activeMinPlatformFee, maxPlatformFee: activeMaxPlatformFee, sourceConfig: [expressMult, platformMult, gstPerc, advanceConfig].filter(Boolean).map(config => ({ key: config.key, value: config.value, updatedAt: config.updatedAt })), itemRates: items.map(item => ({ serviceId: item.serviceId, quantity: item.quantity, price: item.price })), breakdown: { ...finalPriceBreakdown } },
             priceBreakdown: finalPriceBreakdown,
             status: 'ORDER_PLACED',
             pickupExpectedDate: pickupExpectedDate,
@@ -615,7 +617,7 @@ export const createOrder = async (req, res) => {
             console.warn('⚠️ [CART] Error clearing draftCart:', cartErr);
         }
 
-        const io = getIO();
+        const io = getEventPublisher();
         const nearbyVendors = await getNearbyVendors(pickupLocation.lat, pickupLocation.lng, 3, serviceIds, isCustomerRD);
         
         // Filter nearby vendors if priority allocation is active
@@ -927,7 +929,7 @@ export const updateOrderStatus = async (req, res) => {
         }
             
         // Socket.io: Notify rooms
-        const io = getIO();
+        const io = getEventPublisher();
         io.to(`order_${id}`).emit('order_status_update', updatedOrder);
         
         // Also notify vendor specifically for live reports
@@ -1049,21 +1051,6 @@ export const getAllOrders = async (req, res) => {
             };
         });
 
-        // Compute unique customer names and service zones from all orders before filtering
-        const uniqueCustomerNamesSet = new Set();
-        const uniqueServiceZonesSet = new Set();
-        
-        ordersWithZone.forEach(o => {
-            const custName = (o.customer?.displayName || '').trim();
-            if (custName) uniqueCustomerNamesSet.add(custName);
-            
-            const zoneName = (o.serviceZone || '').trim();
-            if (zoneName && zoneName !== 'N/A') uniqueServiceZonesSet.add(zoneName);
-        });
-
-        const uniqueCustomerNames = Array.from(uniqueCustomerNamesSet).sort();
-        const uniqueServiceZones = Array.from(uniqueServiceZonesSet).sort();
-
         // Apply filtering
         let filtered = ordersWithZone;
 
@@ -1080,6 +1067,22 @@ export const getAllOrders = async (req, res) => {
             filtered = filtered.filter(o => adminGeofences.includes(o.serviceZone));
         }
 
+        // Compute unique customer names and service zones after permission filtering
+        const uniqueCustomerNamesSet = new Set();
+        const uniqueServiceZonesSet = new Set();
+
+        filtered.forEach(o => {
+            const custName = (o.customer?.displayName || '').trim();
+            if (custName) uniqueCustomerNamesSet.add(custName);
+
+            const zoneName = (o.serviceZone || '').trim();
+            if (zoneName && zoneName !== 'N/A') uniqueServiceZonesSet.add(zoneName);
+        });
+
+        const uniqueCustomerNames = Array.from(uniqueCustomerNamesSet).sort();
+        const uniqueServiceZones = Array.from(uniqueServiceZonesSet).sort();
+
+
         const { activeTab } = req.query;
         if (activeTab === 'Active') {
             filtered = filtered.filter(o => !['DELIVERED', 'CANCELLED'].includes((o.status || '').toUpperCase()));
@@ -1088,15 +1091,15 @@ export const getAllOrders = async (req, res) => {
         }
 
         if (status) {
-            filtered = filtered.filter(o => (o.status || '').toUpperCase() === status.toUpperCase());
+            filtered = filtered.filter(o => matchesFilter(status, o.status));
         }
 
         if (zone) {
-            filtered = filtered.filter(o => (o.serviceZone || '').trim().toLowerCase() === zone.trim().toLowerCase());
+            filtered = filtered.filter(o => matchesFilter(zone, o.serviceZone));
         }
 
         if (customer) {
-            filtered = filtered.filter(o => (o.customer?.displayName || '').trim().toLowerCase() === customer.trim().toLowerCase());
+            filtered = filtered.filter(o => matchesFilter(customer, o.customer?.displayName));
         }
 
         if (startDate) {
@@ -1415,7 +1418,7 @@ export const vendorAcceptOrder = async (req, res) => {
 
 
         // Socket.io updates
-        const io = getIO();
+        const io = getEventPublisher();
         
         // Notify all vendors that order is taken
         io.emit('pool_update', { orderId: id, action: 'removed' }); 
@@ -1597,7 +1600,7 @@ export const markOrderReady = async (req, res) => {
             .populate('vendor', 'shopDetails address location')
             .populate('rider', 'displayName phone location');
 
-        const io = getIO();
+        const io = getEventPublisher();
         io.to(`order_${id}`).emit('order_status_update', populatedOrder);
         
         // Notify customer
@@ -1670,7 +1673,7 @@ export const verifyHandshake = async (req, res) => {
             order.status = 'DELIVERED';
             
             // Emit completion update (not payment trigger)
-            const io = getIO();
+            const io = getEventPublisher();
             if (io) {
                 const customerId = order.customer._id || order.customer;
                 const targetRoom = `user_${customerId.toString()}`;
@@ -1696,7 +1699,7 @@ export const verifyHandshake = async (req, res) => {
             .populate('vendor', 'shopDetails address location')
             .populate('rider', 'displayName phone location');
 
-        const io = getIO();
+        const io = getEventPublisher();
         io.to(`order_${id}`).emit('order_status_update', populatedOrder);
         io.to(`user_${order.customer.toString()}`).emit('order_status_update', populatedOrder);
 
@@ -1897,7 +1900,7 @@ export const createWalkInOrder = async (req, res) => {
         await sendWhatsAppMessage(customerPhone, welcomeMsg);
         
         // Notify the generated customer shadow account (optional)
-        const io = getIO();
+        const io = getEventPublisher();
         io.to(`user_${customer._id}`).emit('new_order_available', {
             orderId: newOrder._id,
             displayId: newOrder.orderId
@@ -1997,7 +2000,7 @@ export const cancelOrder = async (req, res) => {
             .populate('rider', 'displayName phone location');
 
         // 6. Broadcast updates via Socket.io
-        const io = getIO();
+        const io = getEventPublisher();
         io.to(`order_${id}`).emit('order_status_update', updatedOrder);
         if (updatedOrder.vendor) {
             const vendorId = updatedOrder.vendor._id || updatedOrder.vendor;

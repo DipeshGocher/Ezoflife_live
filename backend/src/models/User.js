@@ -20,6 +20,7 @@ const userSchema = new mongoose.Schema({
             return this.role === 'Vendor' ? 'pending' : 'approved';
         }
     },
+    isBlocked: { type: Boolean, default: false },
     rejectionReason: {
         type: String,
         default: ''

@@ -1,0 +1,1024 @@
+{
+  "audit_date": "2026-10-23",
+  "base_commit": "faf107f",
+  "scope": "47 decomposed admin requirements from BRD admin section plus pricing governance; counts measure code support, not production acceptance",
+  "counts": {
+    "Implemented": 13,
+    "Partial": 19,
+    "Missing": 15
+  },
+  "requirements": [
+    {
+      "id": "AUTH01",
+      "section": "Access",
+      "brd_source": "P0153",
+      "requirement": "Authorized personnel can access a web admin portal",
+      "status": "Implemented",
+      "finding": "AdminGuard and server JWT role checks exist. Separate authorization defects are recorded as release risks rather than ignored.",
+      "work_package": "WP01",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/routes/AdminRoutes.jsx",
+          "line": 66,
+          "anchor": "const AdminGuard"
+        },
+        {
+          "path": "backend/server.js",
+          "line": 139,
+          "anchor": "app.use('/api/admin', verifyAdmin"
+        }
+      ]
+    },
+    {
+      "id": "D01",
+      "section": "Dashboard",
+      "brd_source": "P0157",
+      "requirement": "Total active orders",
+      "status": "Partial",
+      "finding": "Lifecycle counts exist, but totalSubmitted includes finished orders; no single canonical active-order metric shared across screens.",
+      "work_package": "WP03",
+      "evidence": [
+        {
+          "path": "backend/src/controllers/dashboardAnalyticsController.js",
+          "line": 470,
+          "anchor": "const mainOrderQuery"
+        },
+        {
+          "path": "frontend/src/modules/admin/pages/Dashboard.jsx",
+          "line": 508,
+          "anchor": "orderLifecycleB2C"
+        }
+      ]
+    },
+    {
+      "id": "D02",
+      "section": "Dashboard",
+      "brd_source": "P0157",
+      "requirement": "Riders currently on trips",
+      "status": "Missing",
+      "finding": "Current dashboard has no provider-derived rider-on-trip metric. Legacy stats count online Rider users, which is a different measure.",
+      "work_package": "WP03",
+      "evidence": [
+        {
+          "path": "backend/src/controllers/adminController.js",
+          "line": 902,
+          "anchor": "User.countDocuments({ role: 'Rider', isOnline: true })"
+        },
+        {
+          "path": "frontend/src/modules/admin/pages/Dashboard.jsx",
+          "line": 118,
+          "anchor": "fetchAnalytics"
+        }
+      ]
+    },
+    {
+      "id": "D03",
+      "section": "Dashboard",
+      "brd_source": "P0157",
+      "requirement": "GMV for the day",
+      "status": "Partial",
+      "finding": "Revenue aggregates and a Today filter exist; the landing default is Last 30 Days. GMV inclusion rules and channel/time filters need reconciliation.",
+      "work_package": "WP03",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/Dashboard.jsx",
+          "line": 42,
+          "anchor": "useState(\"Last 30 Days\")"
+        },
+        {
+          "path": "backend/src/controllers/dashboardAnalyticsController.js",
+          "line": 381,
+          "anchor": "const grossRevenue"
+        }
+      ]
+    },
+    {
+      "id": "D04",
+      "section": "Dashboard",
+      "brd_source": "P0158",
+      "requirement": "Server status monitor",
+      "status": "Missing",
+      "finding": "Storage usage and business metrics exist; no server-health status module is wired to the dashboard.",
+      "work_package": "WP04",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/Dashboard.jsx",
+          "line": 635,
+          "anchor": "SLA Violations Alert"
+        },
+        {
+          "path": "backend/server.js",
+          "line": 149,
+          "anchor": "app.get('/api/admin-test-direct'"
+        }
+      ]
+    },
+    {
+      "id": "D05",
+      "section": "Dashboard",
+      "brd_source": "P0158",
+      "requirement": "WhatsApp API latency monitor",
+      "status": "Missing",
+      "finding": "No sampled WhatsApp availability or latency history appears in the admin dashboard.",
+      "work_package": "WP04",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/Dashboard.jsx",
+          "line": 118,
+          "anchor": "fetchAnalytics"
+        },
+        {
+          "path": "backend/src/services/whatsapp/index.js",
+          "line": 4,
+          "anchor": "export"
+        }
+      ]
+    },
+    {
+      "id": "D06",
+      "section": "Dashboard",
+      "brd_source": "P0158",
+      "requirement": "Payment gateway latency monitor",
+      "status": "Missing",
+      "finding": "No gateway availability, latency or last-check monitor is wired to admin.",
+      "work_package": "WP04",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/Dashboard.jsx",
+          "line": 118,
+          "anchor": "fetchAnalytics"
+        }
+      ]
+    },
+    {
+      "id": "D07",
+      "section": "Dashboard",
+      "brd_source": "P0159",
+      "requirement": "Delayed pickup alerts after two hours",
+      "status": "Partial",
+      "finding": "Existing bounce, five-minute acceptance and long timeout counts do not implement the required pickup age threshold or an actionable alert queue.",
+      "work_package": "WP04",
+      "evidence": [
+        {
+          "path": "backend/src/controllers/dashboardAnalyticsController.js",
+          "line": 473,
+          "anchor": "const immediateTimeoutsQuery"
+        },
+        {
+          "path": "frontend/src/modules/admin/pages/Dashboard.jsx",
+          "line": 658,
+          "anchor": "Immediate Timeouts"
+        }
+      ]
+    },
+    {
+      "id": "D08",
+      "section": "Dashboard",
+      "brd_source": "P0159",
+      "requirement": "Unpaid delivered order alerts after two hours",
+      "status": "Missing",
+      "finding": "No dedicated delivery-to-payment aging queue or two-hour alert rule found.",
+      "work_package": "WP04",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/Dashboard.jsx",
+          "line": 635,
+          "anchor": "SLA Violations Alert"
+        },
+        {
+          "path": "backend/src/controllers/dashboardAnalyticsController.js",
+          "line": 722,
+          "anchor": "financials:"
+        }
+      ]
+    },
+    {
+      "id": "D09",
+      "section": "Dashboard",
+      "brd_source": "P0155 P0157",
+      "requirement": "Real time operational refresh",
+      "status": "Partial",
+      "finding": "Dashboard fetches on mount and filter changes. Sidebar polling and support sockets exist, but do not continuously refresh dashboard metrics.",
+      "work_package": "WP03",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/Dashboard.jsx",
+          "line": 161,
+          "anchor": "fetchAnalytics();"
+        },
+        {
+          "path": "frontend/src/modules/admin/components/navigation/Sidebar.jsx",
+          "line": 225,
+          "anchor": "setInterval(fetchCounts, 15000)"
+        }
+      ]
+    },
+    {
+      "id": "U01",
+      "section": "Users and roles",
+      "brd_source": "P0164",
+      "requirement": "Pending vendor application queue",
+      "status": "Implemented",
+      "finding": "Pending review queue and backend filtering exist.",
+      "work_package": "WP00",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/OnboardingApprovals.jsx",
+          "line": 72,
+          "anchor": "fetchPending"
+        },
+        {
+          "path": "backend/src/controllers/adminController.js",
+          "line": 89,
+          "anchor": "export const getPendingApprovals"
+        }
+      ]
+    },
+    {
+      "id": "U02",
+      "section": "Users and roles",
+      "brd_source": "P0165",
+      "requirement": "Review GST and MSME documents",
+      "status": "Implemented",
+      "finding": "Vendor request detail exposes GST documents and MSME certificate links. Physical provider access was not exercised.",
+      "work_package": "WP00",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/AdminVendorRequestDetailPage.jsx",
+          "line": 312,
+          "anchor": "label: 'MSME Certificate'"
+        },
+        {
+          "path": "frontend/src/modules/admin/pages/AdminVendorRequestDetailPage.jsx",
+          "line": 299,
+          "anchor": "vendor.gstDoc"
+        }
+      ]
+    },
+    {
+      "id": "U03",
+      "section": "Users and roles",
+      "brd_source": "P0166",
+      "requirement": "Approve vendor applications",
+      "status": "Implemented",
+      "finding": "Two-stage approval persists initial review and final activation.",
+      "work_package": "WP00",
+      "evidence": [
+        {
+          "path": "backend/src/controllers/adminController.js",
+          "line": 189,
+          "anchor": "export const approveVendor"
+        },
+        {
+          "path": "backend/src/controllers/adminController.js",
+          "line": 215,
+          "anchor": "export const approveFinalVendor"
+        }
+      ]
+    },
+    {
+      "id": "U04",
+      "section": "Users and roles",
+      "brd_source": "P0166",
+      "requirement": "Reject vendor applications",
+      "status": "Implemented",
+      "finding": "Rejection or revision status and reason are persisted; alert delivery is assessed separately.",
+      "work_package": "WP00",
+      "evidence": [
+        {
+          "path": "backend/src/controllers/adminController.js",
+          "line": 243,
+          "anchor": "export const rejectVendor"
+        },
+        {
+          "path": "frontend/src/modules/admin/pages/AdminVendorRequestDetailPage.jsx",
+          "line": 35,
+          "anchor": "rejectionFlags"
+        }
+      ]
+    },
+    {
+      "id": "U05",
+      "section": "Users and roles",
+      "brd_source": "P0166",
+      "requirement": "Approval switches the customer app to vendor mode",
+      "status": "Partial",
+      "finding": "Final approval changes DB role, but does not publish a role-change event, refresh an existing JWT, or prove active-session routing.",
+      "work_package": "WP05",
+      "evidence": [
+        {
+          "path": "backend/src/controllers/adminController.js",
+          "line": 221,
+          "anchor": "vendor.role = 'Vendor'"
+        },
+        {
+          "path": "backend/src/controllers/adminController.js",
+          "line": 223,
+          "anchor": "vendor.onboardingStage = 'COMPLETED'"
+        }
+      ]
+    },
+    {
+      "id": "U06",
+      "section": "Users and roles",
+      "brd_source": "P0167",
+      "requirement": "Search any customer or vendor by phone",
+      "status": "Partial",
+      "finding": "User records contain phone numbers, but Users hides DataGrid search and its searchQuery is not applied to filtering. Approval queues have narrower phone filters.",
+      "work_package": "WP05",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/Users.jsx",
+          "line": 895,
+          "anchor": "showSearch={false}"
+        },
+        {
+          "path": "frontend/src/modules/admin/pages/Users.jsx",
+          "line": 326,
+          "anchor": "const filteredUsers"
+        }
+      ]
+    },
+    {
+      "id": "U07",
+      "section": "Users and roles",
+      "brd_source": "P0167",
+      "requirement": "Search any customer or vendor by email",
+      "status": "Missing",
+      "finding": "Email is displayed and editable; no functioning email search is exposed on the central user audit screen.",
+      "work_package": "WP05",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/Users.jsx",
+          "line": 895,
+          "anchor": "showSearch={false}"
+        },
+        {
+          "path": "frontend/src/modules/admin/pages/Users.jsx",
+          "line": 378,
+          "anchor": "key: 'email'"
+        }
+      ]
+    },
+    {
+      "id": "U08",
+      "section": "Users and roles",
+      "brd_source": "P0167",
+      "requirement": "View a user full order history",
+      "status": "Missing",
+      "finding": "User/vendor profile screens do not provide a unified scoped history. The order detail route itself still renders a fixed sample record.",
+      "work_package": "WP02",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/AdminOrderDetail.jsx",
+          "line": 45,
+          "anchor": "const order = useMemo"
+        },
+        {
+          "path": "frontend/src/modules/admin/pages/Users.jsx",
+          "line": 326,
+          "anchor": "const filteredUsers"
+        }
+      ]
+    },
+    {
+      "id": "U09",
+      "section": "Users and roles",
+      "brd_source": "P0167",
+      "requirement": "View saved addresses",
+      "status": "Implemented",
+      "finding": "User management includes location data and an address detail modal.",
+      "work_package": "WP00",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/Users.jsx",
+          "line": 73,
+          "anchor": "selectedAddressForModal"
+        },
+        {
+          "path": "backend/src/models/User.js",
+          "line": 46,
+          "anchor": "addresses:"
+        }
+      ]
+    },
+    {
+      "id": "U10",
+      "section": "Users and roles",
+      "brd_source": "P0167",
+      "requirement": "View a user active tickets",
+      "status": "Missing",
+      "finding": "Ticket data exists in support, but no user-linked active-ticket panel or drill-down is wired to central user auditing.",
+      "work_package": "WP05",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/Users.jsx",
+          "line": 326,
+          "anchor": "const filteredUsers"
+        },
+        {
+          "path": "backend/src/controllers/ticketController.js",
+          "line": 43,
+          "anchor": "export const getCustomerTickets"
+        }
+      ]
+    },
+    {
+      "id": "U11",
+      "section": "Users and roles",
+      "brd_source": "P0168",
+      "requirement": "Deactivate users and vendors for violations",
+      "status": "Partial",
+      "finding": "Block/unblock writes rejected/approved status, but generic verifyUser does not check current DB status and existing JWT sessions remain usable. Rejected vendors are omitted from central user listing.",
+      "work_package": "WP01",
+      "evidence": [
+        {
+          "path": "backend/src/controllers/adminController.js",
+          "line": 832,
+          "anchor": "export const toggleUserStatus"
+        },
+        {
+          "path": "backend/src/middleware/authMiddleware.js",
+          "line": 143,
+          "anchor": "export const verifyUser"
+        },
+        {
+          "path": "backend/src/controllers/adminController.js",
+          "line": 538,
+          "anchor": "export const getAllUsers"
+        }
+      ]
+    },
+    {
+      "id": "C01",
+      "section": "Marketplace control",
+      "brd_source": "P0173",
+      "requirement": "Add edit and deactivate services",
+      "status": "Implemented",
+      "finding": "Service and master-service CRUD plus activation and approval controls exist.",
+      "work_package": "WP00",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/MasterServiceManagement.jsx",
+          "line": 243,
+          "anchor": "handleSubmit"
+        },
+        {
+          "path": "backend/src/controllers/masterServiceController.js",
+          "line": 6,
+          "anchor": "export const createMasterService"
+        }
+      ]
+    },
+    {
+      "id": "C02",
+      "section": "Marketplace control",
+      "brd_source": "P0205",
+      "requirement": "Global Essential default aggregator fee",
+      "status": "Partial",
+      "finding": "essential_fee can be edited and is used in catalog pricing, but order creation also uses platform_multiplier and request-supplied values.",
+      "work_package": "WP06",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/PricingConfig.jsx",
+          "line": 68,
+          "anchor": "'essential_fee'"
+        },
+        {
+          "path": "backend/src/controllers/masterServiceController.js",
+          "line": 170,
+          "anchor": "const essentialFee"
+        },
+        {
+          "path": "backend/src/controllers/orderController.js",
+          "line": 296,
+          "anchor": "key: 'platform_multiplier'"
+        }
+      ]
+    },
+    {
+      "id": "C03",
+      "section": "Marketplace control",
+      "brd_source": "P0206",
+      "requirement": "Global Heritage default aggregator fee",
+      "status": "Partial",
+      "finding": "heritage_fee exists for catalog calculations; the order creation path does not enforce a consistent tier-specific fallback.",
+      "work_package": "WP06",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/PricingConfig.jsx",
+          "line": 71,
+          "anchor": "'heritage_fee'"
+        },
+        {
+          "path": "backend/src/controllers/orderController.js",
+          "line": 307,
+          "anchor": "normalizedPlatformMultiplier"
+        }
+      ]
+    },
+    {
+      "id": "C04",
+      "section": "Marketplace control",
+      "brd_source": "P0174 P0210",
+      "requirement": "Vendor specific commission override",
+      "status": "Missing",
+      "finding": "No vendor commission override field, editor and authoritative resolution path were found. Area price overrides solve a different requirement.",
+      "work_package": "WP06",
+      "evidence": [
+        {
+          "path": "backend/src/models/AreaServiceOverride.js",
+          "line": 14,
+          "anchor": "customPrice"
+        },
+        {
+          "path": "backend/src/models/User.js",
+          "line": 58,
+          "anchor": "shopDetails:"
+        }
+      ]
+    },
+    {
+      "id": "C05",
+      "section": "Marketplace control",
+      "brd_source": "P0210 P0211",
+      "requirement": "Specific vendor service commission takes precedence",
+      "status": "Missing",
+      "finding": "No vendor-and-service commission override hierarchy found. MasterPricing is service plus fence, rather than vendor plus service commission.",
+      "work_package": "WP06",
+      "evidence": [
+        {
+          "path": "backend/src/models/MasterPricing.js",
+          "line": 92,
+          "anchor": "{ serviceId: 1, fenceId: 1 }"
+        },
+        {
+          "path": "backend/src/controllers/orderController.js",
+          "line": 307,
+          "anchor": "normalizedPlatformMultiplier"
+        }
+      ]
+    },
+    {
+      "id": "C06",
+      "section": "Marketplace control",
+      "brd_source": "P0207",
+      "requirement": "New vendors inherit category defaults",
+      "status": "Partial",
+      "finding": "Global catalog fallback exists, but onboarding and order pricing do not demonstrate one resolved Essential/Heritage policy per vendor.",
+      "work_package": "WP06",
+      "evidence": [
+        {
+          "path": "backend/src/controllers/masterServiceController.js",
+          "line": 170,
+          "anchor": "const essentialFee"
+        },
+        {
+          "path": "backend/src/controllers/adminController.js",
+          "line": 215,
+          "anchor": "export const approveFinalVendor"
+        }
+      ]
+    },
+    {
+      "id": "C07",
+      "section": "Marketplace control",
+      "brd_source": "P0176",
+      "requirement": "Update Express surcharge from 1.5x to another multiplier",
+      "status": "Partial",
+      "finding": "Editor saves express_surcharge as a percentage while order creation reads express_multiplier; service/fence multipliers introduce additional paths.",
+      "work_package": "WP06",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/PricingConfig.jsx",
+          "line": 62,
+          "anchor": "'express_surcharge'"
+        },
+        {
+          "path": "backend/src/controllers/orderController.js",
+          "line": 295,
+          "anchor": "key: 'express_multiplier'"
+        }
+      ]
+    },
+    {
+      "id": "C08",
+      "section": "Marketplace control",
+      "brd_source": "P0177",
+      "requirement": "Set free delivery threshold",
+      "status": "Partial",
+      "finding": "Global and area threshold fields exist; order creation accepts deliveryCharge from the client and does not enforce one server-resolved threshold.",
+      "work_package": "WP06",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/PricingConfig.jsx",
+          "line": 74,
+          "anchor": "'free_delivery_threshold'"
+        },
+        {
+          "path": "backend/src/models/ServiceArea.js",
+          "line": 72,
+          "anchor": "freeDeliveryThreshold:"
+        },
+        {
+          "path": "backend/src/controllers/orderController.js",
+          "line": 324,
+          "anchor": "logisticsFee: Number(deliveryCharge)"
+        }
+      ]
+    },
+    {
+      "id": "C09",
+      "section": "Marketplace control",
+      "brd_source": "P0178",
+      "requirement": "Manually boost vendor visibility",
+      "status": "Missing",
+      "finding": "No persistent ranking adjustment, editor or marketplace ranking integration found.",
+      "work_package": "WP07",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/Vendors.jsx",
+          "line": 64,
+          "anchor": "rating: '4.8'"
+        },
+        {
+          "path": "backend/src/models/User.js",
+          "line": 58,
+          "anchor": "shopDetails:"
+        }
+      ]
+    },
+    {
+      "id": "C10",
+      "section": "Marketplace control",
+      "brd_source": "P0178",
+      "requirement": "Manually penalize vendor visibility",
+      "status": "Missing",
+      "finding": "No auditable rank penalty or effective visibility score calculation found.",
+      "work_package": "WP07",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/Vendors.jsx",
+          "line": 55,
+          "anchor": "const fetchVendors"
+        },
+        {
+          "path": "backend/src/models/User.js",
+          "line": 58,
+          "anchor": "shopDetails:"
+        }
+      ]
+    },
+    {
+      "id": "C11",
+      "section": "Marketplace control",
+      "brd_source": "P0213",
+      "requirement": "Admin configuration persists",
+      "status": "Implemented",
+      "finding": "SystemConfig upsert persists configuration. Typed pricing governance and change history remain separate requirements.",
+      "work_package": "WP00",
+      "evidence": [
+        {
+          "path": "backend/src/controllers/adminController.js",
+          "line": 1266,
+          "anchor": "export const updateSystemConfig"
+        },
+        {
+          "path": "backend/src/models/SystemConfig.js",
+          "line": 10,
+          "anchor": "mongoose.Schema.Types.Mixed"
+        }
+      ]
+    },
+    {
+      "id": "C12",
+      "section": "Marketplace control",
+      "brd_source": "P0214",
+      "requirement": "Placed orders keep their original price after config changes",
+      "status": "Partial",
+      "finding": "Orders store totals and breakdowns, which supports preservation. Full policy versioning and cross-renderer repricing regression coverage are still needed.",
+      "work_package": "WP06",
+      "evidence": [
+        {
+          "path": "backend/src/models/Order.js",
+          "line": 211,
+          "anchor": "priceBreakdown:"
+        },
+        {
+          "path": "backend/src/controllers/orderController.js",
+          "line": 328,
+          "anchor": "processedItems"
+        }
+      ]
+    },
+    {
+      "id": "S01",
+      "section": "Support and disputes",
+      "brd_source": "P0182",
+      "requirement": "Technical ticket queue",
+      "status": "Implemented",
+      "finding": "Technical support queue fetches persisted tickets and filters out item-dispute categories.",
+      "work_package": "WP00",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/HelpDesk.jsx",
+          "line": 39,
+          "anchor": "ticketApi.getAllTickets"
+        },
+        {
+          "path": "backend/src/controllers/ticketController.js",
+          "line": 54,
+          "anchor": "export const getAllTickets"
+        }
+      ]
+    },
+    {
+      "id": "S02",
+      "section": "Support and disputes",
+      "brd_source": "P0183",
+      "requirement": "Assign tickets to support staff",
+      "status": "Missing",
+      "finding": "Ticket has no assignee fields and no assignment API or staff selector is wired.",
+      "work_package": "WP08",
+      "evidence": [
+        {
+          "path": "backend/src/models/Ticket.js",
+          "line": 30,
+          "anchor": "const ticketSchema"
+        },
+        {
+          "path": "backend/src/controllers/ticketController.js",
+          "line": 109,
+          "anchor": "export const updateTicketStatus"
+        }
+      ]
+    },
+    {
+      "id": "S03",
+      "section": "Support and disputes",
+      "brd_source": "P0183",
+      "requirement": "Respond to users",
+      "status": "Implemented",
+      "finding": "Persisted support messages and socket events are wired. Authorization hardening is recorded independently.",
+      "work_package": "WP00",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/HelpDesk.jsx",
+          "line": 84,
+          "anchor": "ticketApi.sendMessage"
+        },
+        {
+          "path": "backend/src/controllers/ticketController.js",
+          "line": 67,
+          "anchor": "export const addMessage"
+        }
+      ]
+    },
+    {
+      "id": "S04",
+      "section": "Support and disputes",
+      "brd_source": "P0183",
+      "requirement": "Mark a ticket resolved",
+      "status": "Implemented",
+      "finding": "Status update endpoint and resolve action exist.",
+      "work_package": "WP00",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/HelpDesk.jsx",
+          "line": 108,
+          "anchor": "'Resolved'"
+        },
+        {
+          "path": "backend/src/controllers/ticketController.js",
+          "line": 109,
+          "anchor": "export const updateTicketStatus"
+        }
+      ]
+    },
+    {
+      "id": "S05",
+      "section": "Support and disputes",
+      "brd_source": "P0185",
+      "requirement": "Review order linked support chat logs",
+      "status": "Implemented",
+      "finding": "Dispute center loads persisted item-dispute tickets and their messages.",
+      "work_package": "WP00",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/DisputeCenter.jsx",
+          "line": 209,
+          "anchor": "selectedTicket.messages"
+        },
+        {
+          "path": "backend/src/models/Ticket.js",
+          "line": 44,
+          "anchor": "ref: 'Order'"
+        }
+      ]
+    },
+    {
+      "id": "S06",
+      "section": "Support and disputes",
+      "brd_source": "P0186",
+      "requirement": "Review original pickup verification photos",
+      "status": "Partial",
+      "finding": "Chat attachments can render, but the order population omits original customerPhotos and no custody-evidence viewer is wired.",
+      "work_package": "WP09",
+      "evidence": [
+        {
+          "path": "backend/src/controllers/ticketController.js",
+          "line": 58,
+          "anchor": "'totalAmount status createdAt items'"
+        },
+        {
+          "path": "frontend/src/modules/admin/pages/DisputeCenter.jsx",
+          "line": 77,
+          "anchor": "attachments"
+        }
+      ]
+    },
+    {
+      "id": "S07",
+      "section": "Support and disputes",
+      "brd_source": "P0186",
+      "requirement": "Review return and delivery verification photos",
+      "status": "Partial",
+      "finding": "Investigation policy names dispatch/partner photos, but does not provide a typed, timestamped delivery evidence record and viewer.",
+      "work_package": "WP09",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/DisputeCenter.jsx",
+          "line": 339,
+          "anchor": "Check vendor dispatch photo"
+        },
+        {
+          "path": "backend/src/models/Order.js",
+          "line": 218,
+          "anchor": "customerPhotos:"
+        }
+      ]
+    },
+    {
+      "id": "S08",
+      "section": "Support and disputes",
+      "brd_source": "P0187",
+      "requirement": "Trigger manual dispute refunds",
+      "status": "Partial",
+      "finding": "Cancellation refunds exist in orderController; dispute center cannot start full or partial evidence-linked refunds for delivered orders.",
+      "work_package": "WP09",
+      "evidence": [
+        {
+          "path": "backend/src/controllers/orderController.js",
+          "line": 1975,
+          "anchor": "razorpayInstance.payments.refund"
+        },
+        {
+          "path": "frontend/src/modules/admin/pages/DisputeCenter.jsx",
+          "line": 114,
+          "anchor": "handleResolveDispute"
+        }
+      ]
+    },
+    {
+      "id": "S09",
+      "section": "Support and disputes",
+      "brd_source": "P0187",
+      "requirement": "Adjust a user account credit",
+      "status": "Missing",
+      "finding": "Wallet balances and cancellation refunds exist, but no auditable admin dispute credit adjustment operation is provided.",
+      "work_package": "WP09",
+      "evidence": [
+        {
+          "path": "backend/src/models/User.js",
+          "line": 188,
+          "anchor": "walletBalance:"
+        },
+        {
+          "path": "frontend/src/modules/admin/pages/DisputeCenter.jsx",
+          "line": 114,
+          "anchor": "handleResolveDispute"
+        }
+      ]
+    },
+    {
+      "id": "R01",
+      "section": "Strategic reports",
+      "brd_source": "Table 2 Financial Settlement",
+      "requirement": "Automated net vendor payout report after commissions",
+      "status": "Partial",
+      "finding": "Payment summaries and manual payout logging exist, but Payouts is not routed and no dedicated settlement report or automatic cycle is reachable.",
+      "work_package": "WP10",
+      "evidence": [
+        {
+          "path": "backend/src/controllers/adminController.js",
+          "line": 1464,
+          "anchor": "export const getVendorPaymentSummary"
+        },
+        {
+          "path": "frontend/src/modules/admin/pages/Payouts.jsx",
+          "line": 64,
+          "anchor": "handleReconcile"
+        },
+        {
+          "path": "frontend/src/modules/admin/routes/AdminRoutes.jsx",
+          "line": 147,
+          "anchor": "<Route path=\"/b2b-escrow\""
+        }
+      ]
+    },
+    {
+      "id": "R02",
+      "section": "Strategic reports",
+      "brd_source": "Table 2 Vendor TAT Report",
+      "requirement": "Average turnaround time per vendor",
+      "status": "Partial",
+      "finding": "Generic SLA violation counts exist; no vendor-duration aggregation and accessible average TAT report found. Reports.jsx is not routed.",
+      "work_package": "WP11",
+      "evidence": [
+        {
+          "path": "backend/src/controllers/dashboardAnalyticsController.js",
+          "line": 482,
+          "anchor": "const vendorSlaViolationsQ"
+        },
+        {
+          "path": "frontend/src/modules/admin/pages/Reports.jsx",
+          "line": 83,
+          "anchor": "const reportTitles"
+        }
+      ]
+    },
+    {
+      "id": "R03",
+      "section": "Strategic reports",
+      "brd_source": "Table 2 Geospatial Heatmaps",
+      "requirement": "Order density heatmaps for 3 km zones",
+      "status": "Missing",
+      "finding": "Geofence maps and filters exist, but no order-coordinate density layer or time-bounded heatmap report is connected.",
+      "work_package": "WP11",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/pages/ServiceAreas.jsx",
+          "line": 33,
+          "anchor": "GoogleMap"
+        },
+        {
+          "path": "frontend/src/modules/admin/pages/Reports.jsx",
+          "line": 83,
+          "anchor": "const reportTitles"
+        }
+      ]
+    },
+    {
+      "id": "R04",
+      "section": "Strategic reports",
+      "brd_source": "Table 2 Revenue Leakage",
+      "requirement": "Cancelled orders and unreconciled cash on delivery",
+      "status": "Partial",
+      "finding": "Cancellation counts and payment summaries exist, but no canonical COD receivable ledger or reconciliation report is wired.",
+      "work_package": "WP10",
+      "evidence": [
+        {
+          "path": "backend/src/controllers/dashboardAnalyticsController.js",
+          "line": 765,
+          "anchor": "cancelled: b2bCancelled"
+        },
+        {
+          "path": "frontend/src/modules/admin/pages/Reports.jsx",
+          "line": 86,
+          "anchor": "leakage:"
+        }
+      ]
+    },
+    {
+      "id": "R05",
+      "section": "Strategic reports",
+      "brd_source": "Table 2 B2B Leads",
+      "requirement": "Partnership and advertising inquiry repository",
+      "status": "Implemented",
+      "finding": "Both intake types persist and have reachable admin listing and stage-management pages; a merged sales pipeline is optional.",
+      "work_package": "WP00",
+      "evidence": [
+        {
+          "path": "frontend/src/modules/admin/routes/AdminRoutes.jsx",
+          "line": 129,
+          "anchor": "<Route path=\"/advertise\""
+        },
+        {
+          "path": "frontend/src/modules/admin/routes/AdminRoutes.jsx",
+          "line": 152,
+          "anchor": "<Route path=\"/partnerships\""
+        },
+        {
+          "path": "backend/src/controllers/partnershipController.js",
+          "line": 6,
+          "anchor": "submitPartnershipInquiry"
+        },
+        {
+          "path": "backend/src/controllers/mediaController.js",
+          "line": 112,
+          "anchor": "getAllInquiries"
+        }
+      ]
+    }
+  ]
+}

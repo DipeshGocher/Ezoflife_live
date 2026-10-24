@@ -1,3 +1,5 @@
+import FilterSearchParams from '../../../lib/FilterSearchParams';
+import MultiSelectFilter from '../components/common/MultiSelectFilter';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -59,23 +61,28 @@ const AdminSupplierRequestsPage = () => {
         }
     };
 
+    const latestFilterRequest = React.useRef(0);
     const fetchRequests = async (filters = {}) => {
+        const requestId = ++latestFilterRequest.current;
         try {
             setLoading(true);
-            const queryParams = new URLSearchParams(filters).toString();
+            const queryParams = new FilterSearchParams(filters).toString();
             const url = `${BASE_URL}/supplier/requests${queryParams ? `?${queryParams}` : ''}`;
             const response = await fetch(url);
+            if (requestId !== latestFilterRequest.current) return;
             const data = await response.json();
+            if (requestId !== latestFilterRequest.current) return;
             if (Array.isArray(data)) {
                 setRequests(data);
             } else {
                 setRequests([]);
             }
         } catch (error) {
+            if (requestId !== latestFilterRequest.current) return;
             console.error('Fetch Supplier Requests Error:', error);
             setRequests([]);
         } finally {
-            setLoading(false);
+            if (requestId === latestFilterRequest.current) setLoading(false);
         }
     };
 
@@ -276,7 +283,7 @@ const AdminSupplierRequestsPage = () => {
 
                         {/* Dropdown Filters on the Right */}
                         <div className="flex flex-wrap items-center gap-2 justify-end">
-                            <select
+                            <MultiSelectFilter
                                 value={selectedSupplier}
                                 onChange={(e) => setSelectedSupplier(e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -285,8 +292,8 @@ const AdminSupplierRequestsPage = () => {
                                 {uniqueSuppliers.map(name => (
                                     <option key={name} value={name}>{name}</option>
                                 ))}
-                            </select>
-                            <select
+                            </MultiSelectFilter>
+                            <MultiSelectFilter
                                 value={selectedBusiness}
                                 onChange={(e) => setSelectedBusiness(e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -295,8 +302,8 @@ const AdminSupplierRequestsPage = () => {
                                 {uniqueBusinesses.map(name => (
                                     <option key={name} value={name}>{name}</option>
                                 ))}
-                            </select>
-                            <select
+                            </MultiSelectFilter>
+                            <MultiSelectFilter
                                 value={selectedPhone}
                                 onChange={(e) => setSelectedPhone(e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-28 uppercase tracking-wider cursor-pointer"
@@ -305,7 +312,7 @@ const AdminSupplierRequestsPage = () => {
                                 {uniquePhones.map(phone => (
                                     <option key={phone} value={phone}>{phone}</option>
                                 ))}
-                            </select>
+                            </MultiSelectFilter>
                             {(selectedSupplier || selectedBusiness || selectedPhone || searchQuery) && (
                                 <button
                                     onClick={() => {

@@ -1,3 +1,4 @@
+import { requireUnrestrictedAdmin } from '../middleware/adminAccountScope.js';
 import express from 'express';
 import { 
     createServiceArea, 
@@ -12,10 +13,10 @@ import { verifyAdmin } from '../middleware/authMiddleware.js';
 const router = express.Router();
 
 // Admin Routes (JWT verification required)
-router.post('/areas', verifyAdmin, createServiceArea);
+router.post('/areas', verifyAdmin, requireUnrestrictedAdmin, createServiceArea);
 router.get('/areas', verifyAdmin, getAllServiceAreas);
-router.patch('/areas/:id', verifyAdmin, updateServiceArea);
-router.delete('/areas/:id', verifyAdmin, deleteServiceArea);
+router.patch('/areas/:id', verifyAdmin, requireUnrestrictedAdmin, updateServiceArea);
+router.delete('/areas/:id', verifyAdmin, requireUnrestrictedAdmin, deleteServiceArea);
 router.get('/pincode-mappings', verifyAdmin, getPincodeMappings);
 
 // Public/Customer Routes

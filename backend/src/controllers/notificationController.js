@@ -1,9 +1,16 @@
+import { canAccessAccount } from '../utils/adminScope.js';
+import User from '../models/User.js';
 import Notification from '../models/Notification.js';
 
 export const getNotifications = async (req, res) => {
     try {
         const { userId, role } = req.query;
         if (!userId) return res.status(400).json({ message: 'User ID required' });
+        if (String(userId) !== String(req.user.id)) {
+            if (req.user.role !== 'Admin') return res.status(403).json({ message: 'You cannot access these notifications.' });
+            const target = await User.findById(userId);
+            if (!target || !await canAccessAccount(req, target)) return res.status(403).json({ message: 'You cannot access these notifications.' });
+        }
         const query = { recipient: userId };
         if (role) query.role = role.toLowerCase();
 
@@ -21,7 +28,8 @@ export const getNotifications = async (req, res) => {
 export const markAsRead = async (req, res) => {
     try {
         const { id } = req.params;
-        await Notification.findByIdAndUpdate(id, { isRead: true });
+        const saved = await Notification.findOneAndUpdate({ _id: id, recipient: req.user.id }, { isRead: true });
+        if (!saved) return res.status(404).json({ message: 'Notification not found.' });
         res.status(200).json({ message: 'Notification marked as read' });
     } catch (err) {
         res.status(500).json({ message: 'Error marking notification' });
@@ -39,7 +47,8 @@ export const clearAll = async (req, res) => {
             return res.status(400).json({ message: 'userId and role are required' });
         }
 
-        await Notification.deleteMany({ recipient: userId, role: role.toLowerCase() });
+        if (String(userId) !== String(req.user.id)) return res.status(403).json({ message: 'You can only clear your own notifications.' });
+        await Notification.deleteMany({ recipient: req.user.id, role: role.toLowerCase() });
         res.status(200).json({ message: 'Notifications cleared' });
     } catch (err) {
         res.status(500).json({ message: 'Error clearing notifications' });

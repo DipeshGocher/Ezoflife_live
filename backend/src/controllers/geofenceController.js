@@ -1,3 +1,4 @@
+import { filterCondition, textFilter } from '../utils/queryFilters.js';
 import ServiceArea from '../models/ServiceArea.js';
 import PincodeMapping from '../models/PincodeMapping.js';
 import { masterPricingService } from '../services/masterPricingService.js';
@@ -121,18 +122,16 @@ export const getAllServiceAreas = async (req, res) => {
         debugLog(`req.query: ${JSON.stringify(req.query)}`);
         const query = {};
         
-        if (req.query.areaName && req.query.areaName.trim() !== '') {
-            query.areaName = { $regex: req.query.areaName.trim(), $options: 'i' };
+        if (req.query.areaName) {
+            query.areaName = textFilter(req.query.areaName);
         }
 
-        const parseMultiplier = (val) => {
-            if (!val || val.trim() === '') return undefined;
-            let cleanVal = val.trim().toLowerCase();
-            if (cleanVal.endsWith('x')) {
-                cleanVal = cleanVal.slice(0, -1).trim();
-            }
-            const num = Number(cleanVal);
-            return isNaN(num) ? -1 : num;
+        const parseMultiplier = val => {
+            if (!val) return undefined;
+            return filterCondition(val, item => {
+                const number = Number(String(item).trim().toLowerCase().replace(/x$/, '').trim());
+                return Number.isNaN(number) ? -1 : number;
+            });
         };
 
         const baseVal = parseMultiplier(req.query.basePriceMultiplier);

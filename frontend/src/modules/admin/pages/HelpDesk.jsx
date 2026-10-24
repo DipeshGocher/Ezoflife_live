@@ -1,3 +1,6 @@
+import TicketAssignment from '../components/TicketAssignment';
+import { filterValues, matchesFilter } from '../utils/filters';
+import MultiSelectFilter from '../components/common/MultiSelectFilter';
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { MessageSquare, Search, User, Send, Loader2, ArrowLeft } from 'lucide-react';
@@ -7,6 +10,8 @@ import toast from 'react-hot-toast';
 
 export default function HelpDesk() {
   const [tickets, setTickets] = useState([]);
+  const [ownerFilter, setOwnerFilter] = useState('All');
+  const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [adminMessage, setAdminMessage] = useState('');
@@ -33,7 +38,7 @@ export default function HelpDesk() {
 
   const fetchAllTickets = async () => {
     try {
-      setLoading(true);
+      setLoading(true); setLoadError('');
       const data = await ticketApi.getAllTickets();
       setTickets(data);
       
@@ -49,7 +54,7 @@ export default function HelpDesk() {
         setSelectedTicket(null);
       }
     } catch (err) {
-      console.error('Error fetching admin tickets:', err);
+      setTickets([]); setSelectedTicket(null); setLoadError(err.message || 'Unable to load tickets.');
     } finally {
       setLoading(false);
     }
@@ -77,11 +82,7 @@ export default function HelpDesk() {
     if (!adminMessage.trim() || !selectedTicket) return;
     try {
       setIsSending(true);
-      // Using a hardcoded admin ID for now or from auth if available
-      const adminId = '673966843120ade7183e719b'; // Fallback to current user ID
       const res = await ticketApi.sendMessage(selectedTicket._id, {
-        sender: adminId,
-        senderRole: 'Admin',
         message: adminMessage
       });
       
@@ -160,23 +161,19 @@ export default function HelpDesk() {
       if (isDispute) return false;
       
       const ticketName = t.customer?.displayName || t.customer?.ownerName || t.customer?.phone || 'Unknown User';
-      const matchesName = nameFilter === 'All' || ticketName === nameFilter;
+      const matchesName = matchesFilter(nameFilter, ticketName);
       
-      const matchesChatId = chatIdFilter === 'All' || t._id === chatIdFilter;
+      const matchesChatId = matchesFilter(chatIdFilter, t._id);
       
-      let matchesTime = true;
       const ticketDate = t.updatedAt || t.createdAt;
-      if (timeFilter === 'Today') {
-        matchesTime = isToday(ticketDate);
-      } else if (timeFilter === 'Yesterday') {
-        matchesTime = isYesterday(ticketDate);
-      } else if (timeFilter === 'Last 7 Days') {
-        matchesTime = isWithinLast7Days(ticketDate);
-      }
+      const times = filterValues(timeFilter);
+      const matchesTime = !times.length || times.some(time =>
+        time === 'Today' ? isToday(ticketDate) :
+        time === 'Yesterday' ? isYesterday(ticketDate) : isWithinLast7Days(ticketDate));
 
-      return matchesRole && matchesName && matchesChatId && matchesTime;
+      return matchesRole && matchesName && matchesChatId && matchesTime && matchesFilter(ownerFilter, t.assignedTo?._id || t.assignedTo || 'unassigned');
     });
-  }, [tickets, activeTab, nameFilter, chatIdFilter, timeFilter]);
+  }, [tickets, activeTab, nameFilter, chatIdFilter, timeFilter, ownerFilter]);
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50/50 overflow-hidden">
       <div className="flex-shrink-0">
@@ -185,15 +182,22 @@ export default function HelpDesk() {
         />
       </div>
 
+      {loadError && <p role="alert" className="p-4 text-red-700">{loadError} <button onClick={fetchAllTickets} className="underline">Retry tickets</button></p>}
       <div className="flex flex-1 overflow-hidden divide-x divide-slate-200 bg-white border-t border-slate-200">
         
         {/* Ticket List Sidebar */}
         <div className={`w-full lg:w-[450px] flex flex-col bg-white overflow-hidden ${isMobileChatOpen ? 'hidden lg:flex' : 'flex'}`}>
           <div className="p-6 border-b border-slate-100">
+            <label className="block text-xs mb-3">Owner
+              <MultiSelectFilter value={ownerFilter} onChange={event => setOwnerFilter(event.target.value)} className="w-full border border-slate-200 p-2 rounded-sm">
+                <option value="All">All owners</option><option value="unassigned">Unassigned</option>
+                {[...new Map(tickets.filter(t => t.assignedTo?._id).map(t => [t.assignedTo._id, t.assignedTo])).values()].map(user => <option key={user._id} value={user._id}>{user.displayName}</option>)}
+              </MultiSelectFilter>
+            </label>
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <label className="block text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">Name</label>
-                <select
+                <MultiSelectFilter
                   value={nameFilter}
                   onChange={(e) => setNameFilter(e.target.value)}
                   className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-sm text-[9px] font-black uppercase tracking-wider outline-none focus:bg-white focus:border-slate-900 transition-all cursor-pointer text-slate-800"
@@ -203,12 +207,12 @@ export default function HelpDesk() {
                       {name}
                     </option>
                   ))}
-                </select>
+                </MultiSelectFilter>
               </div>
 
               <div>
                 <label className="block text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">Chat ID</label>
-                <select
+                <MultiSelectFilter
                   value={chatIdFilter}
                   onChange={(e) => setChatIdFilter(e.target.value)}
                   className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-sm text-[9px] font-black uppercase tracking-wider outline-none focus:bg-white focus:border-slate-900 transition-all cursor-pointer text-slate-800"
@@ -218,12 +222,12 @@ export default function HelpDesk() {
                       {id === 'All' ? 'ALL' : `#${id.slice(-6).toUpperCase()}`}
                     </option>
                   ))}
-                </select>
+                </MultiSelectFilter>
               </div>
 
               <div>
                 <label className="block text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">Time</label>
-                <select
+                <MultiSelectFilter
                   value={timeFilter}
                   onChange={(e) => setTimeFilter(e.target.value)}
                   className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-sm text-[9px] font-black uppercase tracking-wider outline-none focus:bg-white focus:border-slate-900 transition-all cursor-pointer text-slate-800"
@@ -232,7 +236,7 @@ export default function HelpDesk() {
                   <option value="Today">TODAY</option>
                   <option value="Yesterday">YESTERDAY</option>
                   <option value="Last 7 Days">LAST 7 DAYS</option>
-                </select>
+                </MultiSelectFilter>
               </div>
             </div>
           </div>
@@ -317,7 +321,11 @@ export default function HelpDesk() {
                      </div>
                  </div>
                  <div className="flex gap-2.5">
-                    {selectedTicket.status !== 'Resolved' && (
+                    {['Resolved', 'Closed'].includes(selectedTicket.status) && <button className="border px-4 py-2 text-xs rounded-sm" onClick={async () => {
+                      try { await ticketApi.updateTicketStatus(selectedTicket._id, 'Open'); setSelectedTicket(await ticketApi.getTicketDetails(selectedTicket._id)); setTickets(await ticketApi.getAllTickets()); }
+                      catch (err) { toast.error(err.message || 'Unable to reopen ticket'); }
+                    }}>Reopen ticket</button>}
+                    {!['Resolved', 'Closed'].includes(selectedTicket.status) && (
                       <button 
                         onClick={handleResolveTicket}
                         className="px-4 py-2 bg-emerald-600 text-white text-[9px] font-black uppercase tracking-widest transition-all rounded-sm flex items-center gap-2"
@@ -328,6 +336,11 @@ export default function HelpDesk() {
                  </div>
               </div>
 
+              <TicketAssignment key={`${selectedTicket._id}-${selectedTicket.assignmentVersion || 0}`} ticket={selectedTicket} onUpdated={async () => {
+                const id = selectedTicket._id;
+                const [detail, list] = await Promise.all([ticketApi.getTicketDetails(id), ticketApi.getAllTickets()]);
+                setSelectedTicket(current => current?._id === id ? detail : current); setTickets(list);
+              }} />
               {/* Chat Thread */}
               <div className="flex-1 overflow-y-auto p-10 space-y-8">
                  <div className="flex flex-col items-center">

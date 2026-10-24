@@ -1,3 +1,5 @@
+import { matchesFilter } from '../utils/filters';
+import MultiSelectFilter from '../components/common/MultiSelectFilter';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { promotionApi, BASE_URL } from '../../../lib/api';
 import { toast } from 'react-hot-toast';
@@ -41,6 +43,8 @@ const AdminPromotionTable = () => {
     const [bulkResult, setBulkResult] = useState(null);
     const [bulkError, setBulkError] = useState('');
     const fileInputRef = useRef(null);
+    const validCount = bulkPreview.filter(row => row._valid).length;
+    const invalidCount = bulkPreview.length - validCount;
 
     const fetchPromotions = async () => {
         try {
@@ -70,7 +74,7 @@ const AdminPromotionTable = () => {
         return promotions.filter(promo => {
             let matchesStatus = true;
             if (filters.status) {
-                matchesStatus = promo.status === filters.status;
+                matchesStatus = matchesFilter(filters.status, promo.status);
             }
             return matchesStatus;
         });
@@ -436,7 +440,7 @@ const AdminPromotionTable = () => {
                     actions={
                         <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
                             <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-2">
-                                <select
+                                <MultiSelectFilter
                                     value={filters.status}
                                     onChange={(e) => handleFilterChange('status', e.target.value)}
                                     className="w-auto sm:w-28 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none uppercase tracking-wider cursor-pointer"
@@ -444,7 +448,7 @@ const AdminPromotionTable = () => {
                                     <option value="">All Status</option>
                                     <option value="Active">Active</option>
                                     <option value="Paused">Inactive</option>
-                                </select>
+                                </MultiSelectFilter>
                                 
                                 <div className="flex items-center gap-2">
                                     {filters.status && (

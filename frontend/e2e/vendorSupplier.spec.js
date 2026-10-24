@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import jwt from 'jsonwebtoken';
 
 /**
  * Vendor and Supplier portals.
@@ -21,7 +22,13 @@ const loginAs = async (request, role) => {
         data: { phone, otp: '123456' }
     });
     const body = await res.json();
-    return { phone, token: body.token, user: body.user, ok: res.ok() };
+    expect(res.ok(), 'persona login must succeed').toBe(true);
+    const userId = body.user?._id || body.user?.id;
+    expect(userId).toBeTruthy();
+    const admin = jwt.sign({ id: '6a7d56c980a151d5ad8b17d0', role: 'Admin' }, process.env.JWT_SECRET || 'e2e_secret_key', { expiresIn: '30m' });
+    const activated = await request.patch(`${API_URL}/auth/profile/update/${userId}`, { headers: { Authorization: `Bearer ${admin}` }, data: { status: 'approved', isProfileComplete: true } });
+    expect(activated.ok(), 'fixture persona must be active, not an onboarding redirect').toBe(true);
+    return { phone, token: body.token, user: await activated.json(), ok: res.ok() };
 };
 
 /** Seed the browser with a session the portal will accept. */
@@ -80,6 +87,7 @@ test.describe('Vendor portal', () => {
             await page.waitForLoadState('domcontentloaded');
             await page.waitForTimeout(600);
             await expect(page.locator('#root')).toBeAttached();
+            expect(new URL(page.url()).pathname, 'route must render its intended screen').toBe(route);
 
             page.off('pageerror', onError);
             if (errors.length) failures.push(`${route} → ${errors.join(' ; ')}`);
@@ -136,6 +144,7 @@ test.describe('Supplier portal', () => {
             await page.waitForLoadState('domcontentloaded');
             await page.waitForTimeout(600);
             await expect(page.locator('#root')).toBeAttached();
+            expect(new URL(page.url()).pathname, 'route must render its intended screen').toBe(route);
 
             page.off('pageerror', onError);
             if (errors.length) failures.push(`${route} → ${errors.join(' ; ')}`);

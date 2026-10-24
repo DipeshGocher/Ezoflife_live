@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import gsap from 'gsap';
 import { orderApi, logisticsApi } from '../../../lib/api';
-import socket from '../../../lib/socket';
+import socket, { subscribeSocketRooms } from '../../../lib/socket';
 import { toast } from 'react-hot-toast';
 import { GoogleMap, useJsApiLoader, Marker, Polyline, DirectionsRenderer } from '@react-google-maps/api';
 import { GOOGLE_MAPS_LOADER_OPTIONS } from '../../../lib/googleMaps';
@@ -126,7 +126,7 @@ const OrderTrackingPage = () => {
     fetchOrder();
 
     // Socket.io Real-time Setup
-    socket.emit('join_room', `order_${id}`);
+    const unsubscribeRooms = subscribeSocketRooms(socket, [`order_${id}`]);
 
     const handleStatusUpdate = (updatedOrder) => {
       console.log('⚡ Real-time status update received:', updatedOrder.status);
@@ -142,6 +142,7 @@ const OrderTrackingPage = () => {
     socket.on('rider_location_update', handleRiderLocationUpdate);
 
     return () => {
+      unsubscribeRooms();
       socket.off('order_status_update', handleStatusUpdate);
       socket.off('rider_location_update', handleRiderLocationUpdate);
     };

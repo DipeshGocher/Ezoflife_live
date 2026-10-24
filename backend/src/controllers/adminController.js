@@ -1,3 +1,9 @@
+import mongoose from 'mongoose';
+import { withVendorRatings } from '../services/vendorRatings.js';
+import { createAdminReportScope } from '../utils/adminReportScope.js';
+import { isScopedAdmin, filterAccountsByScope } from '../utils/adminScope.js';
+import { DEFAULT_INVOICE_SETTINGS, normalizeInvoiceSettings } from '../../../shared/invoiceSettings.mjs';
+import { filterCondition, textFilter } from '../utils/queryFilters.js';
 import User from '../models/User.js';
 import Job from '../models/Job.js';
 import Promotion from '../models/Promotion.js';
@@ -17,71 +23,6 @@ import Notification from '../models/Notification.js';
 import Service from '../models/Service.js';
 import VendorProductQuery from '../models/VendorProductQuery.js';
 import { v2 as cloudinary } from 'cloudinary';
-
-// Helper: Ray casting algorithm to check if point is in polygon
-const isPointInPolygon = (lat, lng, polygonCoords) => {
-    let inside = false;
-    const x = lng;
-    const y = lat;
-    for (let i = 0, j = polygonCoords.length - 1; i < polygonCoords.length; j = i++) {
-        const xi = polygonCoords[i][0];
-        const yi = polygonCoords[i][1];
-        const xj = polygonCoords[j][0];
-        const yj = polygonCoords[j][1];
-        const intersect = ((yi > y) !== (yj > y))
-            && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-        if (intersect) inside = !inside;
-    }
-    return inside;
-};
-
-// Helper to filter items (users or transformed entries) by admin geofence restrictions
-const filterUsersByGeofence = async (users, adminId) => {
-    try {
-        if (!adminId) return users;
-        const adminUser = await User.findById(adminId);
-        if (!adminUser || !adminUser.geofenceRestrictions || adminUser.geofenceRestrictions.length === 0) {
-            return users;
-        }
-
-        const ServiceArea = (await import('../models/ServiceArea.js')).default;
-        const serviceAreas = await ServiceArea.find({ isActive: true });
-
-        return users.filter(u => {
-            let lat = u.location?.lat;
-            let lng = u.location?.lng;
-
-            if (!lat && !lng) {
-                lat = u.shopDetails?.location?.lat || u.supplierDetails?.location?.lat;
-                lng = u.shopDetails?.location?.lng || u.supplierDetails?.location?.lng;
-            }
-
-            if (!lat && !lng && u.addresses && u.addresses.length > 0) {
-                lat = u.addresses[0].location?.lat;
-                lng = u.addresses[0].location?.lng;
-            }
-
-            if (!lat || !lng) {
-                return false;
-            }
-
-            let zoneName = 'N/A';
-            for (const area of serviceAreas) {
-                if (area.boundary?.coordinates?.[0]) {
-                    const polygonCoords = area.boundary.coordinates[0];
-                    if (isPointInPolygon(lat, lng, polygonCoords)) {
-                        zoneName = area.areaName;
-                        break;
-                    }
-                }
-            }
-            return adminUser.geofenceRestrictions.includes(zoneName);
-        });
-    } catch (e) {
-        console.error('Error filtering users by geofence:', e);
-        return users;
-    }
-};
 
 // Get all roles pending approval
 export const getPendingApprovals = async (req, res) => {
@@ -107,14 +48,14 @@ export const getPendingApprovals = async (req, res) => {
             ]
         };
 
-        if (vendorName && vendorName.trim() !== '') {
-            userQuery.displayName = vendorName.trim();
+        if (vendorName) {
+            userQuery.displayName = filterCondition(vendorName, value => String(value).trim());
         }
-        if (businessName && businessName.trim() !== '') {
-            userQuery['shopDetails.name'] = businessName.trim();
+        if (businessName) {
+            userQuery['shopDetails.name'] = filterCondition(businessName, value => String(value).trim());
         }
-        if (phone && phone.trim() !== '') {
-            userQuery.phone = phone.trim();
+        if (phone) {
+            userQuery.phone = filterCondition(phone, value => String(value).trim());
         }
 
         // ONLY fetch supplier applications that are pending or revision required, NOT already approved/onboarded
@@ -123,20 +64,20 @@ export const getPendingApprovals = async (req, res) => {
             onboardingStage: { $ne: 'Onboarded' }
         };
 
-        if (vendorName && vendorName.trim() !== '') {
-            supplierQuery.contactPersonName = { $regex: vendorName.trim(), $options: 'i' };
+        if (vendorName) {
+            supplierQuery.contactPersonName = textFilter(vendorName);
         }
-        if (businessName && businessName.trim() !== '') {
-            supplierQuery.registeredBusinessName = { $regex: businessName.trim(), $options: 'i' };
+        if (businessName) {
+            supplierQuery.registeredBusinessName = textFilter(businessName);
         }
-        if (phone && phone.trim() !== '') {
-            const matchingUsers = await User.find({ phone }).select('_id');
+        if (phone) {
+            const matchingUsers = await User.find({ phone: filterCondition(phone) }).select('_id');
             const userIds = matchingUsers.map(u => u._id);
             supplierQuery.user = { $in: userIds };
         }
 
         const [pendingVendors, supplierApps] = await Promise.all([
-            User.find(userQuery).select('-otp -otpExpiry').lean(),
+            User.find(userQuery).select('-otp -otpExpiry -password -activationToken -fcmToken -bankVerification.amount').lean(),
             SupplierApplication.find(supplierQuery).populate('user', 'displayName phone email').lean()
         ]);
         
@@ -167,8 +108,8 @@ export const getPendingApprovals = async (req, res) => {
         let filteredSuppliers = transformedSuppliers;
 
         if (req.admin && req.admin.id) {
-            filteredVendors = await filterUsersByGeofence(pendingVendors, req.admin.id);
-            filteredSuppliers = await filterUsersByGeofence(transformedSuppliers, req.admin.id);
+            filteredVendors = await filterAccountsByScope(req, pendingVendors);
+            filteredSuppliers = await filterAccountsByScope(req, transformedSuppliers);
         }
 
         const combined = [
@@ -230,6 +171,16 @@ export const approveFinalVendor = async (req, res) => {
         }
         
         await vendor.save();
+        // A unique event reference makes retries repair a missing notice without
+        // creating repeated activation messages. No external provider is called.
+        try {
+            await Notification.updateOne({ eventKey: `vendor_activated:${vendor._id}` }, { $setOnInsert: {
+                recipient: vendor._id, role: 'vendor', type: 'vendor_activated', title: 'Vendor account activated',
+                message: 'Your final review is complete. Your vendor dashboard is available.', payload: { action: '/vendor/dashboard' }
+            } }, { upsert: true });
+            const { getEventPublisher } = await import('../socket.js');
+            getEventPublisher().to(`user_${vendor._id}`).emit('account_updated', { userId: vendor._id, role: 'Vendor', status: 'approved' });
+        } catch (error) { console.error('Activation notice pending; retry approval to reconcile:', error.message); }
         res.status(200).json({ message: 'Vendor officially onboarded!', vendor });
     } catch (err) {
         console.error('Final Approval Error:', err);
@@ -303,10 +254,10 @@ export const deleteVendor = async (req, res) => {
 // Get all suppliers
 export const getAllSuppliers = async (req, res) => {
     try {
-        let suppliers = await User.find({ role: 'Supplier' }).select('-otp -otpExpiry').lean();
+        let suppliers = await User.find({ role: 'Supplier' }).select('-otp -otpExpiry -password -activationToken -fcmToken -bankVerification.amount').lean();
         
         if (req.admin && req.admin.id) {
-            suppliers = await filterUsersByGeofence(suppliers, req.admin.id);
+            suppliers = await filterAccountsByScope(req, suppliers);
         }
 
         res.status(200).json(suppliers);
@@ -516,6 +467,8 @@ export const rejectSupplier = async (req, res) => {
 export const updateSupplier = async (req, res) => {
     try {
         const { id } = req.params;
+        const allowed = ['displayName', 'supplierDetails', 'bankDetails'];
+        if (Object.keys(req.body).some(key => !allowed.includes(key))) return res.status(400).json({ message: 'Only supplier profile details can be edited here.' });
         const updates = req.body;
         
         const supplier = await User.findByIdAndUpdate(
@@ -539,12 +492,14 @@ export const getAllUsers = async (req, res) => {
         
         // Final Strict Filter: 
         // 1. Role must NOT be Admin
-        // 2. MUST BE (Customer) OR (Vendor/Supplier AND status === approved)
+        // 2. Include customer records and approved/blocked partners for status auditing.
         let query = { 
             role: { $ne: 'Admin' },
             $or: [
                 { role: 'Customer' },
-                { status: 'approved' }
+                { status: 'approved' },
+                { isBlocked: true },
+                { role: { $in: ['Vendor', 'Supplier'] }, status: 'rejected' }
             ]
         };
         
@@ -552,8 +507,8 @@ export const getAllUsers = async (req, res) => {
             query.role = role;
         }
 
-        const users = await User.find(query).select('-otp -otpExpiry').sort({ createdAt: -1 }).lean();
-        res.status(200).json(users);
+        const users = await User.find(query).select('-otp -otpExpiry -password -activationToken -fcmToken -bankVerification.amount').sort({ createdAt: -1 }).lean();
+        res.status(200).json(await filterAccountsByScope(req, users));
     } catch (err) {
         console.error('Get All Users Error:', err);
         res.status(500).json({ message: 'Error fetching users' });
@@ -833,7 +788,9 @@ export const toggleUserStatus = async (req, res) => {
         const user = await User.findById(id);
         if (!user) return res.status(404).json({ message: 'User not found' });
 
-        user.status = user.status === 'approved' ? 'rejected' : 'approved';
+        const block = user.status === 'approved';
+        user.status = block ? 'rejected' : 'approved';
+        user.isBlocked = block;
         await user.save();
 
         res.status(200).json({ message: `User status changed to ${user.status}`, user });
@@ -845,6 +802,7 @@ export const toggleUserStatus = async (req, res) => {
 // Get Dashboard Stats (Enhanced for Requested Metrics)
 export const getDashboardStats = async (req, res) => {
     try {
+        const scope = await createAdminReportScope(req, ['User', 'Order', 'Ticket', 'JobApplication', 'Service', 'ServiceArea']);
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
 
@@ -896,29 +854,29 @@ export const getDashboardStats = async (req, res) => {
             rejectedServiceRequests,
             monthlyRevenueOrders
         ] = await Promise.all([
-            Order.countDocuments({}),
-            User.countDocuments({ role: 'Rider', isOnline: true }),
-            Ticket.countDocuments({ status: 'Open' }),
-            Order.find({ createdAt: { $gte: startOfToday } }).select('totalAmount status deliverySlot'),
-            Order.find({ status: { $ne: 'Cancelled' } }).select('totalAmount'),
+            Order.countDocuments(scope.query('Order', {})),
+            User.countDocuments(scope.query('User', { role: 'Rider', isOnline: true })),
+            Ticket.countDocuments(scope.query('Ticket', { status: 'Open' })),
+            Order.find(scope.query('Order', { createdAt: { $gte: startOfToday } })).select('totalAmount status deliverySlot'),
+            Order.find(scope.query('Order', { status: { $ne: 'Cancelled' } })).select('totalAmount'),
             
-            User.countDocuments({ role: 'Vendor' }),
-            User.countDocuments({ role: 'Vendor', status: 'approved' }),
-            User.countDocuments({ role: 'Vendor', status: 'rejected' }),
+            User.countDocuments(scope.query('User', { role: 'Vendor' })),
+            User.countDocuments(scope.query('User', { role: 'Vendor', status: 'approved' })),
+            User.countDocuments(scope.query('User', { role: 'Vendor', status: 'rejected' })),
             
-            User.countDocuments({ role: 'Supplier' }),
-            User.countDocuments({ role: 'Supplier', status: 'approved' }),
-            User.countDocuments({ role: 'Supplier', status: 'rejected' }),
+            User.countDocuments(scope.query('User', { role: 'Supplier' })),
+            User.countDocuments(scope.query('User', { role: 'Supplier', status: 'approved' })),
+            User.countDocuments(scope.query('User', { role: 'Supplier', status: 'rejected' })),
             
-            ServiceArea.countDocuments({}),
-            ServiceArea.countDocuments({ isActive: true }),
+            ServiceArea.countDocuments(scope.query('ServiceArea', {})),
+            ServiceArea.countDocuments(scope.query('ServiceArea', { isActive: true })),
             
             MasterService.countDocuments({}),
             MasterService.countDocuments({ isActive: true }),
             
-            Ticket.countDocuments({}),
-            Ticket.countDocuments({ status: { $in: ['Resolved', 'Closed'] } }),
-            Ticket.countDocuments({ status: { $in: ['Open', 'In Progress'] } }),
+            Ticket.countDocuments(scope.query('Ticket', {})),
+            Ticket.countDocuments(scope.query('Ticket', { status: { $in: ['Resolved', 'Closed'] } })),
+            Ticket.countDocuments(scope.query('Ticket', { status: { $in: ['Open', 'In Progress'] } })),
             
             Advertisement.countDocuments({}),
             Advertisement.countDocuments({ isActive: true }),
@@ -928,29 +886,29 @@ export const getDashboardStats = async (req, res) => {
             Material.countDocuments({ status: 'active' }),
             Material.countDocuments({ status: 'out_of_stock' }),
             
-            JobApplication.countDocuments({}),
-            JobApplication.countDocuments({ status: 'Pending' }),
-            JobApplication.countDocuments({ status: { $ne: 'Pending' } }),
+            JobApplication.countDocuments(scope.query('JobApplication', {})),
+            JobApplication.countDocuments(scope.query('JobApplication', { status: 'Pending' })),
+            JobApplication.countDocuments(scope.query('JobApplication', { status: { $ne: 'Pending' } })),
             
-            Service.countDocuments({ isMaster: false }),
-            Service.countDocuments({ isMaster: false, approvalStatus: 'Pending' }),
-            Service.countDocuments({ isMaster: false, approvalStatus: 'Approved' }),
-            Service.countDocuments({ isMaster: false, approvalStatus: 'Rejected' }),
+            Service.countDocuments(scope.query('Service', { isMaster: false })),
+            Service.countDocuments(scope.query('Service', { isMaster: false, approvalStatus: 'Pending' })),
+            Service.countDocuments(scope.query('Service', { isMaster: false, approvalStatus: 'Approved' })),
+            Service.countDocuments(scope.query('Service', { isMaster: false, approvalStatus: 'Rejected' })),
             
-            Order.find({
+            Order.find(scope.query('Order', {
                 status: { $ne: 'Cancelled' },
                 createdAt: { $gte: sixMonthsAgo }
-            }).select('totalAmount createdAt')
+            })).select('totalAmount createdAt')
         ]);
 
         const todayRevenue = todayOrders.reduce((acc, order) => acc + (order.totalAmount || 0), 0);
         const totalRevenue = totalRevenueOrders.reduce((acc, order) => acc + (order.totalAmount || 0), 0);
 
         // Simple logic for delayed: status not Delivered and it's from yesterday or earlier
-        const delayedOrders = await Order.countDocuments({
+        const delayedOrders = await Order.countDocuments(scope.query('Order', {
             status: { $nin: ['Delivered', 'Cancelled'] },
             createdAt: { $lt: startOfToday }
-        });
+        }));
 
         // Initialize last 6 months for chart
         const monthsList = [];
@@ -979,14 +937,15 @@ export const getDashboardStats = async (req, res) => {
         const revenueTrend = monthsList.map(m => ({ name: m.name, revenue: m.revenue }));
 
         res.status(200).json({
+            scope: scope.metadata,
             stats: {
                 totalOrders,
                 activeRiders,
                 todayRevenue,
                 pendingIssues,
                 delayedOrders,
-                totalUsers: await User.countDocuments({ role: 'Customer' }),
-                activeVendors: await User.countDocuments({ role: 'Vendor', status: 'approved' }),
+                totalUsers: await User.countDocuments(scope.query('User', { role: 'Customer' })),
+                activeVendors: await User.countDocuments(scope.query('User', { role: 'Vendor', status: 'approved' })),
 
                 // Live dashboard enhanced stats
                 totalRevenue,
@@ -1057,13 +1016,13 @@ export const getCloudinaryUsage = async (req, res) => {
 // Get all vendors (approved or pending)
 export const getAllVendors = async (req, res) => {
     try {
-        let vendors = await User.find({ role: 'Vendor' }).select('-otp -otpExpiry').lean();
+        let vendors = await User.find({ role: 'Vendor' }).select('-otp -otpExpiry -password -activationToken -fcmToken -bankVerification.amount').lean();
         
         if (req.admin && req.admin.id) {
-            vendors = await filterUsersByGeofence(vendors, req.admin.id);
+            vendors = await filterAccountsByScope(req, vendors);
         }
 
-        res.status(200).json(vendors);
+        res.status(200).json(await withVendorRatings(vendors));
     } catch (err) {
         res.status(500).json({ message: 'Error fetching vendors' });
     }
@@ -1073,7 +1032,7 @@ export const getAllVendors = async (req, res) => {
 export const getVendorById = async (req, res) => {
     try {
         const { id } = req.params;
-        const vendor = await User.findById(id).select('-otp -otpExpiry').lean();
+        const vendor = await User.findById(id).select('-otp -otpExpiry -password -activationToken -fcmToken -bankVerification.amount').lean();
         if (!vendor) return res.status(404).json({ message: 'Vendor not found' });
 
         // Fetch custom services from Service collection
@@ -1107,10 +1066,10 @@ export const getVendorById = async (req, res) => {
 // Get all customers
 export const getCustomers = async (req, res) => {
     try {
-        let customers = await User.find({ role: 'Customer' }).select('-otp -otpExpiry').lean();
+        let customers = await User.find({ role: 'Customer' }).select('-otp -otpExpiry -password -activationToken -fcmToken -bankVerification.amount').lean();
         
         if (req.admin && req.admin.id) {
-            customers = await filterUsersByGeofence(customers, req.admin.id);
+            customers = await filterAccountsByScope(req, customers);
         }
 
         res.status(200).json(customers);
@@ -1234,37 +1193,24 @@ export const updateVendorServiceStatus = async (req, res) => {
 // System Config Controllers
 export const getSystemConfig = async (req, res) => {
     try {
-        let configs = await SystemConfig.find();
-        
-        // Auto-seed if empty
-        if (configs.length === 0) {
-            const defaults = [
-                { key: 'express_multiplier', value: 1.5, description: 'Multiplier for Express Delivery (Multiplicative Formula)' },
-                { key: 'platform_multiplier', value: 1.1, description: 'Platform Aggregator Fee Multiplier' },
-                { key: 'gst_percent', value: 18, description: 'GST Percentage' },
-                { key: 'normal_logistics_fee', value: 50, description: 'Base logistics fee for Normal Delivery mode' },
-                { key: 'chat_welcome_message', value: 'Hello! How can we help you today?', description: 'Welcome message' },
-                { key: 'delivery_day', value: 'Sunday', description: 'Global Delivery Day for B2B Supplier Orders' },
-                { 
-                    key: 'invoice_settings', 
-                    value: {
-                        showLogo: true,
-                        showVendorDetails: true,
-                        showTerms: true,
-                        customTerms: 'Thank you for taking our services..',
-                        invoiceNote: 'This is a computer generated invoice.',
-                        showTaxes: false,
-                        accentColor: '#000000',
-                        businessName: 'SPINZYT',
-                        contactEmail: 'support@spinzyt.com'
-                    }, 
-                    description: 'Invoice Template Configuration' 
-                }
-            ];
-            await SystemConfig.insertMany(defaults);
-            configs = await SystemConfig.find();
-        }
-        
+        const saved = await SystemConfig.find();
+        // Public and read-only requests must not seed database records.
+        const defaults = [
+            { key: 'express_multiplier', value: 1.5, description: 'Multiplier for Express Delivery (Multiplicative Formula)' },
+            { key: 'platform_multiplier', value: 1.1, description: 'Platform Aggregator Fee Multiplier' },
+            { key: 'gst_percent', value: 18, description: 'GST Percentage' },
+            { key: 'normal_logistics_fee', value: 50, description: 'Base logistics fee for Normal Delivery mode' },
+            { key: 'chat_welcome_message', value: 'Hello! How can we help you today?', description: 'Welcome message' },
+            { key: 'delivery_day', value: 'Sunday', description: 'Global Delivery Day for B2B Supplier Orders' },
+            {
+                key: 'invoice_settings',
+                value: { ...DEFAULT_INVOICE_SETTINGS },
+                description: 'Invoice Template Configuration'
+            }
+        ];
+        const savedKeys = new Set(saved.map(config => config.key));
+        const configs = [...saved, ...defaults.filter(config => !savedKeys.has(config.key))];
+
         res.status(200).json(configs);
     } catch (err) {
         res.status(500).json({ message: 'Error fetching config' });
@@ -1274,9 +1220,22 @@ export const getSystemConfig = async (req, res) => {
 export const updateSystemConfig = async (req, res) => {
     try {
         const { key, value } = req.body;
+        let nextValue = value;
+        if (key === 'invoice_settings') {
+            // Merge partial updates so existing installations retain their details.
+            const existing = await SystemConfig.findOne({ key });
+            try {
+                if (!value || typeof value !== 'object' || Array.isArray(value)) {
+                    return res.status(400).json({ message: 'Invoice settings must be an object.' });
+                }
+                nextValue = normalizeInvoiceSettings({ ...normalizeInvoiceSettings(existing?.value), ...value }, { validate: true });
+            } catch (error) {
+                return res.status(400).json({ message: error.message });
+            }
+        }
         const config = await SystemConfig.findOneAndUpdate(
             { key },
-            { value },
+            { value: nextValue },
             { upsert: true, new: true }
         );
         res.status(200).json(config);
@@ -1346,10 +1305,11 @@ export const clearAllOrders = async (req, res) => {
 // Get payment summary for all customers
 export const getCustomerPaymentSummary = async (req, res) => {
     try {
-        const customers = await User.find({ role: 'Customer' }).select('displayName phone email').lean();
+        const scope = await createAdminReportScope(req, ['User', 'Order']);
+        const customers = await User.find(scope.query('User', { role: 'Customer' })).select('displayName phone email').lean();
         
         const summary = await Promise.all(customers.map(async (cust) => {
-            const orders = await Order.find({ customer: cust._id }).select('totalAmount advanceAmount dueAmount status paymentStatus priceBreakdown').lean();
+            const orders = await Order.find(scope.query('Order', { customer: cust._id })).select('totalAmount advanceAmount dueAmount status paymentStatus priceBreakdown').lean();
             
             const totalOrders = orders.length;
             const successOrderCount = orders.filter(o => o.paymentStatus === 'Paid').length;
@@ -1392,13 +1352,13 @@ export const getCustomerPaymentSummary = async (req, res) => {
         }));
 
         // Also include preserved Ex-Customers who have orders
-        const activeCustomerIds = new Set(customers.map(c => c._id.toString()));
-        const exCustomerOrders = await Order.find({
+        const activeCustomerIds = new Set((scope.scoped ? await User.distinct('_id', { role: 'Customer' }) : customers.map(c => c._id)).map(String));
+        const exCustomerOrders = await Order.find(scope.query('Order', {
             $or: [
                 { 'customerSnapshot.isExUser': true },
                 { customer: { $nin: Array.from(activeCustomerIds) } }
             ]
-        }).select('customer customerSnapshot totalAmount advanceAmount dueAmount status paymentStatus priceBreakdown').lean();
+        })).select('customer customerSnapshot totalAmount advanceAmount dueAmount status paymentStatus priceBreakdown').lean();
 
         const exGroups = {};
         for (const order of exCustomerOrders) {
@@ -1458,6 +1418,7 @@ export const getCustomerPaymentSummary = async (req, res) => {
 // Get payment summary for all vendors
 export const getVendorPaymentSummary = async (req, res) => {
     try {
+        if (req.account?.role === 'Admin' && isScopedAdmin(req)) return res.status(403).json({ message: 'Vendor settlement reports require access to all service areas because payouts are not allocated to individual orders or zones.' });
         const vendors = await User.find({ role: 'Vendor' }).select('displayName phone email shopDetails').lean();
         
         const summary = await Promise.all(vendors.map(async (vendor) => {
@@ -1624,36 +1585,37 @@ export const getVendorPaymentSummary = async (req, res) => {
 // Record a new payout to a vendor
 export const recordVendorPayout = async (req, res) => {
     try {
-        const { vendorId, amount, transactionId, paymentMethod, notes } = req.body;
-        
-        if (!vendorId || !amount || !transactionId) {
-            return res.status(400).json({ message: 'Vendor, Amount and Transaction ID are required' });
+        const { vendorId, transactionId, paymentMethod = 'UPI', notes = '' } = req.body;
+        const amount = Number(req.body.amount);
+        if (!mongoose.isValidObjectId(vendorId) || !Number.isFinite(amount) || amount <= 0 || typeof transactionId !== 'string' || !transactionId.trim() || transactionId.length > 128 || !['UPI', 'Bank Transfer', 'Cash', 'Other'].includes(paymentMethod) || typeof notes !== 'string' || notes.length > 2000) return res.status(400).json({ message: 'Provide a valid vendor, positive finite amount, transaction reference, payment method and notes (up to 2000 characters).' });
+        if (!await User.exists({ _id: vendorId, role: 'Vendor' })) return res.status(404).json({ message: 'Vendor not found.' });
+        await Payout.init();
+        const reference = transactionId.trim();
+        const samePayout = payout => payout && String(payout.vendor) === String(vendorId) && payout.amount === amount && payout.paymentMethod === paymentMethod && payout.status === 'Completed';
+        const prior = await Payout.findOne({ transactionId: reference });
+        if (prior) {
+            if (!samePayout(prior)) return res.status(409).json({ message: 'This transaction reference already records a different payout.' });
+            return res.json({ message: 'Payout already recorded.', payout: prior, idempotent: true });
         }
-
-        const payout = new Payout({
-            vendor: vendorId,
-            amount,
-            transactionId,
-            paymentMethod,
-            notes,
-            status: 'Completed'
-        });
-
-        await payout.save();
-
-        res.status(201).json({
-            message: 'Payout recorded successfully',
-            payout
-        });
+        try {
+            const payout = await Payout.create({ vendor: vendorId, amount, transactionId: reference, paymentMethod, notes, status: 'Completed' });
+            return res.status(201).json({ message: 'Payout recorded successfully', payout });
+        } catch (error) {
+            if (error.code !== 11000) throw error;
+            const winner = await Payout.findOne({ transactionId: reference });
+            if (samePayout(winner)) return res.json({ message: 'Payout already recorded.', payout: winner, idempotent: true });
+            return res.status(409).json({ message: 'This transaction reference already records a different payout.' });
+        }
     } catch (err) {
-        console.error('Record Payout Error:', err);
-        res.status(500).json({ message: 'Error recording payout', error: err.message });
+        console.error('Record Payout Error:', err.message);
+        res.status(err.name === 'ValidationError' ? 400 : 503).json({ message: 'Unable to record payout.' });
     }
 };
 
 // Get payout history for a specific vendor
 export const getVendorPayoutHistory = async (req, res) => {
     try {
+        if (req.account?.role === 'Admin' && isScopedAdmin(req)) return res.status(403).json({ message: 'Vendor settlement reports require access to all service areas because payouts are not allocated to individual orders or zones.' });
         const { vendorId } = req.params;
         const payouts = await Payout.find({ vendor: vendorId }).sort({ paidAt: -1 }).lean();
         res.status(200).json(payouts);
@@ -1667,7 +1629,7 @@ export const getVendorPayoutHistory = async (req, res) => {
 export const getSubAdmins = async (req, res) => {
     try {
         const User = (await import('../models/User.js')).default;
-        const admins = await User.find({ role: 'Admin' }).select('-otp -otpExpiry').sort({ createdAt: -1 }).lean();
+        const admins = await User.find({ role: 'Admin' }).select('-otp -otpExpiry -password -activationToken -fcmToken -bankVerification.amount').sort({ createdAt: -1 }).lean();
         res.status(200).json(admins);
     } catch (err) {
         console.error('Get Sub-Admins Error:', err);
@@ -1678,16 +1640,11 @@ export const getSubAdmins = async (req, res) => {
 // Get counts for admin sidebar badges needing attention
 export const getSidebarCounts = async (req, res) => {
     try {
+        const scope = await createAdminReportScope(req, ['User', 'Ticket', 'SupplierApplication', 'Service', 'VendorMasterSupply']);
         const User = (await import('../models/User.js')).default;
         const SupplierApplication = (await import('../models/SupplierApplication.js')).default;
         const Service = (await import('../models/Service.js')).default;
         const VendorMasterSupply = (await import('../models/VendorMasterSupply.js')).default;
-
-        let HelpDeskTicket = null;
-        try { HelpDeskTicket = (await import('../models/HelpDeskTicket.js')).default; } catch (e) {}
-
-        let Dispute = null;
-        try { Dispute = (await import('../models/Dispute.js')).default; } catch (e) {}
 
         const [
             vendorRegCount,
@@ -1697,7 +1654,7 @@ export const getSidebarCounts = async (req, res) => {
             ticketCount,
             disputeCount
         ] = await Promise.all([
-            User.countDocuments({
+            User.countDocuments(scope.query('User', {
                 $and: [
                     {
                         $or: [
@@ -1712,15 +1669,15 @@ export const getSidebarCounts = async (req, res) => {
                         ]
                     }
                 ]
-            }),
-            SupplierApplication.countDocuments({
+            })),
+            SupplierApplication.countDocuments(scope.query('SupplierApplication', {
                 status: { $in: ['Pending', 'pending', 'Revision_Required'] },
                 onboardingStage: { $ne: 'Onboarded' }
-            }),
-            Service.countDocuments({ isMaster: false, approvalStatus: 'Pending' }),
-            VendorMasterSupply.countDocuments({ approvalStatus: 'Pending' }),
-            HelpDeskTicket ? HelpDeskTicket.countDocuments({ status: { $in: ['Open', 'In Progress', 'Pending'] } }) : Promise.resolve(0),
-            Dispute ? Dispute.countDocuments({ status: 'Pending' }) : Promise.resolve(0)
+            })),
+            Service.countDocuments(scope.query('Service', { isMaster: false, approvalStatus: 'Pending' })),
+            VendorMasterSupply.countDocuments(scope.query('VendorMasterSupply', { approvalStatus: 'Pending' })),
+            Ticket.countDocuments(scope.query('Ticket', { status: { $in: ['Open', 'In Progress'] }, category: { $nin: ['Missing Items', 'Damaged Items', 'Wrong Items'] } })),
+            Ticket.countDocuments(scope.query('Ticket', { status: { $in: ['Open', 'In Progress'] }, category: { $in: ['Missing Items', 'Damaged Items', 'Wrong Items'] } }))
         ]);
 
         const registrationTotal = vendorRegCount + supplierRegCount;

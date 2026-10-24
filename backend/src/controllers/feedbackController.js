@@ -1,3 +1,4 @@
+import { filterCondition, dateFilter } from '../utils/queryFilters.js';
 import Feedback from '../models/Feedback.js';
 import User from '../models/User.js';
 import { sendError } from '../utils/errorResponse.js';
@@ -50,23 +51,19 @@ export const getAllFeedbacks = async (req, res) => {
         const filter = {};
 
         if (category) {
-            filter.category = category;
+            filter.category = filterCondition(category);
         }
         if (rating) {
-            filter.rating = Number(rating);
+            filter.rating = filterCondition(rating, Number);
         }
         if (submitted) {
-            const start = new Date(submitted);
-            start.setHours(0, 0, 0, 0);
-            const end = new Date(submitted);
-            end.setHours(23, 59, 59, 999);
-            filter.createdAt = { $gte: start, $lte: end };
+            Object.assign(filter, dateFilter(submitted));
         }
 
         if (userName || email) {
             const userFilter = {};
-            if (userName) userFilter.displayName = userName;
-            if (email) userFilter.email = email;
+            if (userName) userFilter.displayName = filterCondition(userName);
+            if (email) userFilter.email = filterCondition(email);
             const users = await User.find(userFilter).select('_id');
             filter.user = { $in: users.map(u => u._id) };
         }

@@ -65,6 +65,8 @@ const WalkInOrderPage = () => {
   const navigate = useNavigate();
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerId, setCustomerId] = useState(null);
+  const [customerAddressAuthorization, setCustomerAddressAuthorization] = useState('');
+  const customerLookupRequest = useRef(0);
   const [customerName, setCustomerName] = useState("");
   const [tempName, setTempName] = useState("");
   const [otpValue, setOtpValue] = useState("");
@@ -696,18 +698,22 @@ const WalkInOrderPage = () => {
   };
 
   const handlePhoneChange = async (val) => {
+    const request = ++customerLookupRequest.current;
+    setCustomerAddressAuthorization('');
     const cleanVal = val.replace(/\D/g, "");
     if (cleanVal.length <= 10) {
       setCustomerPhone(cleanVal);
       if (cleanVal.length === 10) {
         try {
           const lookupRes = await authApi.lookupPhone(cleanVal);
+          if (request !== customerLookupRequest.current) return;
           if (lookupRes && lookupRes.isRegistered) {
             const dispName = lookupRes.displayName || "";
             setTempName(dispName);
             setCustomerName(dispName);
             setIsVerified(true);
             setCustomerId(lookupRes.id || null);
+            setCustomerAddressAuthorization(lookupRes.addressUpdateToken || '');
 
             let rawAddress = lookupRes.address || "";
             let cCity = lookupRes.city || "";
@@ -779,6 +785,7 @@ const WalkInOrderPage = () => {
             setCustomerId(null);
           }
         } catch (err) {
+          if (request !== customerLookupRequest.current) return;
           console.error("Lookup Phone Error:", err);
           if (
             err.message &&
@@ -844,13 +851,15 @@ const WalkInOrderPage = () => {
         setIsVerified(true);
         setShowOtpField(false);
         setCustomerId(res.user?._id || res.user?.id || null);
+        const addressAccess = await authApi.lookupPhone(customerPhone);
+        setCustomerAddressAuthorization(addressAccess.addressUpdateToken || '');
         toast.success(`Customer verified: ${tempName.trim()}`);
       } else {
         toast.error(res.message || "Verification failed");
       }
     } catch (err) {
       console.error("OTP Verification Error:", err);
-      toast.error("Invalid or expired OTP. Please try again.");
+      toast.error(err.message || "Invalid or expired OTP. Please try again.");
     } finally {
       setIsVerifyingOtp(false);
     }
@@ -3293,7 +3302,7 @@ const WalkInOrderPage = () => {
                             lng: Number(addressDetails.lng) || 0,
                           },
                           addresses: [newAddressObj],
-                        })
+                        }, customerAddressAuthorization)
                         .then(() => {
                           console.log(
                             "Customer address instantly persisted to DB successfully.",
@@ -3305,7 +3314,7 @@ const WalkInOrderPage = () => {
                             err,
                           );
                           toast.error(
-                            "Could not save address to customer profile on server",
+                            err.message || "Could not save address to customer profile on server",
                           );
                         });
                     }

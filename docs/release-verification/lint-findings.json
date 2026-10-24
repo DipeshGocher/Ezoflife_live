@@ -1,0 +1,4414 @@
+[
+  {
+    "file": "frontend/coverage/block-navigation.js",
+    "errors": 0,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 1,
+        "rule": null,
+        "severity": 1,
+        "message": "Unused eslint-disable directive (no problems were reported)."
+      }
+    ]
+  },
+  {
+    "file": "frontend/coverage/sorter.js",
+    "errors": 0,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 1,
+        "rule": null,
+        "severity": 1,
+        "message": "Unused eslint-disable directive (no problems were reported)."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/components/cards/MetricCard.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 2,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/components/cards/MetricRow.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 2,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'cn' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/components/common/PageHeader.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 8,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'pathParts' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/components/navigation/Sidebar.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 39,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/components/navigation/TopBar.jsx",
+    "errors": 1,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 11,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'pathParts' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 61,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchNotifications'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/components/tables/DataGrid.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 12,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'footer' is defined but never used. Allowed unused args must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/components/tables/DataTable.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 4,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'density' is assigned a value but never used. Allowed unused args must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/layouts/AdminLayout.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 9,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'location' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/AdminActivate.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/AdminAdvertisementPage.jsx",
+    "errors": 2,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 2,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'mediaApi' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/AdminBrandInquiries.jsx",
+    "errors": 2,
+    "warnings": 2,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 25,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "The 'fetchInquiries' function makes the dependencies of useMemo Hook (at line 255) change on every render. To fix this, wrap the definition of 'fetchInquiries' in its own useCallback() Hook."
+      },
+      {
+        "line": 53,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchInquiries'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 107,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleDelete' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/AdminCreatePromotion.jsx",
+    "errors": 1,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 6,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 161,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has an unnecessary dependency: 'promotions'. Either exclude it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/AdminGeofencePromotion.jsx",
+    "errors": 1,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 4,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 177,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has a missing dependency: 'handleOpenModal'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/AdminLegalPage.jsx",
+    "errors": 2,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 2,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'mediaApi' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/AdminLogin.jsx",
+    "errors": 1,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 49,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'handleRequestOtp'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/AdminOtp.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/AdminPromotionTable.jsx",
+    "errors": 3,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 6,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 20,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'submitting' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 83,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'paginatedPromotions' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 413,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has missing dependencies: 'handleDelete' and 'handleOpenModal'. Either include them or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/AdminPromotions.jsx",
+    "errors": 1,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 298,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has a missing dependency: 'handleApprove'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/AdminSettings.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 2,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/AdminSupplierRequestDetailPage.jsx",
+    "errors": 2,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 55,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchRequest` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  53 |\n  54 |   useEffect(() => {\n> 55 |     fetchRequest();\n     |     ^^^^^^^^^^^^ `fetchRequest` accessed before it is declared\n  56 |   }, [id]);\n  57 |\n  58 |   const getAdminToken = () => localStorage.getItem('adminToken') || localStorage.getItem('token') || localStorage.getItem('user_auth_token') || '';\n\n  58 |   const getAdminToken = () => localStorage.getItem('adminToken') || localStorage.getItem('token') || localStorage.getItem('user_auth_token') || '';\n  59 |\n> 60 |   const fetchRequest = async () => {\n     |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 61 |     try {\n     | ^^^^^^^^^\n> 62 |         const response = await fetch(`${BASE_URL}/supplier/requests/${id}`, {\n     \u2026\n     | ^^^^^^^^^\n> 71 |     }\n     | ^^^^^^^^^\n> 72 |   };\n     | ^^^^^ `fetchRequest` is declared here\n  73 |\n  74 |   const handleInitialApprove = async () => {\n  75 |     try {"
+      },
+      {
+        "line": 56,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchRequest'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/AdminSupplierRequestsPage.jsx",
+    "errors": 5,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 5,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 35,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setStartDate' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 36,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setEndDate' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 39,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchUnfiltered` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  37 |\n  38 |     useEffect(() => {\n> 39 |         fetchUnfiltered();\n     |         ^^^^^^^^^^^^^^^ `fetchUnfiltered` accessed before it is declared\n  40 |     }, []);\n  41 |\n  42 |     useEffect(() => {\n\n  50 |     }, [selectedSupplier, selectedBusiness, selectedPhone]);\n  51 |\n> 52 |     const fetchUnfiltered = async () => {\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 53 |         try {\n     | ^^^^^^^^^^^^^\n> 54 |             const response = await fetch(`${BASE_URL}/supplier/requests`);\n     \u2026\n     | ^^^^^^^^^^^^^\n> 61 |         }\n     | ^^^^^^^^^^^^^\n> 62 |     };\n     | ^^^^^^^ `fetchUnfiltered` is declared here\n  63 |\n  64 |     const latestFilterRequest = React.useRef(0);\n  65 |     const fetchRequests = async (filters = {}) => {"
+      },
+      {
+        "line": 48,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchRequests` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  46 |         if (selectedPhone) filters.phone = selectedPhone;\n  47 |\n> 48 |         fetchRequests(filters);\n     |         ^^^^^^^^^^^^^ `fetchRequests` accessed before it is declared\n  49 |         setPage(1);\n  50 |     }, [selectedSupplier, selectedBusiness, selectedPhone]);\n  51 |\n\n  63 |\n  64 |     const latestFilterRequest = React.useRef(0);\n> 65 |     const fetchRequests = async (filters = {}) => {\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 66 |         const requestId = ++latestFilterRequest.current;\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 67 |         try {\n     \u2026\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 86 |         }\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 87 |     };\n     | ^^^^^^^ `fetchRequests` is declared here\n  88 |\n  89 |     const uniqueSuppliers = React.useMemo(() => {\n  90 |         const names = unfilteredRequests.map(item => item.contactPersonName).filter(Boolean);"
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/AdminVendorDetail.jsx",
+    "errors": 1,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 45,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchVendor'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/AdminVendorRequestDetailPage.jsx",
+    "errors": 6,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 17,
+        "rule": "no-useless-escape",
+        "severity": 2,
+        "message": "Unnecessary escape character: \\&."
+      },
+      {
+        "line": 17,
+        "rule": "no-useless-escape",
+        "severity": 2,
+        "message": "Unnecessary escape character: \\&."
+      },
+      {
+        "line": 17,
+        "rule": "no-useless-escape",
+        "severity": 2,
+        "message": "Unnecessary escape character: \\?."
+      },
+      {
+        "line": 108,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchVendor` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  106 |\n  107 |   useEffect(() => {\n> 108 |     fetchVendor();\n      |     ^^^^^^^^^^^ `fetchVendor` accessed before it is declared\n  109 |   }, [id]);\n  110 |\n  111 |   const fetchVendor = async () => {\n\n  109 |   }, [id]);\n  110 |\n> 111 |   const fetchVendor = async () => {\n      |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 112 |     try {\n      | ^^^^^^^^^\n> 113 |         const data = await adminApi.getVendorRequestById(id);\n      \u2026\n      | ^^^^^^^^^\n> 121 |     }\n      | ^^^^^^^^^\n> 122 |   };\n      | ^^^^^ `fetchVendor` is declared here\n  123 |\n  124 |   const handleInitialApprove = async () => {\n  125 |     try {"
+      },
+      {
+        "line": 109,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchVendor'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 162,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'result' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/Analytics.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 20,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isLoading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/AreaPricingOverrides.jsx",
+    "errors": 4,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 2,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'categoryApi' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 4,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 17,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'loading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 22,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchInitialData` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  20 |\n  21 |     useEffect(() => {\n> 22 |         fetchInitialData();\n     |         ^^^^^^^^^^^^^^^^ `fetchInitialData` accessed before it is declared\n  23 |     }, []);\n  24 |\n  25 |     const fetchInitialData = async () => {\n\n  23 |     }, []);\n  24 |\n> 25 |     const fetchInitialData = async () => {\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 26 |         try {\n     | ^^^^^^^^^^^^^\n> 27 |             const [areaRes, serviceRes] = await Promise.all([\n     \u2026\n     | ^^^^^^^^^^^^^\n> 35 |         }\n     | ^^^^^^^^^^^^^\n> 36 |     };\n     | ^^^^^^^ `fetchInitialData` is declared here\n  37 |\n  38 |     const fetchOverrides = async (areaId) => {\n  39 |         if (!areaId) {"
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/B2BEscrowManagement.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 6,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/B2BLeads.jsx",
+    "errors": 2,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 118,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'val' is defined but never used. Allowed unused args must match /^[A-Z_]/u."
+      },
+      {
+        "line": 118,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'row' is defined but never used. Allowed unused args must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/CareerModeration.jsx",
+    "errors": 8,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 4,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 45,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setJobFilterStatus' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 51,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'adminAddresses' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 70,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchJobs` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  68 |\n  69 |   useEffect(() => {\n> 70 |     fetchJobs();\n     |     ^^^^^^^^^ `fetchJobs` accessed before it is declared\n  71 |     fetchApplications();\n  72 |     fetchTemplates();\n  73 |     loadAdminConfigs();\n\n  142 |   };\n  143 |\n> 144 |   const fetchJobs = async () => {\n      |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 145 |     try {\n      | ^^^^^^^^^\n> 146 |       setLoading(true);\n      \u2026\n      | ^^^^^^^^^\n> 161 |     }\n      | ^^^^^^^^^\n> 162 |   };\n      | ^^^^^ `fetchJobs` is declared here\n  163 |\n  164 |   const fetchApplications = async () => {\n  165 |     try {"
+      },
+      {
+        "line": 71,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchApplications` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  69 |   useEffect(() => {\n  70 |     fetchJobs();\n> 71 |     fetchApplications();\n     |     ^^^^^^^^^^^^^^^^^ `fetchApplications` accessed before it is declared\n  72 |     fetchTemplates();\n  73 |     loadAdminConfigs();\n  74 |   }, [creatorFilter]);\n\n  162 |   };\n  163 |\n> 164 |   const fetchApplications = async () => {\n      |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 165 |     try {\n      | ^^^^^^^^^\n> 166 |       const data = await jobApi.getAdminApplications(creatorFilter);\n      | ^^^^^^^^^\n> 167 |       setApplications(Array.isArray(data) ? data : []);\n      | ^^^^^^^^^\n> 168 |     } catch (error) {\n      | ^^^^^^^^^\n> 169 |       console.error(\"Fetch applications error:\", error);\n      | ^^^^^^^^^\n> 170 |       toast.error(\"Failed to sync candidate applications.\");\n      | ^^^^^^^^^\n> 171 |     }\n      | ^^^^^^^^^\n> 172 |   };\n      | ^^^^^ `fetchApplications` is declared here\n  173 |\n  174 |   // Actions\n  175 |   const handleAdminCreate = async (e) => {"
+      },
+      {
+        "line": 72,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchTemplates` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  70 |     fetchJobs();\n  71 |     fetchApplications();\n> 72 |     fetchTemplates();\n     |     ^^^^^^^^^^^^^^ `fetchTemplates` accessed before it is declared\n  73 |     loadAdminConfigs();\n  74 |   }, [creatorFilter]);\n  75 |\n\n  74 |   }, [creatorFilter]);\n  75 |\n> 76 |   const fetchTemplates = async () => {\n     |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 77 |     try {\n     | ^^^^^^^^^\n> 78 |       const data = await jobApi.getRoleTemplates();\n     \u2026\n     | ^^^^^^^^^\n> 86 |     }\n     | ^^^^^^^^^\n> 87 |   };\n     | ^^^^^ `fetchTemplates` is declared here\n  88 |\n  89 |   const loadAdminConfigs = () => {\n  90 |     // Load addresses from settings"
+      },
+      {
+        "line": 73,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`loadAdminConfigs` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  71 |     fetchApplications();\n  72 |     fetchTemplates();\n> 73 |     loadAdminConfigs();\n     |     ^^^^^^^^^^^^^^^^ `loadAdminConfigs` accessed before it is declared\n  74 |   }, [creatorFilter]);\n  75 |\n  76 |   const fetchTemplates = async () => {\n\n   87 |   };\n   88 |\n>  89 |   const loadAdminConfigs = () => {\n      |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  90 |     // Load addresses from settings\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  91 |     let defaultLocation = \"\";\n      \u2026\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 141 |     setForm((prev) => ({ ...prev, location: city }));\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 142 |   };\n      | ^^^^^ `loadAdminConfigs` is declared here\n  143 |\n  144 |   const fetchJobs = async () => {\n  145 |     try {"
+      },
+      {
+        "line": 74,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has missing dependencies: 'fetchApplications' and 'fetchJobs'. Either include them or remove the dependency array."
+      },
+      {
+        "line": 305,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleDeleteJob' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/CategoryManagement.jsx",
+    "errors": 1,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 6,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 230,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchCategories'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/CustomerPayments.jsx",
+    "errors": 2,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 39,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'stats' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 115,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'row' is defined but never used. Allowed unused args must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/DisputeCenter.jsx",
+    "errors": 2,
+    "warnings": 2,
+    "messages": [
+      {
+        "line": 25,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchTickets` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  23 |\n  24 |   useEffect(() => {\n> 25 |     fetchTickets();\n     |     ^^^^^^^^^^^^ `fetchTickets` accessed before it is declared\n  26 |     socketRef.current = createAuthenticatedSocket();\n  27 |     const unsubscribeRooms = subscribeSocketRooms(socketRef.current, ['admins_pool']);\n  28 |\n\n  39 |   }, []);\n  40 |\n> 41 |   const fetchTickets = async () => {\n     |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 42 |     try {\n     | ^^^^^^^^^\n> 43 |       const data = await ticketApi.getAllTickets();\n     \u2026\n     | ^^^^^^^^^\n> 54 |     }\n     | ^^^^^^^^^\n> 55 |   };\n     | ^^^^^ `fetchTickets` is declared here\n  56 |\n  57 |   useEffect(() => {\n  58 |     const client = socketRef.current;"
+      },
+      {
+        "line": 29,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'data' is defined but never used. Allowed unused args must match /^[A-Z_]/u."
+      },
+      {
+        "line": 39,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchTickets'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 75,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'selectedTicket'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/FAQManagement.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 107,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleDelete' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/FeedbackManagement.jsx",
+    "errors": 0,
+    "warnings": 2,
+    "messages": [
+      {
+        "line": 47,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchFeedbacks'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 192,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has a missing dependency: 'handleDelete'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/GeofencePincodeMapping.jsx",
+    "errors": 0,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 37,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchMappings'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/HelpDesk.jsx",
+    "errors": 2,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 8,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'adminApi' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 65,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchAllTickets'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 85,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'res' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/LaborManagement.jsx",
+    "errors": 2,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 2,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 9,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'loading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/MasterPricingRegistry.jsx",
+    "errors": 0,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 73,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/MasterServiceManagement.jsx",
+    "errors": 4,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 5,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 54,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchCategories` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  52 |\n  53 |     useEffect(() => {\n> 54 |         fetchCategories();\n     |         ^^^^^^^^^^^^^^^ `fetchCategories` accessed before it is declared\n  55 |         fetchServices();\n  56 |     }, []);\n  57 |\n\n  74 |     const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });\n  75 |\n> 76 |     const fetchCategories = async () => {\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 77 |         try {\n     | ^^^^^^^^^^^^^\n> 78 |             const data = await categoryApi.getAll();\n     | ^^^^^^^^^^^^^\n> 79 |             setCategories(data);\n     | ^^^^^^^^^^^^^\n> 80 |         } catch (error) {\n     | ^^^^^^^^^^^^^\n> 81 |             toast.error('Failed to load categories');\n     | ^^^^^^^^^^^^^\n> 82 |         }\n     | ^^^^^^^^^^^^^\n> 83 |     };\n     | ^^^^^^^ `fetchCategories` is declared here\n  84 |\n  85 |     const fetchServices = async (page = 1) => {\n  86 |         try {"
+      },
+      {
+        "line": 55,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchServices` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  53 |     useEffect(() => {\n  54 |         fetchCategories();\n> 55 |         fetchServices();\n     |         ^^^^^^^^^^^^^ `fetchServices` accessed before it is declared\n  56 |     }, []);\n  57 |\n  58 |     useEffect(() => {\n\n   83 |     };\n   84 |\n>  85 |     const fetchServices = async (page = 1) => {\n      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  86 |         try {\n      | ^^^^^^^^^^^^^\n>  87 |             setIsLoading(true);\n      \u2026\n      | ^^^^^^^^^^^^^\n>  99 |         }\n      | ^^^^^^^^^^^^^\n> 100 |     };\n      | ^^^^^^^ `fetchServices` is declared here\n  101 |\n  102 |     const handleDownload = () => {\n  103 |         if (!services || services.length === 0) {"
+      },
+      {
+        "line": 56,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchServices'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 260,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleDelete' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/MaterialConfig.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 17,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/MediaConfig.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 2,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/NotificationsPage.jsx",
+    "errors": 1,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 24,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 46,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has a missing dependency: 'typeConfig'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/OnboardingApprovals.jsx",
+    "errors": 5,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 6,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 57,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setStartDate' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 58,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setEndDate' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 118,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleTabChange' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 196,
+        "rule": "react-hooks/preserve-manual-memoization",
+        "severity": 2,
+        "message": "Compilation Skipped: Existing memoization could not be preserved\n\nReact Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. This value was memoized in source but not in compilation output.\n\n  194 |   }, [allUnfilteredTabItems]);\n  195 |\n> 196 |   const filteredData = useMemo(() => {\n      |                        ^^^^^^^^^^^^^^^\n> 197 |     return allTabItems.filter(item => {\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 198 |       // 1. Text Search Filter\n      \u2026\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 235 |     });\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 236 |   }, [allTabItems, rawUsers, startDate, endDate, searchQuery, selectedStatus]);\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Could not preserve existing memoization\n  237 |\n  238 |   const paginatedData = useMemo(() => {\n  239 |     return filteredData.slice((page - 1) * itemsPerPage, page * itemsPerPage);"
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/Orders.jsx",
+    "errors": 6,
+    "warnings": 3,
+    "messages": [
+      {
+        "line": 155,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'zones' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 238,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "The 'handleDownloadCustomerInvoice' function makes the dependencies of useMemo Hook (at line 1160) change on every render. Move it inside the useMemo callback. Alternatively, wrap the definition of 'handleDownloadCustomerInvoice' in its own useCallback() Hook."
+      },
+      {
+        "line": 338,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "The 'handleDownloadVendorInvoice' function makes the dependencies of useMemo Hook (at line 1160) change on every render. Move it inside the useMemo callback. Alternatively, wrap the definition of 'handleDownloadVendorInvoice' in its own useCallback() Hook."
+      },
+      {
+        "line": 446,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'tabs' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 489,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleDeleteOrder' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 501,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleUpdateStatus' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 519,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleExportPDF' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 746,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleClearAllOrders' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 793,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchAllOrders'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/PartnershipInquiries.jsx",
+    "errors": 1,
+    "warnings": 2,
+    "messages": [
+      {
+        "line": 24,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "The 'fetchInquiries' function makes the dependencies of useMemo Hook (at line 278) change on every render. To fix this, wrap the definition of 'fetchInquiries' in its own useCallback() Hook."
+      },
+      {
+        "line": 51,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchInquiries'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 104,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleDelete' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/Payouts.jsx",
+    "errors": 3,
+    "warnings": 3,
+    "messages": [
+      {
+        "line": 35,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'searchQuery' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 35,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setSearchQuery' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 60,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "The ref value 'latestFetch.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'latestFetch.current' to a variable inside the effect, and use that variable in the cleanup function."
+      },
+      {
+        "line": 102,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'tabMap'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 104,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'tabs' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 589,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has a missing dependency: 'handleReconcile'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/PricingConfig.jsx",
+    "errors": 2,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 27,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'configs' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 118,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'sectionRefs'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 147,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'stats' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/PricingPreview.jsx",
+    "errors": 2,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 4,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 20,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchInitialData` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  18 |\n  19 |     useEffect(() => {\n> 20 |         fetchInitialData();\n     |         ^^^^^^^^^^^^^^^^ `fetchInitialData` accessed before it is declared\n  21 |     }, []);\n  22 |\n  23 |     const fetchInitialData = async () => {\n\n  21 |     }, []);\n  22 |\n> 23 |     const fetchInitialData = async () => {\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 24 |         try {\n     | ^^^^^^^^^^^^^\n> 25 |             const [areaData, catData] = await Promise.all([\n     \u2026\n     | ^^^^^^^^^^^^^\n> 33 |         }\n     | ^^^^^^^^^^^^^\n> 34 |     };\n     | ^^^^^^^ `fetchInitialData` is declared here\n  35 |\n  36 |     const fetchPreview = async () => {\n  37 |         if (!selectedArea) {"
+      },
+      {
+        "line": 54,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchPreview'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/ReferralManagement.jsx",
+    "errors": 0,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 46,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has missing dependencies: 'config.REFERRAL_DOWNLOAD_LINK' and 'config.REFERRAL_MESSAGE'. Either include them or remove the dependency array. You can also replace multiple useState variables with useReducer if 'setConfig' needs the current value of 'config.REFERRAL_MESSAGE'."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/Reports.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 40,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isLoading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/RoleDetails.jsx",
+    "errors": 2,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 2,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 28,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchTemplates` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  26 |\n  27 |     useEffect(() => {\n> 28 |         fetchTemplates();\n     |         ^^^^^^^^^^^^^^ `fetchTemplates` accessed before it is declared\n  29 |     }, []);\n  30 |\n  31 |     const fetchTemplates = async () => {\n\n  29 |     }, []);\n  30 |\n> 31 |     const fetchTemplates = async () => {\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 32 |         try {\n     | ^^^^^^^^^^^^^\n> 33 |             setLoading(true);\n     \u2026\n     | ^^^^^^^^^^^^^\n> 41 |         }\n     | ^^^^^^^^^^^^^\n> 42 |     };\n     | ^^^^^^^ `fetchTemplates` is declared here\n  43 |\n  44 |     const getWordCount = (text) => {\n  45 |         return text.trim().split(/\\s+/).filter(w => w.length > 0).length;"
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/ServiceAreas.jsx",
+    "errors": 5,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 363,
+        "rule": "no-empty",
+        "severity": 2,
+        "message": "Empty block statement."
+      },
+      {
+        "line": 542,
+        "rule": "no-empty",
+        "severity": 2,
+        "message": "Empty block statement."
+      },
+      {
+        "line": 677,
+        "rule": "react-hooks/refs",
+        "severity": 2,
+        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\n  675 |                 key={area._id}\n  676 |                 className={`p-4 transition-all cursor-pointer group ${isSelected ? \"bg-slate-50\" : \"hover:bg-slate-50/60\"}`}\n> 677 |                 onClick={() => panToArea(area)}>\n      |                                ^^^^^^^^^ Passing a ref to a function may read its value during render\n  678 |                 {/* Top row */}\n  679 |                 <div className=\"flex items-start justify-between gap-2\">\n  680 |                   <div className=\"flex items-center gap-2.5 min-w-0\">"
+      },
+      {
+        "line": 745,
+        "rule": "react-hooks/refs",
+        "severity": 2,
+        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\n  743 |                     onClick={(e) => {\n  744 |                       e.stopPropagation();\n> 745 |                       handleConfigureArea(area);\n      |                       ^^^^^^^^^^^^^^^^^^^ Passing a ref to a function may read its value during render\n  746 |                     }}\n  747 |                     className=\"flex-1 min-w-[90px] flex items-center justify-center gap-1 px-2.5 py-1.5 bg-slate-900 text-white text-[9px] font-black uppercase tracking-wider rounded-sm hover:bg-black transition-all shadow-xs\">\n  748 |                     <Edit2 size={10} /> Edit Details"
+      },
+      {
+        "line": 1284,
+        "rule": "react-hooks/refs",
+        "severity": 2,
+        "message": "Error: Cannot access refs during render\n\nReact refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).\n\n  1282 |         <div className=\"w-full lg:w-80 shrink-0 h-[45%] lg:h-full order-2 lg:order-1\">\n  1283 |           {mode === \"configure\"\n> 1284 |             ? renderConfigurePanel()\n       |               ^^^^^^^^^^^^^^^^^^^^ This function accesses a ref value\n  1285 |             : renderZoneListPanel()}\n  1286 |         </div>\n  1287 |"
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/ServiceGeofenceTable.jsx",
+    "errors": 1,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 168,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchAreas'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 170,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleDeleteArea' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/Services.jsx",
+    "errors": 1,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 2,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 281,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has missing dependencies: 'handleApprove', 'handleDelete', 'systemFees.essential', and 'systemFees.heritage'. Either include them or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/SupplierProductRequests.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 4,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/SupplierServiceZoneManagement.jsx",
+    "errors": 2,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 5,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 243,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchZones'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 303,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleDelete' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/Suppliers.jsx",
+    "errors": 3,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 1,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'useMemo' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 2,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 17,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchSuppliers` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  15 |\n  16 |   useEffect(() => {\n> 17 |     fetchSuppliers();\n     |     ^^^^^^^^^^^^^^ `fetchSuppliers` accessed before it is declared\n  18 |   }, []);\n  19 |\n  20 |   const fetchSuppliers = async () => {\n\n  18 |   }, []);\n  19 |\n> 20 |   const fetchSuppliers = async () => {\n     |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 21 |     setLoading(true);\n     | ^^^^^^^^^^^^^^^^^^^^^\n> 22 |     try {\n     \u2026\n     | ^^^^^^^^^^^^^^^^^^^^^\n> 30 |     }\n     | ^^^^^^^^^^^^^^^^^^^^^\n> 31 |   };\n     | ^^^^^ `fetchSuppliers` is declared here\n  32 |\n  33 |   const handleAction = async (id, status) => {\n  34 |     if(!window.confirm(`Are you sure you want to ${status} this supplier?`)) return;"
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/Users.jsx",
+    "errors": 4,
+    "warnings": 2,
+    "messages": [
+      {
+        "line": 17,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 149,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchUsers'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 172,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'editingUser'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 186,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleToggleStatus' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 212,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleClearAll' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 419,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'row' is defined but never used. Allowed unused args must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/VendorMasterSupplyManagement.jsx",
+    "errors": 3,
+    "warnings": 2,
+    "messages": [
+      {
+        "line": 5,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 279,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchUniqueFilters` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  277 |     useEffect(() => {\n  278 |         fetchCategories();\n> 279 |         fetchUniqueFilters();\n      |         ^^^^^^^^^^^^^^^^^^ `fetchUniqueFilters` accessed before it is declared\n  280 |         fetchSupplies(1);\n  281 |     }, []);\n  282 |\n\n  281 |     }, []);\n  282 |\n> 283 |     const fetchUniqueFilters = async () => {\n      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 284 |         try {\n      | ^^^^^^^^^^^^^\n> 285 |             const data = await vendorMasterSupplyApi.getUniqueFilters();\n      \u2026\n      | ^^^^^^^^^^^^^\n> 293 |         }\n      | ^^^^^^^^^^^^^\n> 294 |     };\n      | ^^^^^^^ `fetchUniqueFilters` is declared here\n  295 |\n  296 |     const handleOpenModal = (supply = null) => {\n  297 |         if (supply) {"
+      },
+      {
+        "line": 281,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchSupplies'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 404,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleDelete' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 642,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has a missing dependency: 'handleOpenModal'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/VendorProductTableManagement.jsx",
+    "errors": 2,
+    "warnings": 2,
+    "messages": [
+      {
+        "line": 5,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 93,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchSupplies'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 396,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'skuPreviewStr' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 523,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has missing dependencies: 'handleDelete' and 'handleOpenModal'. Either include them or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/VendorServiceRequests.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 5,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/VendorSupplyCategoryManagement.jsx",
+    "errors": 2,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 6,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 230,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchCategories'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 274,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleDelete' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/pages/Vendors.jsx",
+    "errors": 2,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 29,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 53,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isLoading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 205,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has a missing dependency: 'navigate'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/admin/routes/AdminRoutes.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 82,
+        "rule": "react-hooks/purity",
+        "severity": 2,
+        "message": "Error: Cannot call impure function during render\n\n`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).\n\n  80 |         const payloadStr = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));\n  81 |         const payload = JSON.parse(payloadStr);\n> 82 |         const now = Math.floor(Date.now() / 1000);\n     |                                ^^^^^^^^^^ Cannot call impure function\n  83 |         \n  84 |         // Parse adminData\n  85 |         const adminData = JSON.parse(adminDataStr);"
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/supplier/components/SupplierBottomNav.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/supplier/components/SupplierHeader.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/supplier/pages/SupplierAddressesPage.jsx",
+    "errors": 2,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 15,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isLoading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/supplier/pages/SupplierAuth.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/supplier/pages/SupplierCreateJobRequisition.jsx",
+    "errors": 2,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 199,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setStatus' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/supplier/pages/SupplierDashboard.jsx",
+    "errors": 15,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 4,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'authApi' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 14,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'loading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 40,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'getStatusLabel' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 41,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'getStatusIcon' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 42,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'getStatusColor' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 70,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'unreadCount' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 77,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has missing dependencies: 'fetchNotifications' and 'fetchOrders'. Either include them or remove the dependency array."
+      },
+      {
+        "line": 113,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleBulkDeliver' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 138,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleVendorBulkUpdate' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 156,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'containerVariants' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 165,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'dashboardTabs' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 174,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'aggregatedStats' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 194,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'vendorAggregatedStats' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 254,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isToday' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 454,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'nextStatus' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/supplier/pages/SupplierFulfillmentPage.jsx",
+    "errors": 2,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 13,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isLoading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/supplier/pages/SupplierLaborRequestPage.jsx",
+    "errors": 1,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 44,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchLiveHub'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/supplier/pages/SupplierLogistics.jsx",
+    "errors": 3,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 1,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'useEffect' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 33,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'loading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 61,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook React.useEffect has a missing dependency: 'fetchOrders'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/supplier/pages/SupplierMorePage.jsx",
+    "errors": 2,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 4,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'toast' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/supplier/pages/SupplierMySupplies.jsx",
+    "errors": 10,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 35,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setSearchTerm' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 36,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setStatusFilter' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 276,
+        "rule": "react-hooks/purity",
+        "severity": 2,
+        "message": "Error: Cannot call impure function during render\n\n`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).\n\n  274 |             \n  275 |             const payload = {\n> 276 |                 skuId: `SKU-${Math.floor(100000 + Math.random() * 900000)}`,\n      |                                                   ^^^^^^^^^^^^^ Cannot call impure function\n  277 |                 materialName: finalProductName,\n  278 |                 categoryName: finalCategory,\n  279 |                 subCategoryName: finalSubCategory,"
+      },
+      {
+        "line": 294,
+        "rule": "react-hooks/purity",
+        "severity": 2,
+        "message": "Error: Cannot call impure function during render\n\n`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).\n\n  292 |                 supplierId: supplierCode,\n  293 |                 supplierFacilityName: supplierFacilityName,\n> 294 |                 serialNumber: Date.now()\n      |                               ^^^^^^^^^^ Cannot call impure function\n  295 |             };\n  296 |\n  297 |             const response = await vendorMasterSupplyApi.create(payload);"
+      },
+      {
+        "line": 408,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'toggleSupplyStatusLocal' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 420,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleInlineChange' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 430,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleGlobalSave' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 544,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchSupplies'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 575,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'getCategoryIcon' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 741,
+        "rule": "react-hooks/static-components",
+        "severity": 2,
+        "message": "Error: Cannot create components during render\n\nComponents created during render will reset their state each time they are created. Declare components outside of render.\n\n  739 |             <AnimatePresence>\n  740 |                 {showDetailModal && (\n> 741 |                     <DetailModal \n      |                      ^^^^^^^^^^^ This component is created during render\n  742 |                         supply={selectedSupply} \n  743 |                         onClose={() => {\n  744 |                             setShowDetailModal(false);\n\n  583 |     };\n  584 |\n> 585 |     const DetailModal = ({ supply, onClose }) => {\n      |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 586 |         if (!supply) return null;\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 587 |         return (\n      \u2026\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 734 |         );\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 735 |     };\n      | ^^^^^^ The component is created during render here\n  736 |\n  737 |     return (\n  738 |         <div className=\"text-slate-900 min-h-screen pb-48 font-sans\">"
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/supplier/pages/SupplierNotifications.jsx",
+    "errors": 1,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 32,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchNotifications'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/supplier/pages/SupplierOrderDetails.jsx",
+    "errors": 6,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 15,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'targetDateStr' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 118,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'getStatusIcon' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 119,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'getStatusColor' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 155,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchOrder'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 309,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'getImageUrl' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 427,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'index' is defined but never used. Allowed unused args must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/supplier/pages/SupplierOtp.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/supplier/pages/SupplierRateCard.jsx",
+    "errors": 3,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 8,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'navigate' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 11,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isLoading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/supplier/pages/SupplierWallet.jsx",
+    "errors": 2,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 10,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'navigate' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/components/FindingVendorScreen.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 2,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/components/GlobalCartButton.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/components/UserHeader.jsx",
+    "errors": 4,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 2,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 10,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isHomePage' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 13,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'unreadCount' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 14,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setPickerOpen' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/layouts/UserLayout.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/AddressesPage.jsx",
+    "errors": 3,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 1,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'useEffect' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 14,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isLoading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/AdvertiseWithUsPage.jsx",
+    "errors": 1,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 55,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchMyInquiries'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/AllServicesPage.jsx",
+    "errors": 1,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 51,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has unnecessary dependencies: 'location' and 'zone'. Either exclude them or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/AuthPage.jsx",
+    "errors": 1,
+    "warnings": 2,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 55,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook React.useEffect has a missing dependency: 'handleRequestOtp'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 64,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook React.useEffect has a missing dependency: 'handleRequestOtp'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/CareersPage.jsx",
+    "errors": 2,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 63,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchJobs` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  61 |\n  62 |     useEffect(() => {\n> 63 |         fetchJobs();\n     |         ^^^^^^^^^ `fetchJobs` accessed before it is declared\n  64 |     }, []);\n  65 |\n  66 |     const fetchJobs = async () => {\n\n  64 |     }, []);\n  65 |\n> 66 |     const fetchJobs = async () => {\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 67 |         try {\n     | ^^^^^^^^^^^^^\n> 68 |             const data = await jobApi.getActiveJobs();\n     \u2026\n     | ^^^^^^^^^^^^^\n> 89 |         }\n     | ^^^^^^^^^^^^^\n> 90 |     };\n     | ^^^^^^^ `fetchJobs` is declared here\n  91 |\n  92 |     const handleApply = async (e) => {\n  93 |         e.preventDefault();"
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/CartPage.jsx",
+    "errors": 26,
+    "warnings": 4,
+    "messages": [
+      {
+        "line": 1,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'useCallback' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 5,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'mediaApi' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 12,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'mapContainerStyle' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 68,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'clothCounts' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 68,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setClothCounts' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 80,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'mapAddress' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 80,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setMapAddress' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 110,
+        "rule": "no-empty",
+        "severity": 2,
+        "message": "Empty block statement."
+      },
+      {
+        "line": 166,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'billingUnits'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 180,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'gstPercent' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 202,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setIsExpress' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 220,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setGarmentPhotos' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 229,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'fileInputRef' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 249,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setSelectedPickup' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 250,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setPickupTime' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 252,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setDeliveryTime' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 258,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'addresses' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 267,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setIsSameAddress' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 268,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'showPreview' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 268,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setShowPreview' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 269,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setPaymentMethod' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 293,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'timeInfo' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 415,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'updateQuantity' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 489,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has a missing dependency: 'getItemPrice'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 506,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has a missing dependency: 'getItemPrice'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 547,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has a missing dependency: 'getItemPrice'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 750,
+        "rule": "no-empty",
+        "severity": 2,
+        "message": "Empty block statement."
+      },
+      {
+        "line": 813,
+        "rule": "no-empty",
+        "severity": 2,
+        "message": "Empty block statement."
+      },
+      {
+        "line": 946,
+        "rule": "no-empty",
+        "severity": 2,
+        "message": "Empty block statement."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/ChatPage.jsx",
+    "errors": 1,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 124,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'ticket'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/DeliveryVerificationPage.jsx",
+    "errors": 2,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 1,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'useRef' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/EditProfilePage.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/FAQPage.jsx",
+    "errors": 7,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 85,
+        "rule": "no-useless-escape",
+        "severity": 2,
+        "message": "Unnecessary escape character: \\&."
+      },
+      {
+        "line": 85,
+        "rule": "no-useless-escape",
+        "severity": 2,
+        "message": "Unnecessary escape character: \\&."
+      },
+      {
+        "line": 85,
+        "rule": "no-useless-escape",
+        "severity": 2,
+        "message": "Unnecessary escape character: \\?."
+      },
+      {
+        "line": 175,
+        "rule": "no-useless-escape",
+        "severity": 2,
+        "message": "Unnecessary escape character: \\&."
+      },
+      {
+        "line": 175,
+        "rule": "no-useless-escape",
+        "severity": 2,
+        "message": "Unnecessary escape character: \\&."
+      },
+      {
+        "line": 175,
+        "rule": "no-useless-escape",
+        "severity": 2,
+        "message": "Unnecessary escape character: \\?."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/FeedbackForm.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/HelpCenterPage.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/HomePage.jsx",
+    "errors": 0,
+    "warnings": 5,
+    "messages": [
+      {
+        "line": 378,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'updateGeofenceForAddress'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 733,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchConfig'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 987,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has a missing dependency: 'allowDiscount'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 1029,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'deliveryTime'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 1046,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'getSlotDateTime'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/LandingAdPage.jsx",
+    "errors": 2,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 38,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`handleStartBrowsing` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  36 |                 if (prev <= 1) {\n  37 |                     clearInterval(timer);\n> 38 |                     handleStartBrowsing();\n     |                     ^^^^^^^^^^^^^^^^^^^ `handleStartBrowsing` accessed before it is declared\n  39 |                     return 0;\n  40 |                 }\n  41 |                 return prev - 1;\n\n  46 |     }, []);\n  47 |\n> 48 |     const handleStartBrowsing = () => {\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 49 |         safeStorage.setItem('hasSeenLanding', 'true');\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 50 |         navigate('/user/home');\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 51 |     };\n     | ^^^^^^^ `handleStartBrowsing` is declared here\n  52 |\n  53 |     return (\n  54 |         <div className=\"min-h-screen bg-white flex flex-col overflow-hidden relative\">"
+      },
+      {
+        "line": 46,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'handleStartBrowsing'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/MaterialsCatalogPage.jsx",
+    "errors": 2,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 1,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'useMemo' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/MoreMenuPage.jsx",
+    "errors": 2,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 4,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'toast' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 50,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has a missing dependency: 'isPartner'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/NotificationsPage.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/OrderConfirmationPage.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/OrderTrackingPage.jsx",
+    "errors": 7,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 4,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'gsap' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 13,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'mapContainerStyle' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 27,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'loading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 28,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'refreshing' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 34,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'mapRef' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 101,
+        "rule": "react-hooks/purity",
+        "severity": 2,
+        "message": "Error: Cannot call impure function during render\n\n`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).\n\n   99 |     const cancellableStatuses = ['ORDER_PLACED', 'PICKUP_ASSIGNED', 'RIDER_ARRIVING'];\n  100 |     if (!cancellableStatuses.includes(order.status)) return false;\n> 101 |     const diffInMs = Date.now() - new Date(order.createdAt).getTime();\n      |                      ^^^^^^^^^^ Cannot call impure function\n  102 |     const diffInMinutes = diffInMs / (1000 * 60);\n  103 |     return diffInMinutes <= 120; // 2 hours\n  104 |   }, [order]);"
+      },
+      {
+        "line": 149,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchOrder'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/OrdersHistoryPage.jsx",
+    "errors": 3,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 4,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 32,
+        "rule": "react-hooks/purity",
+        "severity": 2,
+        "message": "Error: Cannot call impure function during render\n\n`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).\n\n  30 |     const cancellableStatuses = ['ORDER_PLACED', 'PICKUP_ASSIGNED', 'RIDER_ARRIVING'];\n  31 |     if (!cancellableStatuses.includes(order.status)) return false;\n> 32 |     const diffInMs = Date.now() - new Date(order.createdAt).getTime();\n     |                      ^^^^^^^^^^ Cannot call impure function\n  33 |     const diffInMinutes = diffInMs / (1000 * 60);\n  34 |     return diffInMinutes <= 120; // 2 hours\n  35 |   };"
+      },
+      {
+        "line": 105,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchOrders'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 184,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'qty' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/OtpVerificationPage.jsx",
+    "errors": 8,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 10,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'channel' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 93,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: This value cannot be modified\n\nModifying a variable defined outside a component or hook is not allowed. Consider using an effect.\n\n  91 |           // Force Page Refresh or specific redirect\n  92 |           if (actingRole === 'vendor') {\n> 93 |             window.location.href = '/vendor/dashboard';\n     |             ^^^^^^^^^^^^^^^ value cannot be modified\n  94 |           } else if (actingRole === 'supplier') {\n  95 |             window.location.href = '/supplier/dashboard';\n  96 |           } else if (actingRole === 'admin') {"
+      },
+      {
+        "line": 95,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: This value cannot be modified\n\nModifying a variable defined outside a component or hook is not allowed. Consider using an effect.\n\n  93 |             window.location.href = '/vendor/dashboard';\n  94 |           } else if (actingRole === 'supplier') {\n> 95 |             window.location.href = '/supplier/dashboard';\n     |             ^^^^^^^^^^^^^^^ value cannot be modified\n  96 |           } else if (actingRole === 'admin') {\n  97 |             window.location.href = '/admin/dashboard';\n  98 |           } else {"
+      },
+      {
+        "line": 97,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: This value cannot be modified\n\nModifying a variable defined outside a component or hook is not allowed. Consider using an effect.\n\n   95 |             window.location.href = '/supplier/dashboard';\n   96 |           } else if (actingRole === 'admin') {\n>  97 |             window.location.href = '/admin/dashboard';\n      |             ^^^^^^^^^^^^^^^ value cannot be modified\n   98 |           } else {\n   99 |             const hasDetails = user.displayName && user.address;\n  100 |             if (!user.isProfileComplete && !hasDetails) {"
+      },
+      {
+        "line": 101,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: This value cannot be modified\n\nModifying a variable defined outside a component or hook is not allowed. Consider using an effect.\n\n   99 |             const hasDetails = user.displayName && user.address;\n  100 |             if (!user.isProfileComplete && !hasDetails) {\n> 101 |               window.location.href = '/user/profile/create';\n      |               ^^^^^^^^^^^^^^^ value cannot be modified\n  102 |             } else {\n  103 |               window.location.href = '/user/home';\n  104 |             }"
+      },
+      {
+        "line": 103,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: This value cannot be modified\n\nModifying a variable defined outside a component or hook is not allowed. Consider using an effect.\n\n  101 |               window.location.href = '/user/profile/create';\n  102 |             } else {\n> 103 |               window.location.href = '/user/home';\n      |               ^^^^^^^^^^^^^^^ value cannot be modified\n  104 |             }\n  105 |           }\n  106 |         } else {"
+      },
+      {
+        "line": 119,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isOtpComplete' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/PartnershipInquiryPage.jsx",
+    "errors": 1,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 76,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchMyProposals'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/PaymentMethodsPage.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 5,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/PaymentPage.jsx",
+    "errors": 5,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 15,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'orderApi' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 29,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isPartial' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 31,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'taxBreakdown' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 174,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'i' is defined but never used. Allowed unused args must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/PrivacyPolicyPage.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/ProfileCreationPage.jsx",
+    "errors": 5,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 1,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'useCallback' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 18,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'address' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 19,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isLocating' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 61,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook React.useEffect has a missing dependency: 'isLoading'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 71,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'riderId' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/RateAndReviewPage.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/ReferralPage.jsx",
+    "errors": 2,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 14,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'loading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 34,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has missing dependencies: 'config.REFERRAL_DOWNLOAD_LINK' and 'config.REFERRAL_MESSAGE'. Either include them or remove the dependency array. You can also replace multiple useState variables with useReducer if 'setConfig' needs the current value of 'config.REFERRAL_MESSAGE'."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/RegisterAsSupplierPage.jsx",
+    "errors": 8,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 39,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'uploading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 47,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isScanning' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 55,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isPendingSupplier' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 62,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchStatus` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  60 |     const userId = user._id || user.id;\n  61 |     if (userId) {\n> 62 |         fetchStatus(userId);\n     |         ^^^^^^^^^^^ `fetchStatus` accessed before it is declared\n  63 |     }\n  64 |   }, []);\n  65 |\n\n   64 |   }, []);\n   65 |\n>  66 |   const fetchStatus = async (userId) => {\n      |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n>  67 |     try {\n      | ^^^^^^^^^\n>  68 |         const response = await fetch(`${BASE_URL}/supplier/my-status/${userId}`);\n      \u2026\n      | ^^^^^^^^^\n> 120 |     }\n      | ^^^^^^^^^\n> 121 |   };\n      | ^^^^^ `fetchStatus` is declared here\n  122 |\n  123 |   // Bank Verification States\n  124 |   const [isBankVerifying, setIsBankVerifying] = useState(false);"
+      },
+      {
+        "line": 133,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setPickerOpen' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 133,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'selectedLoc' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 562,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'benefits' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/RegisterAsVendorPage.jsx",
+    "errors": 22,
+    "warnings": 2,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 41,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'masterServices' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 41,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setMasterServices' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 42,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isLoadingServices' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 42,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setIsLoadingServices' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 200,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'currentUser'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 262,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has missing dependencies: 'isResolvingGpsAddress' and 'resolvedGpsAddress'. Either include them or remove the dependency array."
+      },
+      {
+        "line": 509,
+        "rule": "no-useless-escape",
+        "severity": 2,
+        "message": "Unnecessary escape character: \\&."
+      },
+      {
+        "line": 509,
+        "rule": "no-useless-escape",
+        "severity": 2,
+        "message": "Unnecessary escape character: \\&."
+      },
+      {
+        "line": 509,
+        "rule": "no-useless-escape",
+        "severity": 2,
+        "message": "Unnecessary escape character: \\?."
+      },
+      {
+        "line": 966,
+        "rule": "react-hooks/static-components",
+        "severity": 2,
+        "message": "Error: Cannot create components during render\n\nComponents created during render will reset their state each time they are created. Declare components outside of render.\n\n  964 |                                 </label>\n  965 |                             </FieldHighlight>\n> 966 |                             <FilePreview file={formData.panDoc} onRemove={() => setFormData({ ...formData, panDoc: null })} />\n      |                              ^^^^^^^^^^^ This component is created during render\n  967 |                         </div>\n  968 |\n  969 |                         {/* GST Section */}\n\n  514 |   };\n  515 |\n> 516 |   const FilePreview = ({ file, onRemove }) => {\n      |                       ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 517 |     const [url, setUrl] = React.useState(\"\");\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 518 |     const [isImage, setIsImage] = React.useState(false);\n      \u2026\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 591 |     );\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 592 |   };\n      | ^^^^ The component is created during render here\n  593 |\n  594 |   if (isPendingVendor) {\n  595 |     const userId = currentUser?._id || currentUser?.id;"
+      },
+      {
+        "line": 1002,
+        "rule": "react-hooks/static-components",
+        "severity": 2,
+        "message": "Error: Cannot create components during render\n\nComponents created during render will reset their state each time they are created. Declare components outside of render.\n\n  1000 |                                     </label>\n  1001 |                                 </FieldHighlight>\n> 1002 |                                 <FilePreview file={formData.gstDoc} onRemove={() => setFormData({ ...formData, gstDoc: null })} />\n       |                                  ^^^^^^^^^^^ This component is created during render\n  1003 |                             </div>\n  1004 |                         )}\n  1005 |\n\n  514 |   };\n  515 |\n> 516 |   const FilePreview = ({ file, onRemove }) => {\n      |                       ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 517 |     const [url, setUrl] = React.useState(\"\");\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 518 |     const [isImage, setIsImage] = React.useState(false);\n      \u2026\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 591 |     );\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 592 |   };\n      | ^^^^ The component is created during render here\n  593 |\n  594 |   if (isPendingVendor) {\n  595 |     const userId = currentUser?._id || currentUser?.id;"
+      },
+      {
+        "line": 1037,
+        "rule": "react-hooks/static-components",
+        "severity": 2,
+        "message": "Error: Cannot create components during render\n\nComponents created during render will reset their state each time they are created. Declare components outside of render.\n\n  1035 |                                     </label>\n  1036 |                                 </FieldHighlight>\n> 1037 |                                 <FilePreview file={formData.aadharDoc} onRemove={() => setFormData({ ...formData, aadharDoc: null })} />\n       |                                  ^^^^^^^^^^^ This component is created during render\n  1038 |                             </div>\n  1039 |                         )}\n  1040 |\n\n  514 |   };\n  515 |\n> 516 |   const FilePreview = ({ file, onRemove }) => {\n      |                       ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 517 |     const [url, setUrl] = React.useState(\"\");\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 518 |     const [isImage, setIsImage] = React.useState(false);\n      \u2026\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 591 |     );\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 592 |   };\n      | ^^^^ The component is created during render here\n  593 |\n  594 |   if (isPendingVendor) {\n  595 |     const userId = currentUser?._id || currentUser?.id;"
+      },
+      {
+        "line": 1057,
+        "rule": "react-hooks/static-components",
+        "severity": 2,
+        "message": "Error: Cannot create components during render\n\nComponents created during render will reset their state each time they are created. Declare components outside of render.\n\n  1055 |                                     </label>\n  1056 |                                 </FieldHighlight>\n> 1057 |                                 <FilePreview file={formData.msmeDoc} onRemove={() => setFormData({ ...formData, msmeDoc: null })} />\n       |                                  ^^^^^^^^^^^ This component is created during render\n  1058 |                             </div>\n  1059 |                         )}\n  1060 |\n\n  514 |   };\n  515 |\n> 516 |   const FilePreview = ({ file, onRemove }) => {\n      |                       ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 517 |     const [url, setUrl] = React.useState(\"\");\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 518 |     const [isImage, setIsImage] = React.useState(false);\n      \u2026\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 591 |     );\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 592 |   };\n      | ^^^^ The component is created during render here\n  593 |\n  594 |   if (isPendingVendor) {\n  595 |     const userId = currentUser?._id || currentUser?.id;"
+      },
+      {
+        "line": 1076,
+        "rule": "react-hooks/static-components",
+        "severity": 2,
+        "message": "Error: Cannot create components during render\n\nComponents created during render will reset their state each time they are created. Declare components outside of render.\n\n  1074 |                                     </label>\n  1075 |                                 </FieldHighlight>\n> 1076 |                                 <FilePreview file={formData.franchiseDoc} onRemove={() => setFormData({ ...formData, franchiseDoc: null })} />\n       |                                  ^^^^^^^^^^^ This component is created during render\n  1077 |                             </div>\n  1078 |                         )}\n  1079 |                     </div>\n\n  514 |   };\n  515 |\n> 516 |   const FilePreview = ({ file, onRemove }) => {\n      |                       ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 517 |     const [url, setUrl] = React.useState(\"\");\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 518 |     const [isImage, setIsImage] = React.useState(false);\n      \u2026\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 591 |     );\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 592 |   };\n      | ^^^^ The component is created during render here\n  593 |\n  594 |   if (isPendingVendor) {\n  595 |     const userId = currentUser?._id || currentUser?.id;"
+      },
+      {
+        "line": 1194,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'err' is defined but never used. Allowed unused args must match /^[A-Z_]/u."
+      },
+      {
+        "line": 1275,
+        "rule": "react-hooks/static-components",
+        "severity": 2,
+        "message": "Error: Cannot create components during render\n\nComponents created during render will reset their state each time they are created. Declare components outside of render.\n\n  1273 |                                     </label>\n  1274 |                                 </FieldHighlight>\n> 1275 |                                 <FilePreview file={formData.exteriorPhoto} onRemove={() => setFormData({ ...formData, exteriorPhoto: null })} />\n       |                                  ^^^^^^^^^^^ This component is created during render\n  1276 |                             </div>\n  1277 |\n  1278 |                             <div className=\"space-y-2\">\n\n  514 |   };\n  515 |\n> 516 |   const FilePreview = ({ file, onRemove }) => {\n      |                       ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 517 |     const [url, setUrl] = React.useState(\"\");\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 518 |     const [isImage, setIsImage] = React.useState(false);\n      \u2026\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 591 |     );\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 592 |   };\n      | ^^^^ The component is created during render here\n  593 |\n  594 |   if (isPendingVendor) {\n  595 |     const userId = currentUser?._id || currentUser?.id;"
+      },
+      {
+        "line": 1331,
+        "rule": "react-hooks/static-components",
+        "severity": 2,
+        "message": "Error: Cannot create components during render\n\nComponents created during render will reset their state each time they are created. Declare components outside of render.\n\n  1329 |                                     </label>\n  1330 |                                 </FieldHighlight>\n> 1331 |                                 <FilePreview file={formData.walkthroughVideo} onRemove={() => setFormData({ ...formData, walkthroughVideo: null })} />\n       |                                  ^^^^^^^^^^^ This component is created during render\n  1332 |                             </div>\n  1333 |                         </div>\n  1334 |                     </div>\n\n  514 |   };\n  515 |\n> 516 |   const FilePreview = ({ file, onRemove }) => {\n      |                       ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 517 |     const [url, setUrl] = React.useState(\"\");\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 518 |     const [isImage, setIsImage] = React.useState(false);\n      \u2026\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 591 |     );\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 592 |   };\n      | ^^^^ The component is created during render here\n  593 |\n  594 |   if (isPendingVendor) {\n  595 |     const userId = currentUser?._id || currentUser?.id;"
+      },
+      {
+        "line": 1487,
+        "rule": "react-hooks/static-components",
+        "severity": 2,
+        "message": "Error: Cannot create components during render\n\nComponents created during render will reset their state each time they are created. Declare components outside of render.\n\n  1485 |                                 </label>\n  1486 |                             </FieldHighlight>\n> 1487 |                             <FilePreview file={formData.chequeDoc} onRemove={() => setFormData({ ...formData, chequeDoc: null })} />\n       |                              ^^^^^^^^^^^ This component is created during render\n  1488 |                         </div>\n  1489 |\n  1490 |                         {/* Agreement */}\n\n  514 |   };\n  515 |\n> 516 |   const FilePreview = ({ file, onRemove }) => {\n      |                       ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 517 |     const [url, setUrl] = React.useState(\"\");\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 518 |     const [isImage, setIsImage] = React.useState(false);\n      \u2026\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 591 |     );\n      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 592 |   };\n      | ^^^^ The component is created during render here\n  593 |\n  594 |   if (isPendingVendor) {\n  595 |     const userId = currentUser?._id || currentUser?.id;"
+      },
+      {
+        "line": 1540,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'areaName' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 1541,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'businessAddress' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 1554,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'allEssentialSelected' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 1555,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'allHeritageSelected' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 1556,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'bothSelected' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/SearchResultsPage.jsx",
+    "errors": 2,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 13,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'loading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 54,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useMemo has unnecessary dependencies: 'userLocation' and 'zone'. Either exclude them or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/ServiceImageUploadPage.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/ServiceInfoPage.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/SplashPage.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/SuccessFeedbackPage.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/SuccessPage.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/SupplierProductSelectionPage.jsx",
+    "errors": 3,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 33,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchStatus` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  31 |\n  32 |   useEffect(() => {\n> 33 |     fetchStatus();\n     |     ^^^^^^^^^^^ `fetchStatus` accessed before it is declared\n  34 |   }, []);\n  35 |\n  36 |   const fetchStatus = async () => {\n\n  34 |   }, []);\n  35 |\n> 36 |   const fetchStatus = async () => {\n     |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 37 |     try {\n     | ^^^^^^^^^\n> 38 |         const user = JSON.parse(localStorage.getItem('user') || '{}');\n     \u2026\n     | ^^^^^^^^^\n> 65 |     }\n     | ^^^^^^^^^\n> 66 |   };\n     | ^^^^^ `fetchStatus` is declared here\n  67 |\n  68 |   const toggleProduct = (product) => {\n  69 |     const exists = selectedItems.find(item => item.productName === product.materialName);"
+      },
+      {
+        "line": 34,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchStatus'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 228,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'categoryStr' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/SupportTicketsPage.jsx",
+    "errors": 2,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 37,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isDeleting' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 64,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchTickets'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/TermsConditionsPage.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/UserProfilePage.jsx",
+    "errors": 1,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 54,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has missing dependencies: 'user._id' and 'user.id'. Either include them or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/user/pages/WalletPage.jsx",
+    "errors": 2,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 107,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'i' is defined but never used. Allowed unused args must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/components/VendorHeader.jsx",
+    "errors": 5,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 2,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 8,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'unreadCount' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 9,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'showAddressModal' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 9,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setShowAddressModal' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 13,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'shopAddress' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/layouts/VendorLayout.jsx",
+    "errors": 3,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 17,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'acceptingId' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 92,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleAccept' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/AddServicePage.jsx",
+    "errors": 2,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 14,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'loading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/ApprovalPending.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/B2BFulfillmentPage.jsx",
+    "errors": 4,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 4,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'jobApi' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 4,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'laborApi' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 51,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchMaterials'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 53,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'supplierTotals' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/B2BOrderHistory.jsx",
+    "errors": 1,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 64,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchOrders'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/B2BOrderTrackingPage.jsx",
+    "errors": 4,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 1,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'useRef' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 9,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'mapContainerStyle' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 24,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'refreshing' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 77,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchOrder'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/CreateJobRequisition.jsx",
+    "errors": 3,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 212,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'hideAddress' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 213,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setStatus' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/Dashboard.jsx",
+    "errors": 11,
+    "warnings": 2,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 19,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'onExpire'. Either include it or remove the dependency array. If 'onExpire' changes too often, find the parent component that defines it and wrap that definition in useCallback."
+      },
+      {
+        "line": 32,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'approxEarnings' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 34,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isDropoffSame' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 240,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isOnline' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 240,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setIsOnline' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 247,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'loading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 249,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'summary' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 366,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has missing dependencies: 'fetchAllData' and 'fetchPoolOrders'. Either include them or remove the dependency array."
+      },
+      {
+        "line": 437,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'startProcessing' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 712,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'getFriendlyStatus' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 724,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'posessionTime' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 744,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'dropoffInfo' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/DocumentUpload.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/Earnings.jsx",
+    "errors": 5,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 1,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'useMemo' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 5,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'authApi' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 11,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'performanceFilter' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 11,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setPerformanceFilter' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 42,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/EditProfile.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/JobManagerPage.jsx",
+    "errors": 3,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 9,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'navigate' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 30,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchData` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  28 |\n  29 |     useEffect(() => {\n> 30 |         fetchData();\n     |         ^^^^^^^^^ `fetchData` accessed before it is declared\n  31 |     }, [viewMode]);\n  32 |\n  33 |     const fetchData = async () => {\n\n  31 |     }, [viewMode]);\n  32 |\n> 33 |     const fetchData = async () => {\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 34 |         setLoading(true);\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 35 |         if (viewMode === 'Jobs') {\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 36 |             await fetchJobs();\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 37 |         } else {\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 38 |             await fetchApplications();\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 39 |         }\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 40 |         setLoading(false);\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^\n> 41 |     };\n     | ^^^^^^^ `fetchData` is declared here\n  42 |\n  43 |     const fetchJobs = async () => {\n  44 |         try {"
+      },
+      {
+        "line": 31,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/LaborRequestPage.jsx",
+    "errors": 1,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 57,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchLiveHub'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/MaterialRequestPage.jsx",
+    "errors": 0,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 220,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchChatMessages'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/OrderDetails.jsx",
+    "errors": 7,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 33,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'showReport' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 33,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setShowReport' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 34,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'reportReason' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 34,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setReportReason' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 38,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'targetDateStr' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 141,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchOrder'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 197,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'getFriendlyStatus' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/PayoutSettings.jsx",
+    "errors": 3,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 11,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'navigate' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 13,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isSaving' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/PromotionManagerPage.jsx",
+    "errors": 3,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 95,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchPromos` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  93 |   useEffect(() => {\n  94 |     if (vendorId) {\n> 95 |       fetchPromos();\n     |       ^^^^^^^^^^^ `fetchPromos` accessed before it is declared\n  96 |       fetchServices();\n  97 |     }\n  98 |   }, [vendorId]);\n\n   98 |   }, [vendorId]);\n   99 |\n> 100 |   const fetchPromos = async () => {\n      |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 101 |     try {\n      | ^^^^^^^^^\n> 102 |       setLoading(true);\n      \u2026\n      | ^^^^^^^^^\n> 110 |     }\n      | ^^^^^^^^^\n> 111 |   };\n      | ^^^^^ `fetchPromos` is declared here\n  112 |\n  113 |   const fetchServices = async () => {\n  114 |     try {"
+      },
+      {
+        "line": 96,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchServices` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  94 |     if (vendorId) {\n  95 |       fetchPromos();\n> 96 |       fetchServices();\n     |       ^^^^^^^^^^^^^ `fetchServices` accessed before it is declared\n  97 |     }\n  98 |   }, [vendorId]);\n  99 |\n\n  111 |   };\n  112 |\n> 113 |   const fetchServices = async () => {\n      |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 114 |     try {\n      | ^^^^^^^^^\n> 115 |       const profile = await authApi.getProfile(vendorId);\n      \u2026\n      | ^^^^^^^^^\n> 155 |     }\n      | ^^^^^^^^^\n> 156 |   };\n      | ^^^^^ `fetchServices` is declared here\n  157 |\n  158 |   const triggerAutogenerateCode = async () => {\n  159 |     if (!vendorId) return;"
+      },
+      {
+        "line": 98,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has missing dependencies: 'fetchPromos' and 'fetchServices'. Either include them or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/RejectedServices.jsx",
+    "errors": 2,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 13,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchData` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  11 |\n  12 |     useEffect(() => {\n> 13 |         fetchData();\n     |         ^^^^^^^^^ `fetchData` accessed before it is declared\n  14 |     }, []);\n  15 |\n  16 |     const fetchData = async () => {\n\n  14 |     }, []);\n  15 |\n> 16 |     const fetchData = async () => {\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 17 |         try {\n     | ^^^^^^^^^^^^^\n> 18 |             setLoading(true);\n     \u2026\n     | ^^^^^^^^^^^^^\n> 37 |         }\n     | ^^^^^^^^^^^^^\n> 38 |     };\n     | ^^^^^^^ `fetchData` is declared here\n  39 |\n  40 |     const getServiceDetails = (id) => {\n  41 |         const master = masterServices.find(m => (m._id || m.id) === id);"
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/ServiceManagement.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/ShopDetails.jsx",
+    "errors": 2,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 1,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'useMemo' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 116,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'location'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/Support.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/VendorAddressesPage.jsx",
+    "errors": 2,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 15,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isLoading' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/VendorAuth.jsx",
+    "errors": 4,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 11,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'loginPassword' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 11,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setLoginPassword' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 20,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isLoginValid' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/VendorMorePage.jsx",
+    "errors": 2,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 4,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'toast' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/VendorMyServices.jsx",
+    "errors": 4,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 5,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'promotionApi' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 8,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'spinLogoAnimation' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 202,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchConfig'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 397,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'updatePrice' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/VendorNotifications.jsx",
+    "errors": 2,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 9,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'navigate' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 20,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook React.useEffect has a missing dependency: 'fetchNotifications'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/VendorOrderHistory.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/VendorOtp.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/VendorPrivacyPolicy.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 2,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/VendorProductImages.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/VendorProductQueries.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/VendorProductQueryChat.jsx",
+    "errors": 2,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 19,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: Cannot access variable before it is declared\n\n`fetchChats` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.\n\n  17 |\n  18 |     useEffect(() => {\n> 19 |         fetchChats();\n     |         ^^^^^^^^^^ `fetchChats` accessed before it is declared\n  20 |     }, [vendorId, supplierId]);\n  21 |\n  22 |     const fetchChats = async () => {\n\n  20 |     }, [vendorId, supplierId]);\n  21 |\n> 22 |     const fetchChats = async () => {\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n> 23 |         try {\n     | ^^^^^^^^^^^^^\n> 24 |             if (!vendorId) return;\n     \u2026\n     | ^^^^^^^^^^^^^\n> 35 |         }\n     | ^^^^^^^^^^^^^\n> 36 |     };\n     | ^^^^^^^ `fetchChats` is declared here\n  37 |\n  38 |     const scrollToBottom = () => {\n  39 |         messagesEndRef.current?.scrollIntoView({ behavior: \"smooth\" });"
+      },
+      {
+        "line": 20,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchChats'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/VendorPromotions.jsx",
+    "errors": 3,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 50,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'deletePromo' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 59,
+        "rule": "react-hooks/immutability",
+        "severity": 2,
+        "message": "Error: This value cannot be modified\n\nModifying a variable defined outside a component or hook is not allowed. Consider using an effect.\n\n  57 |\n  58 |     useEffect(() => {\n> 59 |         document.title = 'Promotion Hub | Spinzyt';\n     |         ^^^^^^^^ value cannot be modified\n  60 |         if (vendorId) {\n  61 |             fetchPromos();\n  62 |         }"
+      },
+      {
+        "line": 63,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchPromos'. Either include it or remove the dependency array."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/VendorReports.jsx",
+    "errors": 3,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 1,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'useCallback' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 5,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 198,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'isLoadingOrders' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/VendorReviews.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/VendorSplash.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/VendorTermsConditions.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 2,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/modules/vendor/pages/WalkInOrderPage.jsx",
+    "errors": 21,
+    "warnings": 4,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 55,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'getTomorrowDateString' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 77,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setSelectedService' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 84,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'quantity' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 85,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'showDeliveryModal' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 85,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setShowDeliveryModal' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 86,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'deliveryMethod' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 87,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'deliveryAddress' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 98,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'vendorAddress' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 132,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'mapCenter' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 133,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'markerPos' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 134,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'addressPreview' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 147,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setSelectedPickupDate' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 150,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'setSelectedPickupTime' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 246,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has missing dependencies: 'getSlotDateTime', 'selectedDeliveryDate', and 'selectedDeliveryTimeSlot'. Either include them or remove the dependency array."
+      },
+      {
+        "line": 304,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'mapRef' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 434,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'fetchServices'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 599,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has missing dependencies: 'addressDetails', 'vendorData.location?.lat', and 'vendorData.location?.lng'. Either include them or remove the dependency array. You can also replace multiple useState variables with useReducer if 'setTempAddressDetails' needs the current value of 'addressDetails'."
+      },
+      {
+        "line": 601,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handlePlaceChanged' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 671,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'handleMarkerDragEnd' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 694,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'confirmMapLocation' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 977,
+        "rule": "react-hooks/purity",
+        "severity": 2,
+        "message": "Error: Cannot call impure function during render\n\n`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).\n\n  975 |           category: service.category,\n  976 |           subCategory: service.subCategory,\n> 977 |           id: Date.now(),\n      |               ^^^^^^^^^^ Cannot call impure function\n  978 |           quantity: 1,\n  979 |           completionTime: service.completionTime || 1,\n  980 |           tag: `T-${Math.floor(1000 + Math.random() * 9000)}`,"
+      },
+      {
+        "line": 980,
+        "rule": "react-hooks/purity",
+        "severity": 2,
+        "message": "Error: Cannot call impure function during render\n\n`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).\n\n  978 |           quantity: 1,\n  979 |           completionTime: service.completionTime || 1,\n> 980 |           tag: `T-${Math.floor(1000 + Math.random() * 9000)}`,\n      |                                       ^^^^^^^^^^^^^ Cannot call impure function\n  981 |         };\n  982 |         setItems([...currentItems, newItem]);\n  983 |         toast.success(`Added ${service.title} to queue`);"
+      },
+      {
+        "line": 1049,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook useEffect has a missing dependency: 'getServiceQty'. Either include it or remove the dependency array."
+      },
+      {
+        "line": 2417,
+        "rule": "react-hooks/purity",
+        "severity": 2,
+        "message": "Error: Cannot call impure function during render\n\n`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).\n\n  2415 |                               <div\n  2416 |                                 key={i}\n> 2417 |                                 className={`w-[6px] h-[6px] ${Math.random() > 0.5 ? \"bg-white\" : \"bg-transparent\"}`}></div>\n       |                                                               ^^^^^^^^^^^^^ Cannot call impure function\n  2418 |                             ))}\n  2419 |                           </div>\n  2420 |                         </div>"
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/shared/components/ErrorBoundary.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 21,
+        "rule": "react-refresh/only-export-components",
+        "severity": 2,
+        "message": "Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/shared/components/GlobalToast.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 2,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/shared/components/LocationPicker.jsx",
+    "errors": 2,
+    "warnings": 1,
+    "messages": [
+      {
+        "line": 3,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      },
+      {
+        "line": 51,
+        "rule": "react-hooks/exhaustive-deps",
+        "severity": 1,
+        "message": "React Hook React.useMemo has an unnecessary dependency: 'isPickerOpen'. Either exclude it or remove the dependency array."
+      },
+      {
+        "line": 383,
+        "rule": "no-empty",
+        "severity": 2,
+        "message": "Empty block statement."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/shared/components/LocationPrompt.jsx",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 2,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u."
+      }
+    ]
+  },
+  {
+    "file": "frontend/src/shared/stores/notificationStore.js",
+    "errors": 1,
+    "warnings": 0,
+    "messages": [
+      {
+        "line": 4,
+        "rule": "no-unused-vars",
+        "severity": 2,
+        "message": "'get' is defined but never used. Allowed unused args must match /^[A-Z_]/u."
+      }
+    ]
+  }
+]

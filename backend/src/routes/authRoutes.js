@@ -1,3 +1,4 @@
+import { requireProfileAccess, requireWalkInLookup } from '../middleware/profileAccess.js';
 import express from 'express';
 import { 
     requestOtp, 
@@ -38,22 +39,22 @@ router.post('/activate-sub-admin', activateSubAdmin);
 router.post('/temp-seed', verifyAdmin, tempSeedUser);
 router.post('/request-otp', requestOtp);
 router.post('/verify-otp', verifyOtp);
-router.post('/update-fcm-token', verifyUser, updateFcmToken);
+router.post('/update-fcm-token', verifyUser, requireProfileAccess({ resolveId: req => req.body.userId }), updateFcmToken);
 router.post('/admin-login', adminLogin);
 router.post('/register-vendor', registerVendor);
 router.post('/vendor-login', vendorLogin);
-router.post('/complete-vendor-profile', upload.fields([
+router.post('/complete-vendor-profile', verifyUser, requireProfileAccess({ resolveId: req => req.user.id, applicant: true }), upload.fields([
     { name: 'gstDoc', maxCount: 1 },
     { name: 'msmeDoc', maxCount: 1 }
 ]), completeVendorProfile);
 
-router.get('/get-status', getStatus);
-router.get('/profile/:id', getUserProfile);
-router.get('/lookup-phone/:phone', lookupCustomerByPhone);
-router.patch('/profile/update/:id', updateUserProfile);
-router.patch('/update-documents/:id', upload.single('document'), updateVendorDocuments);
-router.patch('/update-profile-image/:id', upload.single('image'), updateProfileImage);
-router.patch('/become-vendor/:id', upload.fields([
+router.get('/get-status', verifyUser, requireProfileAccess({ resolveId: req => req.user.id }), getStatus);
+router.get('/profile/:id', verifyUser, requireProfileAccess(), getUserProfile);
+router.get('/lookup-phone/:phone', verifyUser, requireWalkInLookup, lookupCustomerByPhone);
+router.patch('/profile/update/:id', verifyUser, requireProfileAccess({ walkInAddress: true }), updateUserProfile);
+router.patch('/update-documents/:id', verifyUser, requireProfileAccess(), upload.single('document'), updateVendorDocuments);
+router.patch('/update-profile-image/:id', verifyUser, requireProfileAccess(), upload.single('image'), updateProfileImage);
+router.patch('/become-vendor/:id', verifyUser, requireProfileAccess({ applicant: true }), upload.fields([
     { name: 'panDoc', maxCount: 1 },
     { name: 'gstDoc', maxCount: 1 },
     { name: 'aadharDoc', maxCount: 1 },
@@ -64,8 +65,8 @@ router.patch('/become-vendor/:id', upload.fields([
     { name: 'interiorPhotos', maxCount: 2 },
     { name: 'walkthroughVideo', maxCount: 1 }
 ]), becomeVendor);
-router.patch('/become-vendor/:id/submit-services', submitVendorServices);
-router.post('/become-supplier/:id', (req, res, next) => {
+router.patch('/become-vendor/:id/submit-services', verifyUser, requireProfileAccess({ applicant: true }), submitVendorServices);
+router.post('/become-supplier/:id', verifyUser, requireProfileAccess({ applicant: true }), (req, res, next) => {
     upload.fields([
         { name: 'gstCert', maxCount: 1 },
         { name: 'udyogAadhar', maxCount: 1 },
@@ -80,9 +81,9 @@ router.post('/become-supplier/:id', (req, res, next) => {
     });
 }, becomeSupplier);
 
-router.get('/vendor-earnings', getVendorEarnings);
-router.get('/vendor-payouts/:vendorId', getVendorPayoutHistory);
-router.get('/cart/:id', getDraftCart);
-router.post('/cart/:id', updateDraftCart);
+router.get('/vendor-earnings', verifyUser, requireProfileAccess({ resolveId: req => req.query.vendorId }), getVendorEarnings);
+router.get('/vendor-payouts/:vendorId', verifyUser, requireProfileAccess(), getVendorPayoutHistory);
+router.get('/cart/:id', verifyUser, requireProfileAccess(), getDraftCart);
+router.post('/cart/:id', verifyUser, requireProfileAccess(), updateDraftCart);
 
 export default router;

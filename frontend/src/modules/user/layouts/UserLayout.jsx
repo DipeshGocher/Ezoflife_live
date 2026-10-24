@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import UserHeader from '../components/UserHeader';
@@ -6,8 +6,8 @@ import BottomNav from '../components/BottomNav';
 import VendorHeader from '../../vendor/components/VendorHeader';
 
 // Vendor-specific imports for unification
-import socket from '../../../lib/socket';
-import { orderApi } from '../../../lib/api';
+import socket, { subscribeSocketRooms } from '../../../lib/socket';
+import { orderApi, authApi } from '../../../lib/api';
 import useNotificationStore from '../../../shared/stores/notificationStore';
 import useVendorOrderStore from '../../../shared/stores/vendorOrderStore';
 import toast from 'react-hot-toast';
@@ -17,13 +17,14 @@ const UserLayout = () => {
   const navigate = useNavigate();
   const currentPath = location.pathname.replace(/\/$/, '') || '/user';
   
-  const userRole = useMemo(() => {
+  const [userRole, setUserRole] = useState(() => {
     try {
       return (localStorage.getItem('userRole') || 'customer').toLowerCase();
     } catch (e) {
       return 'customer';
     }
-  }, []);
+  });
+  const [activationAvailable, setActivationAvailable] = useState(false);
 
   // Vendor-specific state & logic
   const { incomingRequest, setIncomingRequest, clearIncomingRequest } = useVendorOrderStore();
@@ -39,8 +40,35 @@ const UserLayout = () => {
     }
   };
 
+  const socketUser = getSafeStorage('user');
+  const socketUserId = socketUser._id || socketUser.id;
   const vendorData = getSafeStorage('vendorData');
   const vendorId = vendorData?._id || vendorData?.id;
+
+  // Reconcile an approval missed while offline; only the authenticated own
+  // profile can change the portal mode. An event payload alone is not trusted.
+  useEffect(() => {
+    if (!socketUserId || userRole !== 'customer') return;
+    let current = true, inFlight = false;
+    const refresh = async () => {
+      if (inFlight || document.visibilityState !== 'visible') return;
+      inFlight = true;
+      try {
+        const profile = await authApi.getProfile(socketUserId);
+        if (current && profile.role === 'Vendor' && profile.status === 'approved' && profile.onboardingStage === 'COMPLETED') {
+          localStorage.setItem('user', JSON.stringify(profile));
+          localStorage.setItem('vendorData', JSON.stringify(profile));
+          localStorage.setItem('userRole', 'vendor');
+          setUserRole('vendor'); setActivationAvailable(true);
+        }
+      } catch { /* Existing session/network handling owns failures. */ }
+      finally { inFlight = false; }
+    };
+    socket.on('account_updated', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    refresh(); const timer = setInterval(refresh, 60000);
+    return () => { current = false; clearInterval(timer); socket.off('account_updated', refresh); document.removeEventListener('visibilitychange', refresh); };
+  }, [socketUserId, userRole]);
 
   // Enforce Profile Completion for Customer accounts
   useEffect(() => {
@@ -89,27 +117,14 @@ const UserLayout = () => {
 
     // Socket Logic (Global Notifications & Vendor Requests)
     useEffect(() => {
-        const userData = getSafeStorage('user');
-        const userId = userData._id || userData.id;
+        const userId = socketUserId;
         
         if (!userId) {
             console.warn('⚠️ [SOCKET] No user ID found in localStorage. Cannot join room.');
             return;
         }
 
-        const roomName = `user_${userId}`;
-        
-        const joinRooms = () => {
-            console.log(`📡 [SOCKET] Attempting to join room: ${roomName}`);
-            socket.emit('join_room', roomName);
-            if (userRole === 'vendor') {
-                socket.emit('join_room', 'vendors_pool');
-            }
-        };
-
-        // Join on mount or reconnect
-        if (socket.connected) joinRooms();
-        socket.on('connect', joinRooms);
+        const unsubscribeRooms = subscribeSocketRooms(socket, [`user_${userId}`, ...(userRole === 'vendor' ? ['vendors_pool'] : [])]);
 
         // 1. Browser Notification Permission (Safe check for Safari)
         if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
@@ -169,12 +184,12 @@ const UserLayout = () => {
         socket.on('new_order_available', handleNewOrder);
 
         return () => {
-            socket.off('connect', joinRooms);
+            unsubscribeRooms();
             socket.off('push_notification', handlePushNotification);
             socket.off('new_order_available', handleNewOrder);
             // socket.off('payment_trigger', handlePaymentTrigger);
         };
-    }, [userRole, addNotification, setIncomingRequest]);
+    }, [socketUserId, userRole, addNotification, setIncomingRequest]);
 
   const handleAccept = async (orderId) => {
     try {
@@ -241,6 +256,7 @@ const UserLayout = () => {
   
    return (
     <div className="flex flex-col min-h-screen bg-slate-50/50">
+      {activationAvailable && <div role="status" className="p-3 bg-emerald-50 text-emerald-900 text-sm">Your vendor account is approved. <button className="underline font-bold" onClick={() => { const token = localStorage.getItem('token'); if (token) localStorage.setItem('vendorToken', token); navigate('/vendor/dashboard'); }}>Open vendor dashboard</button></div>}
       {showHeader && renderHeader()}
       <div className={`flex-1 ${showNav ? 'pb-32' : ''}`}>
         <Outlet />

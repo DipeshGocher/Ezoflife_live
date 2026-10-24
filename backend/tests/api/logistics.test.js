@@ -134,6 +134,14 @@ describe('POST /api/logistics/webhook', () => {
         const after = await getOrder(order._id);
         assert.equal(after.status, 'DELIVERED');
         assert.equal(after.deliveryStatus, 'delivered');
+        const deliveredEvents = after.statusHistory.filter(event => event.status === 'DELIVERED');
+        assert.equal(deliveredEvents.length, 1, 'delivery transition needs a recorded timestamp');
+        assert.ok(Number.isFinite(+new Date(deliveredEvents[0].timestamp)));
+        await Promise.all(Array.from({ length: 3 }, () => api(env.baseUrl, '/api/logistics/webhook', {
+            method: 'POST', body: { taskId, referenceId: order.orderId, status: 'DELIVERED' }
+        })));
+        const retried = await getOrder(order._id);
+        assert.deepEqual(retried.statusHistory.filter(event => event.status === 'DELIVERED'), deliveredEvents, 'duplicate callbacks must not restart the unpaid deadline');
     });
 
     test('records the delivery partner from the event', async () => {

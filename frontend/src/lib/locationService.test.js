@@ -4,7 +4,8 @@ import { locationService } from './locationService';
 /**
  * These previously called maps.googleapis.com REST endpoints from the browser,
  * which always fail on CORS. They now use the JS SDK. The key regression guard
- * is: no `fetch` to googleapis.com may ever happen from here.
+ * is: Google lookups use the SDK; network/GPS failures retain the existing
+ * OSM, IP and explicit default-location fallbacks.
  */
 
 const mockGeocoder = (results, status = 'OK') => ({
@@ -43,9 +44,7 @@ const GEOCODE_RESULT = [{
 let fetchSpy;
 
 beforeEach(() => {
-    fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(() => {
-        throw new Error('locationService must not call fetch');
-    });
+    fetchSpy = vi.spyOn(global, 'fetch').mockRejectedValue(new Error('Network unavailable'));
 });
 
 afterEach(() => {
@@ -74,14 +73,14 @@ describe('reverseGeocode', () => {
         expect(fetchSpy).not.toHaveBeenCalled();
     });
 
-    test('rejects when the geocoder finds nothing', async () => {
+    test('returns coordinates when SDK and fallback lookup find nothing', async () => {
         installMaps({ geocoder: mockGeocoder([], 'ZERO_RESULTS') });
-        await expect(locationService.reverseGeocode(0, 0)).rejects.toThrow(/No address found/i);
+        await expect(locationService.reverseGeocode(0, 0)).resolves.toMatchObject({ lat: 0, lng: 0, fullAddress: 'Location (0.0000, 0.0000)' });
     });
 
-    test('rejects with the gateway status on failure', async () => {
+    test('retains coordinate fallback when the SDK is denied', async () => {
         installMaps({ geocoder: mockGeocoder(null, 'REQUEST_DENIED') });
-        await expect(locationService.reverseGeocode(1, 1)).rejects.toThrow(/REQUEST_DENIED/);
+        await expect(locationService.reverseGeocode(1, 1)).resolves.toMatchObject({ lat: 1, lng: 1, city: '' });
     });
 
     test('tolerates a result with missing address components', async () => {
@@ -150,20 +149,35 @@ describe('getCurrentCoordinates', () => {
             getCurrentPosition: (ok) => ok({ coords: { latitude: 1, longitude: 2, accuracy: 5 } })
         };
         await expect(locationService.getCurrentCoordinates())
-            .resolves.toEqual({ lat: 1, lng: 2, accuracy: 5 });
+            .resolves.toEqual({ lat: 1, lng: 2, accuracy: 5, isGPS: true });
     });
 
-    test('rejects when the browser denies permission', async () => {
+    test('uses the marked default when GPS is denied and IP is unavailable', async () => {
         global.navigator.geolocation = {
             getCurrentPosition: (_ok, err) => err(new Error('User denied Geolocation'))
         };
-        await expect(locationService.getCurrentCoordinates()).rejects.toThrow(/denied/i);
+        await expect(locationService.getCurrentCoordinates()).resolves.toMatchObject({ isDefault: true, city: 'New Delhi' });
     });
 
-    test('rejects when geolocation is unavailable', async () => {
+    test('uses the marked default when geolocation and IP are unavailable', async () => {
         const saved = global.navigator.geolocation;
         delete global.navigator.geolocation;
-        await expect(locationService.getCurrentCoordinates()).rejects.toThrow(/not supported/i);
+        await expect(locationService.getCurrentCoordinates()).resolves.toMatchObject({ isDefault: true, city: 'New Delhi' });
         global.navigator.geolocation = saved;
     });
+});
+
+
+test('IP fallback accepts legitimate zero coordinates and remains marked as approximate', async () => {
+    const saved = navigator.geolocation; delete navigator.geolocation;
+    fetchSpy.mockResolvedValue({ ok: true, json: async () => ({ latitude: 0, longitude: 77, city: 'Approximate' }) });
+    await expect(locationService.getCurrentCoordinates()).resolves.toMatchObject({ lat: 0, lng: 77, isFromIP: true });
+    navigator.geolocation = saved;
+});
+
+test('reverse geocode uses structured OSM results when the SDK is unavailable', async () => {
+    installMaps({ geocoder: mockGeocoder(null, 'REQUEST_DENIED') });
+    fetchSpy.mockResolvedValue({ ok: true, json: async () => ({ display_name: 'Fallback Street', address: { city: 'Fallback City', postcode: '123456' } }) });
+    await expect(locationService.reverseGeocode(1, 2)).resolves.toMatchObject({ fullAddress: 'Fallback Street', city: 'Fallback City', pincode: '123456' });
+    expect(fetchSpy.mock.calls.every(([url]) => !url.includes('googleapis.com'))).toBe(true);
 });

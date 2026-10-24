@@ -1,38 +1,17 @@
 import express from 'express';
-import { 
-    createTicket, 
-    getCustomerTickets, 
-    getAllTickets, 
-    addMessage, 
-    updateTicketStatus,
-    getTicketDetails,
-    updateTicket,
-    deleteTicket
-} from '../controllers/ticketController.js';
-
+import { getTicketEvidence, assignTicket, getSupportStaff, createTicket, getCustomerTickets, getAllTickets, addMessage, updateTicketStatus, getTicketDetails, updateTicket, deleteTicket, getTicketByOrder } from '../controllers/ticketController.js';
+import { verifyAdmin, verifyUser } from '../middleware/authMiddleware.js';
 const router = express.Router();
-
-// Customer Routes
+router.get('/admin/:ticketId/evidence', verifyAdmin, getTicketEvidence);
+router.get('/admin/staff', verifyAdmin, getSupportStaff);
+router.patch('/admin/:ticketId/assignment', verifyAdmin, assignTicket);
+router.get('/admin/all', verifyAdmin, getAllTickets);
+router.patch('/admin/:ticketId/status', verifyAdmin, updateTicketStatus);
 router.post('/create', verifyUser, createTicket);
-router.get('/customer/:customerId', getCustomerTickets);
-router.get('/order/:orderId', async (req, res) => {
-    try {
-        const Ticket = (await import('../models/Ticket.js')).default;
-        const ticket = await Ticket.findOne({ order: req.params.orderId }).sort({ createdAt: -1 });
-        res.status(200).json(ticket);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
-router.get('/:ticketId', getTicketDetails);
+router.get('/customer/:customerId', verifyUser, getCustomerTickets);
+router.get('/order/:orderId', verifyUser, getTicketByOrder);
+router.get('/:ticketId', verifyUser, getTicketDetails);
 router.put('/:ticketId', verifyUser, updateTicket);
 router.delete('/:ticketId', verifyAdmin, deleteTicket);
 router.post('/:ticketId/message', verifyUser, addMessage);
-
-import { verifyAdmin, verifyUser } from '../middleware/authMiddleware.js';
-
-// Admin Routes
-router.get('/admin/all', verifyAdmin, getAllTickets);
-router.patch('/admin/:ticketId/status', verifyAdmin, updateTicketStatus);
-
 export default router;

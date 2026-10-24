@@ -1,3 +1,5 @@
+import { filterValues, matchesFilter, matchesUserSearch, vendorRegistrationType } from '../utils/filters';
+import MultiSelectFilter from '../components/common/MultiSelectFilter';
 import React, { useEffect, useState, useMemo } from 'react';
 import { 
   Users as UsersIcon, Mail, Phone, MoreHorizontal, ShieldAlert, UserCheck, 
@@ -6,7 +8,7 @@ import {
   AlertTriangle, Loader2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { adminApi, BASE_URL, serviceApi } from '../../../lib/api';
 import PageHeader from '../components/common/PageHeader';
 import DataGrid from '../components/tables/DataGrid';
@@ -17,11 +19,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function Users() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [page, setPage] = useState(1);
+  const [usersError, setUsersError] = useState('');
+  const [searchParams] = useSearchParams();
   const roleParam = searchParams.get('role');
   const typeParam = searchParams.get('type');
   const vendorTypeParam = searchParams.get('vendorType');
   const [activeTab, setActiveTab] = useState(roleParam || 'All');
+  const [selectedRoles, setSelectedRoles] = useState('All');
   const [selectedCustomerType, setSelectedCustomerType] = useState(typeParam || 'All');
   const [selectedVendorType, setSelectedVendorType] = useState(vendorTypeParam || 'All');
   const [deleteModalUser, setDeleteModalUser] = useState(null);
@@ -50,27 +55,20 @@ export default function Users() {
     } else {
       setSelectedVendorType('All');
     }
+    setPage(1);
   }, [vendorTypeParam]);    
   const [selectedName, setSelectedName] = useState('All');
   const [selectedCity, setSelectedCity] = useState('All');
   const [selectedState, setSelectedState] = useState('All');
   const [selectedPincode, setSelectedPincode] = useState('All');
 
-  const [showCityDropdown, setShowCityDropdown] = useState(false);
-  const [citySearchQuery, setCitySearchQuery] = useState('');
 
-  const [showStateDropdown, setShowStateDropdown] = useState(false);
-  const [stateSearchQuery, setStateSearchQuery] = useState('');
 
-  const [showPincodeDropdown, setShowPincodeDropdown] = useState(false);
-  const [pincodeSearchQuery, setPincodeSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [geofences, setGeofences] = useState([]);
   const [selectedGeofence, setSelectedGeofence] = useState('All');
-  const [showGeofenceDropdown, setShowGeofenceDropdown] = useState(false);
-  const [geofenceSearchQuery, setGeofenceSearchQuery] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
+  useEffect(() => { setSearchQuery(searchParams.get('search') || ''); }, [searchParams]);
   const itemsPerPage = 10;
   
   // Modals state
@@ -81,8 +79,6 @@ export default function Users() {
   const [customServices, setCustomServices] = useState([]); // Services from 'Service' collection for current editing user
   const [isSaving, setIsSaving] = useState(false);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
-  const [showNameDropdown, setShowNameDropdown] = useState(false);
-  const [nameSearchQuery, setNameSearchQuery] = useState('');
 
   const tabs = ['All', 'Customer', 'Vendor', 'Supplier'];
 
@@ -99,16 +95,24 @@ export default function Users() {
     }
   };
 
+  const latestFilterRequest = React.useRef(0);
   const fetchUsers = async () => {
+    const requestId = ++latestFilterRequest.current;
     setLoading(true);
     try {
       const role = activeTab === 'All' ? null : activeTab;
       const res = await adminApi.getAllUsers(role);
+      if (requestId !== latestFilterRequest.current) return;
+      if (!Array.isArray(res)) throw new Error('User list is unavailable. Please retry.');
       setUsers(res);
+      setUsersError('');
     } catch (err) {
+      if (requestId !== latestFilterRequest.current) return;
+      setUsers([]);
+      setUsersError(err.message || 'Unable to load users. Please retry.');
       console.error('Fetch users error:', err);
     } finally {
-      setLoading(false);
+      if (requestId === latestFilterRequest.current) setLoading(false);
     }
   };
 
@@ -328,47 +332,34 @@ export default function Users() {
 
   const filteredUsers = useMemo(() => {
     return users.filter(u => {
-      const matchName = selectedName === 'All' || u.displayName === selectedName;
+      const matchName = matchesFilter(selectedName, u.displayName);
       const loc = getUserLocationDetails(u);
-      const matchCity = selectedCity === 'All' || loc.city === selectedCity;
-      const matchState = selectedState === 'All' || loc.state === selectedState;
-      const matchPincode = selectedPincode === 'All' || loc.pincode === selectedPincode;
+      const matchCity = matchesFilter(selectedCity, loc.city);
+      const matchState = matchesFilter(selectedState, loc.state);
+      const matchPincode = matchesFilter(selectedPincode, loc.pincode);
       
       let matchStatus = true;
       if (selectedStatus !== 'All') {
         const userStatusText = u.status === 'approved' ? 'Active' : u.status === 'rejected' ? 'Blocked' : 'Pending';
-        if (userStatusText !== selectedStatus) matchStatus = false;
+        matchStatus = matchesFilter(selectedStatus, userStatusText);
       }
 
-      let matchGeofence = true;
-      if (selectedGeofence !== 'All') {
-        const targetGeofence = geofences.find(g => (g.areaName || g.name) === selectedGeofence);
-        if (targetGeofence) {
-          const userPin = loc.pincode;
-          matchGeofence = targetGeofence.pincodes?.includes(userPin);
-        } else {
-          matchGeofence = false;
-        }
-      }
+      const matchGeofence = !filterValues(selectedGeofence).length || geofences.some(g =>
+        matchesFilter(selectedGeofence, g.areaName || g.name) && g.pincodes?.map(String).includes(loc.pincode));
 
       let matchCustomerType = true;
       if (u.role === 'Customer' && selectedCustomerType !== 'All') {
-        matchCustomerType = u.customerType === selectedCustomerType;
+        matchCustomerType = matchesFilter(selectedCustomerType, u.customerType);
       }
 
       let matchVendorType = true;
       if (u.role === 'Vendor' && selectedVendorType !== 'All') {
-        const isRegistered = ['Pvt Ltd', 'Franchise'].includes(u.businessType);
-        if (selectedVendorType === 'registered') {
-          matchVendorType = isRegistered;
-        } else if (selectedVendorType === 'unregistered') {
-          matchVendorType = !isRegistered;
-        }
+        matchVendorType = matchesFilter(selectedVendorType, vendorRegistrationType(u));
       }
       
-      return matchName && matchCity && matchState && matchPincode && matchStatus && matchGeofence && matchCustomerType && matchVendorType;
+      return matchesUserSearch(u, searchQuery) && matchesFilter(selectedRoles, u.role) && matchName && matchCity && matchState && matchPincode && matchStatus && matchGeofence && matchCustomerType && matchVendorType;
     });
-  }, [users, selectedName, selectedCity, selectedState, selectedPincode, selectedStatus, selectedGeofence, geofences, selectedCustomerType, selectedVendorType]);
+  }, [users, searchQuery, selectedRoles, selectedName, selectedCity, selectedState, selectedPincode, selectedStatus, selectedGeofence, geofences, selectedCustomerType, selectedVendorType]);
 
   const paginatedUsers = useMemo(() => {
     return filteredUsers.slice((page - 1) * itemsPerPage, page * itemsPerPage);
@@ -555,7 +546,7 @@ export default function Users() {
       );
     }
 
-    if (activeTab === 'Customer' && selectedCustomerType === 'retail') {
+    if (activeTab === 'Customer' && filterValues(selectedCustomerType).length === 1 && matchesFilter(selectedCustomerType, 'retail')) {
       baseCols.push(
         {
           header: 'Business Name',
@@ -603,7 +594,7 @@ export default function Users() {
     }
 
 
-    if (activeTab === 'Vendor' && selectedVendorType === 'registered') {
+    if (activeTab === 'Vendor' && filterValues(selectedVendorType).length === 1 && matchesFilter(selectedVendorType, 'registered')) {
       baseCols.push(
         {
           header: 'PAN Card Number',
@@ -629,7 +620,7 @@ export default function Users() {
       );
     }
 
-    if (activeTab === 'Vendor' && selectedVendorType === 'unregistered') {
+    if (activeTab === 'Vendor' && filterValues(selectedVendorType).length === 1 && matchesFilter(selectedVendorType, 'unregistered')) {
       baseCols.push(
         {
           header: 'Aadhaar Number',
@@ -675,7 +666,7 @@ export default function Users() {
       );
     }
 
-    if (activeTab === 'Customer' && selectedCustomerType === 'individual') {
+    if (activeTab === 'Customer' && filterValues(selectedCustomerType).length === 1 && matchesFilter(selectedCustomerType, 'individual')) {
       baseCols.push({
         header: 'Location',
         key: 'addresses',
@@ -777,6 +768,7 @@ export default function Users() {
         align: 'right',
         render: (_, row) => (
           <div className="flex items-center justify-end gap-2">
+            <Link to={`/admin/users/${row._id}/history`} aria-label={`View history for ${row.displayName || row.phone}`} title="Order and support history" className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:bg-slate-900 hover:text-white"><Clock size={14} /></Link>
             <button 
               onClick={() => setEditingUser(JSON.parse(JSON.stringify(row)))} // Deep clone for editing
               title="Edit Full Profile" 
@@ -900,6 +892,10 @@ export default function Users() {
 
 
       <div className="p-6 space-y-6 max-w-[1600px] mx-auto w-full">
+        <div className="flex items-center"><input type="search" aria-label="Search users" placeholder="Search by name, phone or email"
+            value={searchQuery} onChange={event => setSearchQuery(event.target.value)}
+            className="w-full sm:w-80 px-3 py-2 bg-slate-50 border border-slate-200 rounded-sm text-xs outline-none focus:border-slate-400" /></div>
+        {usersError && <div role="alert" className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{usersError} <button type="button" onClick={fetchUsers} className="ml-3 underline">Retry user list</button></div>}
         <DataGrid 
           title=""
           showTotalEntities={false}
@@ -911,385 +907,102 @@ export default function Users() {
           showFilter={false}
           actions={
             <div className="flex items-center gap-3 justify-end">
-              {/* Geofence Filter (Searchable Custom Dropdown) */}
-              <div className="relative flex items-center w-[160px] z-[40]">
-                  <button
-                      onClick={() => setShowGeofenceDropdown(!showGeofenceDropdown)}
-                      className="w-full flex items-center justify-between bg-slate-50 border border-slate-200/80 rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-800 hover:bg-slate-100/50 focus:border-slate-300 outline-none cursor-pointer transition-all"
-                  >
-                      <span className="truncate">{selectedGeofence === 'All' ? 'Geofences' : selectedGeofence}</span>
-                      <ChevronDown size={12} className="text-slate-400" />
-                  </button>
-                  {showGeofenceDropdown && (
-                      <>
-                          <div className="fixed inset-0 z-40" onClick={() => {
-                              setShowGeofenceDropdown(false);
-                              setGeofenceSearchQuery('');
-                          }} />
-                          <div className="absolute left-0 top-full mt-1 w-[200px] bg-white border border-slate-200 rounded-sm shadow-lg z-50 py-1 text-left flex flex-col max-h-[250px] overflow-hidden">
-                              <div className="p-1.5 border-b border-slate-100">
-                                  <input 
-                                      type="text"
-                                      placeholder="Search geofence..."
-                                      value={geofenceSearchQuery}
-                                      onChange={(e) => setGeofenceSearchQuery(e.target.value)}
-                                      className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-sm outline-none focus:border-slate-300 text-[10px] font-bold"
-                                      autoFocus
-                                  />
-                              </div>
-                              <div className="overflow-y-auto flex-1 text-[10px] font-bold uppercase tracking-wider">
-                                  <button
-                                      onClick={() => {
-                                          setSelectedGeofence('All');
-                                          setPage(1);
-                                          setShowGeofenceDropdown(false);
-                                          setGeofenceSearchQuery('');
-                                      }}
-                                      className={`w-full text-left px-4 py-2 hover:bg-slate-50 hover:text-slate-900 transition-colors ${selectedGeofence === 'All' ? 'bg-slate-100 text-slate-900' : 'text-slate-700'}`}
-                                  >
-                                      Geofences
-                                  </button>
-                                  {geofences
-                                      .map(g => g.areaName || g.name)
-                                      .filter(Boolean)
-                                      .filter(name => name.toLowerCase().includes(geofenceSearchQuery.toLowerCase()))
-                                      .map(name => (
-                                          <button
-                                              key={name}
-                                              onClick={() => {
-                                                  setSelectedGeofence(name);
-                                                  setPage(1);
-                                                  setShowGeofenceDropdown(false);
-                                                  setGeofenceSearchQuery('');
-                                              }}
-                                              className={`w-full text-left px-4 py-2 hover:bg-slate-50 hover:text-slate-900 transition-colors truncate ${selectedGeofence === name ? 'bg-slate-100 text-slate-900' : 'text-slate-700'}`}
-                                              title={name}
-                                          >
-                                              {name}
-                                          </button>
-                                      ))
-                                  }
-                              </div>
-                          </div>
-                      </>
-                  )}
-              </div>
+              {/* Geofences Filter */}
+              <MultiSelectFilter value={selectedGeofence} onChange={event => { setSelectedGeofence(event.target.value); setPage(1); }}
+                  className="w-[160px] bg-slate-50 border border-slate-200/80 rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-800 hover:bg-slate-100/50 outline-none cursor-pointer transition-all">
+                  <option value="All">Geofences</option>
+                  {[...new Set(geofences.map(g => g.areaName || g.name).filter(Boolean))].map(item => <option key={item} value={item}>{item}</option>)}
+              </MultiSelectFilter>
 
               {/* Role Filter */}
               {!roleParam && (
                   <div className="relative flex items-center w-[160px]">
-                      <select
-                          value={activeTab}
+                      <MultiSelectFilter
+                          value={selectedRoles}
                           onChange={(e) => {
                               const val = e.target.value;
-                              setActiveTab(val);
-                              setSearchParams(val === 'All' ? {} : { role: val });
+                              setSelectedRoles(val);
+                              setActiveTab(Array.isArray(val) && val.length === 1 ? val[0] : 'All');
+                              setPage(1);
                           }}
                           className="w-full appearance-none bg-slate-50 border border-slate-200/80 rounded-sm pl-4 pr-10 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-800 hover:bg-slate-100/50 focus:border-slate-300 outline-none cursor-pointer transition-all"
                       >
                           {tabs.map(tab => (
                               <option key={tab} value={tab}>{tab === 'All' ? 'Role' : `${tab}s`}</option>
                           ))}
-                      </select>
-                      <ChevronDown size={12} className="absolute right-3 pointer-events-none text-slate-400" />
+                      </MultiSelectFilter>
                   </div>
               )}
 
               {/* Customer Type Filter (Visible only when on Customer Tab) */}
               {activeTab === 'Customer' && !typeParam && (
                   <div className="relative flex items-center w-[160px]">
-                      <select
+                      <MultiSelectFilter
                           value={selectedCustomerType}
                           onChange={(e) => {
                               const val = e.target.value;
                               setSelectedCustomerType(val);
-                              setSearchParams(val === 'All' ? { role: 'Customer' } : { role: 'Customer', type: val });
+                              setPage(1);
                           }}
                           className="w-full appearance-none bg-slate-50 border border-slate-200/80 rounded-sm pl-4 pr-10 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-800 hover:bg-slate-100/50 focus:border-slate-300 outline-none cursor-pointer transition-all"
                       >
                           <option value="All">Customers</option>
                           <option value="individual">Individual</option>
                           <option value="retail">Business</option>
-                      </select>
-                      <ChevronDown size={12} className="absolute right-3 pointer-events-none text-slate-400" />
+                      </MultiSelectFilter>
                   </div>
               )}
 
               {/* Vendor Type Filter (Visible only when on Vendor Tab) */}
               {activeTab === 'Vendor' && !vendorTypeParam && (
                   <div className="relative flex items-center w-[160px]">
-                      <select
+                      <MultiSelectFilter
                           value={selectedVendorType}
                           onChange={(e) => {
                               const val = e.target.value;
                               setSelectedVendorType(val);
-                              setSearchParams(val === 'All' ? { role: 'Vendor' } : { role: 'Vendor', vendorType: val });
+                              setPage(1);
                           }}
                           className="w-full appearance-none bg-slate-50 border border-slate-200/80 rounded-sm pl-4 pr-10 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-800 hover:bg-slate-100/50 focus:border-slate-300 outline-none cursor-pointer transition-all"
                       >
                           <option value="All">Vendors</option>
                           <option value="registered">Registered</option>
                           <option value="unregistered">Unregistered</option>
-                      </select>
-                      <ChevronDown size={12} className="absolute right-3 pointer-events-none text-slate-400" />
+                      </MultiSelectFilter>
                   </div>
               )}
 
-              {/* Name Filter (Searchable Custom Dropdown) */}
-              <div className="relative flex items-center w-[160px] z-[40]">
-                  <button
-                      onClick={() => setShowNameDropdown(!showNameDropdown)}
-                      className="w-full flex items-center justify-between bg-slate-50 border border-slate-200/80 rounded-sm px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-800 hover:bg-slate-100/50 focus:border-slate-300 outline-none cursor-pointer transition-all"
-                  >
-                      <span className="truncate">{selectedName === 'All' ? 'Names' : selectedName}</span>
-                      <ChevronDown size={12} className="text-slate-400" />
-                  </button>
-                  {showNameDropdown && (
-                      <>
-                          <div className="fixed inset-0 z-40" onClick={() => {
-                              setShowNameDropdown(false);
-                              setNameSearchQuery('');
-                          }} />
-                          <div className="absolute left-0 top-full mt-1 w-[200px] bg-white border border-slate-200 rounded-sm shadow-lg z-50 py-1 text-left flex flex-col max-h-[250px] overflow-hidden">
-                              <div className="p-1.5 border-b border-slate-100">
-                                  <input 
-                                      type="text"
-                                      placeholder="Search name..."
-                                      value={nameSearchQuery}
-                                      onChange={(e) => setNameSearchQuery(e.target.value)}
-                                      className="w-full px-2 py-1.5 text-[10px] font-bold bg-slate-50 border border-slate-200 rounded-sm outline-none focus:border-slate-300"
-                                      autoFocus
-                                  />
-                              </div>
-                              <div className="overflow-y-auto flex-1 text-[10px] font-bold uppercase tracking-wider">
-                                  <button
-                                      onClick={() => {
-                                          setSelectedName('All');
-                                          setPage(1);
-                                          setShowNameDropdown(false);
-                                          setNameSearchQuery('');
-                                      }}
-                                      className={`w-full text-left px-4 py-2 hover:bg-slate-50 hover:text-slate-900 transition-colors ${selectedName === 'All' ? 'bg-slate-100 text-slate-900' : 'text-slate-700'}`}
-                                  >
-                                      Names
-                                  </button>
-                                  {uniqueNames
-                                      .filter(name => name !== 'All')
-                                      .filter(name => name.toLowerCase().includes(nameSearchQuery.toLowerCase()))
-                                      .map(name => (
-                                          <button
-                                              key={name}
-                                              onClick={() => {
-                                                  setSelectedName(name);
-                                                  setPage(1);
-                                                  setShowNameDropdown(false);
-                                                  setNameSearchQuery('');
-                                              }}
-                                              className={`w-full text-left px-4 py-2 hover:bg-slate-50 hover:text-slate-900 transition-colors truncate ${selectedName === name ? 'bg-slate-100 text-slate-900' : 'text-slate-700'}`}
-                                              title={name}
-                                          >
-                                              {name}
-                                          </button>
-                                      ))
-                                  }
-                              </div>
-                          </div>
-                      </>
-                  )}
-              </div>
+              {/* Names Filter */}
+              <MultiSelectFilter value={selectedName} onChange={event => { setSelectedName(event.target.value); setPage(1); }}
+                  className="w-[160px] bg-slate-50 border border-slate-200/80 rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-800 hover:bg-slate-100/50 outline-none cursor-pointer transition-all">
+                  <option value="All">Names</option>
+                  {uniqueNames.filter(name => name !== 'All').map(item => <option key={item} value={item}>{item}</option>)}
+              </MultiSelectFilter>
 
-              {/* City Filter (Searchable Custom Dropdown) */}
-              <div className="relative flex items-center w-[130px] z-[40]">
-                  <button
-                      onClick={() => setShowCityDropdown(!showCityDropdown)}
-                      className="w-full flex items-center justify-between bg-slate-50 border border-slate-200/80 rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-800 hover:bg-slate-100/50 focus:border-slate-300 outline-none cursor-pointer transition-all"
-                  >
-                      <span className="truncate">{selectedCity === 'All' ? 'Cities' : selectedCity}</span>
-                      <ChevronDown size={12} className="text-slate-400" />
-                  </button>
-                  {showCityDropdown && (
-                      <>
-                          <div className="fixed inset-0 z-40" onClick={() => {
-                              setShowCityDropdown(false);
-                              setCitySearchQuery('');
-                          }} />
-                          <div className="absolute left-0 top-full mt-1 w-[160px] bg-white border border-slate-200 rounded-sm shadow-lg z-50 py-1 text-left flex flex-col max-h-[250px] overflow-hidden">
-                              <div className="p-1.5 border-b border-slate-100">
-                                  <input 
-                                      type="text"
-                                      placeholder="Search city..."
-                                      value={citySearchQuery}
-                                      onChange={(e) => setCitySearchQuery(e.target.value)}
-                                      className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-sm outline-none focus:border-slate-300 text-[10px] font-bold"
-                                      autoFocus
-                                  />
-                              </div>
-                              <div className="overflow-y-auto flex-1 text-[10px] font-bold uppercase tracking-wider">
-                                  <button
-                                      onClick={() => {
-                                          setSelectedCity('All');
-                                          setPage(1);
-                                          setShowCityDropdown(false);
-                                          setCitySearchQuery('');
-                                      }}
-                                      className={`w-full text-left px-4 py-2 hover:bg-slate-50 hover:text-slate-900 transition-colors ${selectedCity === 'All' ? 'bg-slate-100 text-slate-900' : 'text-slate-700'}`}
-                                  >
-                                      Cities
-                                  </button>
-                                  {uniqueCities
-                                      .filter(city => city !== 'All')
-                                      .filter(city => city.toLowerCase().includes(citySearchQuery.toLowerCase()))
-                                      .map(city => (
-                                          <button
-                                              key={city}
-                                              onClick={() => {
-                                                  setSelectedCity(city);
-                                                  setPage(1);
-                                                  setShowCityDropdown(false);
-                                                  setCitySearchQuery('');
-                                              }}
-                                              className={`w-full text-left px-4 py-2 hover:bg-slate-50 hover:text-slate-900 transition-colors truncate ${selectedCity === city ? 'bg-slate-100 text-slate-900' : 'text-slate-700'}`}
-                                              title={city}
-                                          >
-                                              {city}
-                                          </button>
-                                      ))
-                                  }
-                              </div>
-                          </div>
-                      </>
-                  )}
-              </div>
+              {/* Cities Filter */}
+              <MultiSelectFilter value={selectedCity} onChange={event => { setSelectedCity(event.target.value); setPage(1); }}
+                  className="w-[160px] bg-slate-50 border border-slate-200/80 rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-800 hover:bg-slate-100/50 outline-none cursor-pointer transition-all">
+                  <option value="All">Cities</option>
+                  {uniqueCities.filter(city => city !== 'All').map(item => <option key={item} value={item}>{item}</option>)}
+              </MultiSelectFilter>
 
-              {/* State Filter (Searchable Custom Dropdown) */}
-              <div className="relative flex items-center w-[130px] z-[40]">
-                  <button
-                      onClick={() => setShowStateDropdown(!showStateDropdown)}
-                      className="w-full flex items-center justify-between bg-slate-50 border border-slate-200/80 rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-800 hover:bg-slate-100/50 focus:border-slate-300 outline-none cursor-pointer transition-all"
-                  >
-                      <span className="truncate">{selectedState === 'All' ? 'States' : selectedState}</span>
-                      <ChevronDown size={12} className="text-slate-400" />
-                  </button>
-                  {showStateDropdown && (
-                      <>
-                          <div className="fixed inset-0 z-40" onClick={() => {
-                              setShowStateDropdown(false);
-                              setStateSearchQuery('');
-                          }} />
-                          <div className="absolute left-0 top-full mt-1 w-[160px] bg-white border border-slate-200 rounded-sm shadow-lg z-50 py-1 text-left flex flex-col max-h-[250px] overflow-hidden">
-                              <div className="p-1.5 border-b border-slate-100">
-                                  <input 
-                                      type="text"
-                                      placeholder="Search state..."
-                                      value={stateSearchQuery}
-                                      onChange={(e) => setStateSearchQuery(e.target.value)}
-                                      className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-sm outline-none focus:border-slate-300 text-[10px] font-bold"
-                                      autoFocus
-                                  />
-                              </div>
-                              <div className="overflow-y-auto flex-1 text-[10px] font-bold uppercase tracking-wider">
-                                  <button
-                                      onClick={() => {
-                                          setSelectedState('All');
-                                          setPage(1);
-                                          setShowStateDropdown(false);
-                                          setStateSearchQuery('');
-                                      }}
-                                      className={`w-full text-left px-4 py-2 hover:bg-slate-50 hover:text-slate-900 transition-colors ${selectedState === 'All' ? 'bg-slate-100 text-slate-900' : 'text-slate-700'}`}
-                                  >
-                                      States
-                                  </button>
-                                  {uniqueStates
-                                      .filter(state => state !== 'All')
-                                      .filter(state => state.toLowerCase().includes(stateSearchQuery.toLowerCase()))
-                                      .map(state => (
-                                          <button
-                                              key={state}
-                                              onClick={() => {
-                                                  setSelectedState(state);
-                                                  setPage(1);
-                                                  setShowStateDropdown(false);
-                                                  setStateSearchQuery('');
-                                              }}
-                                              className={`w-full text-left px-4 py-2 hover:bg-slate-50 hover:text-slate-900 transition-colors truncate ${selectedState === state ? 'bg-slate-100 text-slate-900' : 'text-slate-700'}`}
-                                              title={state}
-                                          >
-                                              {state}
-                                          </button>
-                                      ))
-                                  }
-                              </div>
-                          </div>
-                      </>
-                  )}
-              </div>
+              {/* States Filter */}
+              <MultiSelectFilter value={selectedState} onChange={event => { setSelectedState(event.target.value); setPage(1); }}
+                  className="w-[160px] bg-slate-50 border border-slate-200/80 rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-800 hover:bg-slate-100/50 outline-none cursor-pointer transition-all">
+                  <option value="All">States</option>
+                  {uniqueStates.filter(state => state !== 'All').map(item => <option key={item} value={item}>{item}</option>)}
+              </MultiSelectFilter>
 
-              {/* Pincode Filter (Searchable Custom Dropdown) */}
-              <div className="relative flex items-center w-[130px] z-[40]">
-                  <button
-                      onClick={() => setShowPincodeDropdown(!showPincodeDropdown)}
-                      className="w-full flex items-center justify-between bg-slate-50 border border-slate-200/80 rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-800 hover:bg-slate-100/50 focus:border-slate-300 outline-none cursor-pointer transition-all"
-                  >
-                      <span className="truncate">{selectedPincode === 'All' ? 'Pincodes' : selectedPincode}</span>
-                      <ChevronDown size={12} className="text-slate-400" />
-                  </button>
-                  {showPincodeDropdown && (
-                      <>
-                          <div className="fixed inset-0 z-40" onClick={() => {
-                              setShowPincodeDropdown(false);
-                              setPincodeSearchQuery('');
-                          }} />
-                          <div className="absolute left-0 top-full mt-1 w-[160px] bg-white border border-slate-200 rounded-sm shadow-lg z-50 py-1 text-left flex flex-col max-h-[250px] overflow-hidden">
-                              <div className="p-1.5 border-b border-slate-100">
-                                  <input 
-                                      type="text"
-                                      placeholder="Search pincode..."
-                                      value={pincodeSearchQuery}
-                                      onChange={(e) => setPincodeSearchQuery(e.target.value)}
-                                      className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-sm outline-none focus:border-slate-300 text-[10px] font-bold"
-                                      autoFocus
-                                  />
-                              </div>
-                              <div className="overflow-y-auto flex-1 text-[10px] font-bold uppercase tracking-wider">
-                                  <button
-                                      onClick={() => {
-                                          setSelectedPincode('All');
-                                          setPage(1);
-                                          setShowPincodeDropdown(false);
-                                          setPincodeSearchQuery('');
-                                      }}
-                                      className={`w-full text-left px-4 py-2 hover:bg-slate-50 hover:text-slate-900 transition-colors ${selectedPincode === 'All' ? 'bg-slate-100 text-slate-900' : 'text-slate-700'}`}
-                                  >
-                                      Pincodes
-                                  </button>
-                                  {uniquePincodes
-                                      .filter(pin => pin !== 'All')
-                                      .filter(pin => pin.toLowerCase().includes(pincodeSearchQuery.toLowerCase()))
-                                      .map(pin => (
-                                          <button
-                                              key={pin}
-                                              onClick={() => {
-                                                  setSelectedPincode(pin);
-                                                  setPage(1);
-                                                  setShowPincodeDropdown(false);
-                                                  setPincodeSearchQuery('');
-                                              }}
-                                              className={`w-full text-left px-4 py-2 hover:bg-slate-50 hover:text-slate-900 transition-colors truncate ${selectedPincode === pin ? 'bg-slate-100 text-slate-900' : 'text-slate-700'}`}
-                                              title={pin}
-                                          >
-                                              {pin}
-                                          </button>
-                                      ))
-                                  }
-                              </div>
-                          </div>
-                      </>
-                  )}
-              </div>
+              {/* Pincodes Filter */}
+              <MultiSelectFilter value={selectedPincode} onChange={event => { setSelectedPincode(event.target.value); setPage(1); }}
+                  className="w-[160px] bg-slate-50 border border-slate-200/80 rounded-sm px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-800 hover:bg-slate-100/50 outline-none cursor-pointer transition-all">
+                  <option value="All">Pincodes</option>
+                  {uniquePincodes.filter(pin => pin !== 'All').map(item => <option key={item} value={item}>{item}</option>)}
+              </MultiSelectFilter>
 
               {/* Status Filter */}
               <div className="relative flex items-center w-[130px]">
-                  <select
+                  <MultiSelectFilter
                       value={selectedStatus}
                       onChange={(e) => {
                           setSelectedStatus(e.target.value);
@@ -1301,8 +1014,7 @@ export default function Users() {
                       <option value="Active">Active</option>
                       <option value="Blocked">Blocked</option>
                       {activeTab !== 'Customer' && <option value="Pending">Pending</option>}
-                  </select>
-                  <ChevronDown size={12} className="absolute right-3 pointer-events-none text-slate-400" />
+                  </MultiSelectFilter>
               </div>
             </div>
           }
@@ -1374,12 +1086,15 @@ export default function Users() {
                                         <div className="space-y-1.5">
                                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Business Entity Type</label>
                                             <select
-                                                value={editingUser.businessType || 'Proprietorship'}
+                                                value={editingUser.businessType || ''}
                                                 onChange={(e) => setEditingUser({...editingUser, businessType: e.target.value})}
                                                 className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold outline-none focus:border-slate-900 transition-all"
                                             >
+                                                <option value="">Select business entity type</option>
                                                 <option value="Proprietorship">Proprietorship</option>
                                                 <option value="Partnership">Partnership</option>
+                                                <option value="Pvt Ltd">Pvt Ltd</option>
+                                                <option value="Franchise">Franchise</option>
                                                 <option value="Unregistered/Local">Unregistered/Local</option>
                                             </select>
                                         </div>

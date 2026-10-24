@@ -1,3 +1,11 @@
+import mongoose from 'mongoose';
+import Service from '../models/Service.js';
+import MasterService from '../models/MasterService.js';
+import { PROFILE_FIELDS } from '../../../shared/profileFields.mjs';
+import { safeProfile } from '../utils/profileData.js';
+import { requireProfileDestination } from '../middleware/profileAccess.js';
+import { canAccessAccount, isScopedAdmin } from '../utils/adminScope.js';
+import { httpStatusForError } from '../utils/errorResponse.js';
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
@@ -28,6 +36,7 @@ const generateOTP = () =>
 
 export const getVendorEarnings = async (req, res) => {
     try {
+        if (req.account?.role === 'Admin' && isScopedAdmin(req)) return res.status(403).json({ message: 'Vendor financial aggregates require access to all service areas.' });
         const { vendorId } = req.query;
         if (!vendorId) return res.status(400).json({ message: 'Vendor ID is required' });
 
@@ -354,6 +363,7 @@ export const submitVendorServices = async (req, res) => {
     try {
         const { id } = req.params;
         const { services } = req.body; // Array of { id, vendorRate }
+        if (!Array.isArray(services)) return res.status(400).json({ message: 'Services must be an array.' });
 
         const user = await User.findById(id);
         if (!user) return res.status(404).json({ message: 'User not found' });
@@ -376,7 +386,7 @@ export const submitVendorServices = async (req, res) => {
         user.onboardingStage = 'FINAL_REVIEW';
         await user.save();
 
-        res.status(200).json({ message: 'Services submitted for final audit!', user });
+        res.status(200).json({ message: 'Services submitted for final audit!', user: safeProfile(user) });
     } catch (err) {
         console.error('Submit Services Error:', err);
         res.status(500).json({ message: 'Error submitting services' });
@@ -537,7 +547,8 @@ export const completeVendorProfile = async (req, res) => {
 
         console.log(`🚀 [PROFILE_COMPLETE] Attempting for Phone: ${phone}`);
 
-        const user = await User.findOne({ phone, role: 'Vendor' });
+        if (phone && phone !== req.profileTarget.phone) return res.status(403).json({ message: 'Phone does not match your account.' });
+        const user = await User.findOne({ _id: req.user.id, role: 'Vendor' });
         
         if (!user) {
             console.error(`❌ [PROFILE_COMPLETE] User NOT found with Phone: ${phone} and Role: Vendor`);
@@ -566,7 +577,7 @@ export const completeVendorProfile = async (req, res) => {
             pincode: pincode,
             city: city,
             gst: gst,
-            services: services
+            services: services.map(service => ({ id: service.id, name: service.name, vendorRate: service.vendorRate, status: 'pending' }))
         };
         user.location = location;
         user.bankDetails = bankDetails;
@@ -575,7 +586,7 @@ export const completeVendorProfile = async (req, res) => {
         user.status = 'pending'; 
         await user.save();
 
-        res.status(200).json({ message: 'Profile completed successfully. Pending approval.', user });
+        res.status(200).json({ message: 'Profile completed successfully. Pending approval.', user: safeProfile(user) });
     } catch (err) {
         console.error('Complete Profile Error:', err);
         res.status(500).json({ message: 'Error completing profile' });
@@ -588,7 +599,8 @@ export const getStatus = async (req, res) => {
         const { phone } = req.query;
         if (!phone) return res.status(400).json({ message: 'Phone is required' });
 
-        const user = await User.findOne({ phone, role: 'Vendor' });
+        if (phone !== req.profileTarget.phone) return res.status(403).json({ message: 'You cannot inspect this account status.' });
+        const user = await User.findOne({ _id: req.user.id, role: 'Vendor' });
         if (!user) return res.status(404).json({ message: 'Vendor not found' });
 
         res.status(200).json({ 
@@ -701,7 +713,7 @@ export const adminLogin = async (req, res) => {
 export const getUserProfile = async (req, res) => {
     try {
         const { id } = req.params;
-        const user = await User.findById(id).lean();
+        const user = await User.findById(id).select('-password -otp -otpExpiry -activationToken -fcmToken -bankVerification.amount').lean();
         if (!user) return res.status(404).json({ message: 'User not found' });
 
         // If Vendor, merge/map service details for clear UI
@@ -724,8 +736,6 @@ export const getUserProfile = async (req, res) => {
             const SupplierApplication = (await import('../models/SupplierApplication.js')).default;
             const supplierApp = await SupplierApplication.findOne({ user: id }).lean();
             if (supplierApp) {
-                let needsDbUpdate = false;
-                const userUpdates = {};
 
                 // Bank details sync
                 if ((!user.bankDetails?.accountNumber || !user.bankDetails?.bankName) && supplierApp.accountNumber) {
@@ -735,8 +745,6 @@ export const getUserProfile = async (req, res) => {
                         ifscCode: supplierApp.ifscCode || '',
                         bankName: supplierApp.bankName || ''
                     };
-                    userUpdates.bankDetails = user.bankDetails;
-                    needsDbUpdate = true;
                 }
 
                 // Documents sync
@@ -753,8 +761,7 @@ export const getUserProfile = async (req, res) => {
                     }
                     if (docs.length > 0) {
                         user.documents = docs;
-                        userUpdates.documents = docs;
-                        needsDbUpdate = true;
+
                     }
                 }
 
@@ -768,15 +775,10 @@ export const getUserProfile = async (req, res) => {
                         city: supplierApp.city || '',
                         pincode: supplierApp.pincode || ''
                     };
-                    userUpdates.supplierDetails = user.supplierDetails;
-                    needsDbUpdate = true;
+
                 }
 
-                if (needsDbUpdate) {
-                    User.findByIdAndUpdate(id, userUpdates).exec().catch(err => {
-                        console.error('Background User sync error from SupplierApp:', err);
-                    });
-                }
+
             }
         }
 
@@ -811,13 +813,11 @@ export const getUserProfile = async (req, res) => {
 
             if (docList.length > (user.documents?.length || 0)) {
                 user.documents = docList;
-                User.findByIdAndUpdate(id, { documents: docList }).exec().catch(err => {
-                    console.error('Background User sync error for vendor documents:', err);
-                });
+
             }
         }
 
-        res.status(200).json(user);
+        res.status(200).json(safeProfile(user));
     } catch (err) {
         console.error('Get Profile Error:', err);
         res.status(500).json({ message: 'Error fetching profile' });
@@ -832,6 +832,34 @@ export const updateUserProfile = async (req, res) => {
         const user = await User.findById(id);
         if (!user) return res.status(404).json({ message: 'User not found' });
 
+        const isAdmin = req.user.role === 'Admin';
+        const allowed = [...PROFILE_FIELDS, ...(isAdmin && user.role !== 'Admin' ? ['status'] : [])];
+        if (Object.keys(updates).some(key => !allowed.includes(key))) return res.status(400).json({ message: 'Profile contains protected or unsupported fields.' });
+        const unsafeKeys = value => value && typeof value === 'object' && Object.entries(value).some(([key, child]) => key.includes('.') || key.startsWith('$') || ['__proto__', 'constructor', 'prototype'].includes(key) || unsafeKeys(child));
+        if (unsafeKeys(updates)) return res.status(400).json({ message: 'Invalid profile field.' });
+        if (updates.status !== undefined && !['approved', 'rejected'].includes(updates.status)) return res.status(400).json({ message: 'Use the approval workflow for onboarding status changes.' });
+        if (updates.shopDetails?.services !== undefined && !Array.isArray(updates.shopDetails.services)) return res.status(400).json({ message: 'Services must be an array.' });
+        if (!isAdmin && updates.shopDetails?.services) {
+            const normalized = [];
+            for (const service of updates.shopDetails.services) {
+                if (!service || typeof service !== 'object') return res.status(400).json({ message: 'Invalid service entry.' });
+                const previous = user.shopDetails?.services?.find(item => String(item.id) === String(service.id));
+                const approved = !previous && mongoose.isValidObjectId(service.id) ? await Service.findOne({ _id: service.id, vendorId: user._id, approvalStatus: 'Approved' }).lean() : null;
+                const master = !previous && !approved && mongoose.isValidObjectId(service.id) ? await MasterService.findById(service.id).select('basePrice').lean() : null;
+                const adminRate = previous?.adminRate ?? approved?.basePrice ?? master?.basePrice;
+                const status = previous?.status || (approved ? 'approved' : 'pending');
+                if ((service.adminRate !== undefined && service.adminRate !== adminRate) || (service.rejectionReason !== undefined && service.rejectionReason !== (previous?.rejectionReason || '')) || (service.status !== undefined && !['pending', 'offered', status].includes(service.status))) return res.status(403).json({ message: 'Service approval and admin prices cannot be edited here.' });
+                normalized.push({ ...service, ...(adminRate !== undefined ? { adminRate } : {}), status: service.status || status, rejectionReason: previous?.rejectionReason || '' });
+            }
+            updates.shopDetails.services = normalized;
+        }
+        if (req.walkInAddress && updates.addresses !== undefined) {
+            if (!Array.isArray(updates.addresses) || updates.addresses.length !== 1) return res.status(400).json({ message: 'A walk-in update can only save one destination address.' });
+            const destination = updates.addresses[0];
+            if (!destination || typeof destination !== 'object' || typeof destination.address !== 'string' || !destination.address.trim()) return res.status(400).json({ message: 'A destination address is required.' });
+            const existing = (user.addresses || []).map(address => ({ ...address.toObject(), isDefault: false }));
+            updates.addresses = [...existing.filter(address => address.address !== destination.address), { ...destination, _id: undefined, isDefault: true }];
+        }
         // Surgical update using Mongoose .set() to ensure nested paths are tracked
         Object.keys(updates).forEach(key => {
             if (typeof updates[key] === 'object' && updates[key] !== null && !Array.isArray(updates[key])) {
@@ -843,6 +871,9 @@ export const updateUserProfile = async (req, res) => {
                 user.set(key, updates[key]);
             }
         });
+
+        if (updates.status !== undefined) user.isBlocked = updates.status === 'rejected';
+        if (!await requireProfileDestination(req, user)) return res.status(403).json({ message: 'The updated profile is outside your permitted service areas.' });
 
         // ROLE-AWARE SYNC: If root address/pincode/city is updated, sync to specific details
         if (updates.address || updates.pincode || updates.city) {
@@ -876,10 +907,10 @@ export const updateUserProfile = async (req, res) => {
         }
 
         await user.save();
-        res.status(200).json(user);
+        res.status(200).json(req.walkInAddress ? { _id: user._id, address: user.address, location: user.location } : safeProfile(user));
     } catch (err) {
         console.error('Update Profile Error:', err);
-        res.status(500).json({ message: 'Error updating profile', error: err.message });
+        res.status(httpStatusForError(err)).json({ message: 'Error updating profile', error: err.message });
     }
 };
 
@@ -922,7 +953,7 @@ export const updateVendorDocuments = async (req, res) => {
         else if (typeLower.includes('exterior')) user.exteriorPhoto = req.file.path;
 
         await user.save();
-        res.status(200).json(user);
+        res.status(200).json(safeProfile(user));
     } catch (err) {
         console.error('Update Documents Error:', err);
         res.status(500).json({ message: 'Error updating documents' });
@@ -942,7 +973,7 @@ export const updateProfileImage = async (req, res) => {
         user.image = req.file.path; // Cloudinary URL
         await user.save();
         
-        res.status(200).json(user);
+        res.status(200).json(safeProfile(user));
     } catch (err) {
         console.error('Update Profile Image Error:', err);
         res.status(500).json({ message: 'Error updating profile image' });
@@ -1114,6 +1145,7 @@ export const updateDraftCart = async (req, res) => {
 export const lookupCustomerByPhone = async (req, res) => {
     try {
         const { phone } = req.params;
+        if (!/^\d{10,13}$/.test(phone)) return res.status(400).json({ message: 'A valid phone number is required.' });
         const customer = await User.findOne({ phone: new RegExp(phone.slice(-10) + '$') });
         if (!customer) {
             return res.status(404).json({ message: 'Customer not found' });
@@ -1125,9 +1157,13 @@ export const lookupCustomerByPhone = async (req, res) => {
             });
         }
 
+        if (!await canAccessAccount(req, customer)) return res.status(403).json({ message: 'Customer is outside your permitted service areas.' });
+        if (customer.isBlocked) return res.status(403).json({ message: 'This customer is unavailable for walk-in updates.' });
+        const addressUpdateToken = jwt.sign({ purpose: 'walkin-address', actorId: String(req.user.id), customerId: String(customer._id) }, process.env.JWT_SECRET || 'ezoflife_secret_key_2026', { expiresIn: '15m' });
         let defAddr = customer.addresses && customer.addresses.length > 0 ? customer.addresses[0] : null;
         res.status(200).json({ 
             id: customer._id,
+            addressUpdateToken,
             displayName: customer.displayName || '',
             type: defAddr ? defAddr.type : 'Home',
             address: defAddr ? defAddr.address : (customer.address || ''),

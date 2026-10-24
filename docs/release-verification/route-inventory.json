@@ -1,0 +1,11 @@
+{
+  "endpoints": 272,
+  "guarded": 145,
+  "methods": {
+    "GET": 103,
+    "POST": 84,
+    "DELETE": 31,
+    "PATCH": 38,
+    "PUT": 16
+  }
+}

@@ -1,0 +1,125 @@
+{
+  "auditDate": "2026-10-24",
+  "environment": "Disposable local MongoDB/Express; providers disabled; fixtures only",
+  "observations": [
+    {
+      "id": "ACTIVE",
+      "description": "Active-card source excludes delivered and cancelled orders",
+      "expected": 1,
+      "actual": 3,
+      "conforms": false
+    },
+    {
+      "id": "DISPUTES",
+      "description": "Open-dispute source excludes technical support tickets",
+      "expected": 0,
+      "actual": 1,
+      "conforms": false
+    },
+    {
+      "id": "ACTIVE_SKU",
+      "description": "B2B active-SKU source excludes inactive products",
+      "expected": 1,
+      "actual": 2,
+      "conforms": false
+    },
+    {
+      "id": "WHOLESALER",
+      "description": "Supplier classification respects explicit entityType",
+      "expected": 1,
+      "actual": 0,
+      "conforms": false
+    },
+    {
+      "id": "NO_PAID_PAYOUT",
+      "description": "Payout chart amount equals recorded completed transfers",
+      "expected": 0,
+      "actual": 140,
+      "conforms": false
+    },
+    {
+      "id": "B2C_BOOKED",
+      "description": "Non-cancelled B2C booked value is correctly summed",
+      "expected": 200,
+      "actual": 200,
+      "conforms": true
+    },
+    {
+      "id": "MONTH_SUM",
+      "description": "Whole-rupee monthly B2C values agree with booked total",
+      "expected": 200,
+      "actual": 200,
+      "conforms": true
+    },
+    {
+      "id": "STATE",
+      "description": "Bengaluru geofence is not assigned to an invented Madhya Pradesh state",
+      "expected": false,
+      "actual": true,
+      "conforms": false
+    },
+    {
+      "id": "GEOFENCE",
+      "description": "A returned geofence option round-trips to matching orders",
+      "expected": 200,
+      "actual": 0,
+      "conforms": false
+    },
+    {
+      "id": "B2B_STATUS",
+      "description": "Delivered/settled B2B metric supports persisted canonical and legacy variants",
+      "expected": 4,
+      "actual": 2,
+      "conforms": false
+    },
+    {
+      "id": "B2B_GMV",
+      "description": "B2B booked GMV excludes carts, pending-payment drafts and legacy cancellations",
+      "expected": 200,
+      "actual": 350,
+      "conforms": false
+    },
+    {
+      "id": "OVERDUE_COHORT",
+      "description": "An unresolved 40-day pickup remains visible in the default current-exception count",
+      "expected": 1,
+      "actual": 0,
+      "conforms": false
+    },
+    {
+      "id": "FILTER_INTERSECTION",
+      "description": "Pincode and geofence intersect instead of overriding one another",
+      "expected": 0,
+      "actual": 0,
+      "conforms": true
+    },
+    {
+      "id": "SCOPE",
+      "description": "Unknown assigned area fails closed for order totals",
+      "expected": 0,
+      "actual": 0,
+      "conforms": true
+    },
+    {
+      "id": "INVALID_DATES",
+      "description": "Invalid calendar dates are rejected",
+      "expected": 400,
+      "actual": 400,
+      "conforms": true
+    },
+    {
+      "id": "MONTH_DECIMALS",
+      "description": "Monthly values preserve the same currency precision as the headline total",
+      "expected": 200.49,
+      "actual": 200,
+      "conforms": false
+    },
+    {
+      "id": "CHURN_WINDOW",
+      "description": "A customer who ordered yesterday is not labelled 30-day inactive by Today selection",
+      "expected": 0,
+      "actual": 1,
+      "conforms": false
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import path from 'node:path';
 
 /**
  * Component/unit test config.
@@ -9,6 +10,7 @@ import react from '@vitejs/plugin-react';
  */
 export default defineConfig({
     plugins: [react()],
+    resolve: { alias: { '@': path.resolve(import.meta.dirname, './src') } },
     test: {
         environment: 'jsdom',
         globals: true,
@@ -18,9 +20,10 @@ export default defineConfig({
         css: false,
         restoreMocks: true,
         coverage: {
-            reporter: ['text', 'html'],
-            include: ['src/lib/**', 'src/shared/**', 'src/modules/**/components/**'],
-            exclude: ['**/*.test.*', '**/*.spec.*']
+            provider: 'istanbul',
+            reporter: ['text', 'html', 'json-summary'],
+            include: ['src/**/*.{js,jsx}'],
+            exclude: ['**/*.test.*', '**/*.spec.*', 'src/test/**']
         }
     }
 });

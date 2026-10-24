@@ -1,3 +1,6 @@
+import { normalizeInvoiceSettings, drawInvoiceBusinessName, drawInvoiceContactDetails, drawInvoiceFooter } from '../../../lib/invoiceSettings';
+import FilterSearchParams from '../../../lib/FilterSearchParams';
+import MultiSelectFilter from '../components/common/MultiSelectFilter';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ShoppingBag, Search, Download, Filter, FileText, PlusCircle, ExternalLink, User, Store, Calendar, ArrowRight, Eye, Edit3, Trash2, ChevronDown } from 'lucide-react';
@@ -134,10 +137,19 @@ export default function Orders() {
   const location = useLocation();
   
   const activeTab = useMemo(() => {
-    const queryParams = new URLSearchParams(location.search);
+    const queryParams = new FilterSearchParams(location.search);
     return queryParams.get('tab') || 'Active';
   }, [location.search]);
 
+  const [invoiceSettings, setInvoiceSettings] = useState(() => normalizeInvoiceSettings());
+  useEffect(() => {
+    let cancelled = false;
+    adminApi.getConfig().then(configs => {
+      const config = configs.find(item => item.key === 'invoice_settings');
+      if (!cancelled) setInvoiceSettings(normalizeInvoiceSettings(config?.value));
+    }).catch(error => console.error('Failed to load invoice details:', error));
+    return () => { cancelled = true; };
+  }, []);
   const [allOrders, setAllOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [zones, setZones] = useState([]);
@@ -183,7 +195,7 @@ export default function Orders() {
     } else if (!isCustomerRD && !isVendorRD) {
       gstAmount = Math.round(serviceCost * gstRate);
       totalInvoiceAmt = serviceCost + gstAmount;
-      gstinOnInvoice = `Spinzyt GSTIN: 23AAAAA1111A1Z1 (ECO)`;
+      gstinOnInvoice = `${invoiceSettings.businessName} GSTIN: ${invoiceSettings.gstNumber || 'Not provided'} (ECO)`;
     } else if (isCustomerRD && !isVendorRD) {
       gstAmount = 0;
       totalInvoiceAmt = serviceCost;
@@ -234,15 +246,16 @@ export default function Orders() {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(22);
       doc.setTextColor(255, 255, 255);
-      doc.text('SPINZYT', 15, 20);
+      drawInvoiceBusinessName(doc, invoiceSettings.businessName);
       
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
-      doc.text('PREMIUM GARMENT CARE PLATFORM', 15, 26);
+      doc.text(invoiceSettings.website, 15, 26, { maxWidth: 105 });
+      drawInvoiceContactDetails(doc, invoiceSettings);
       
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(14);
-      doc.text('TAX INVOICE / ECO INVOICE', 200 - 15, 20, { align: 'right' });
+      doc.text(invoiceSettings.invoiceTitle, 200 - 15, 20, { align: 'right', maxWidth: 75 });
       
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
@@ -313,6 +326,8 @@ export default function Orders() {
       doc.text(`GSTIN Reference: ${calc.gstinOnInvoice}`, 15, finalY + 25);
       doc.text('Note: This is an electronically generated invoice raised by the Vendor to the Customer on Spinzyt.', 15, finalY + 30);
 
+      drawInvoiceFooter(doc, invoiceSettings, finalY + 38);
+
       doc.save(`Invoice_Customer_${order.orderId || (order._id ? order._id.slice(-6).toUpperCase() : 'TEMP')}.pdf`);
     } catch (err) {
       console.error('Error generating Customer Invoice:', err);
@@ -332,11 +347,12 @@ export default function Orders() {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(22);
       doc.setTextColor(255, 255, 255);
-      doc.text('SPINZYT', 15, 20);
+      drawInvoiceBusinessName(doc, invoiceSettings.businessName);
       
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
-      doc.text('PREMIUM GARMENT CARE PLATFORM', 15, 26);
+      doc.text(invoiceSettings.website, 15, 26, { maxWidth: 105 });
+      drawInvoiceContactDetails(doc, invoiceSettings);
       
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(14);
@@ -357,9 +373,9 @@ export default function Orders() {
       doc.setFontSize(9);
       doc.setTextColor(70, 70, 70);
       
-      doc.text('Spinzyt Ltd.', 15, 62);
-      doc.text('Email: billing@spinzyt.com', 15, 67);
-      doc.text('GSTIN: 23AAAAA1111A1Z1', 15, 72);
+      doc.text(invoiceSettings.businessName, 15, 62, { maxWidth: 85 });
+      doc.text(`Email: ${invoiceSettings.contactEmail}`, 15, 67, { maxWidth: 85 });
+      doc.text(`GSTIN: ${invoiceSettings.gstNumber || 'Not provided'}`, 15, 72);
       
       doc.text(`Shop Name: ${order.vendor?.shopDetails?.name || 'Spinzyt Partner'}`, 110, 62);
       doc.text(`Phone: ${order.vendor?.phone || 'N/A'}`, 110, 67);
@@ -415,8 +431,10 @@ export default function Orders() {
       doc.setFontSize(8);
       doc.setFont('helvetica', 'italic');
       doc.setTextColor(100, 100, 100);
-      doc.text('GSTIN Reference: raised with Spinzyt GSTIN (23AAAAA1111A1Z1)', 15, finalY + 25);
+      doc.text(`GSTIN Reference: ${invoiceSettings.gstNumber || 'Not provided'}`, 15, finalY + 25);
       doc.text('Note: This invoice records the platform and logistics commissions charged by Spinzyt to the Vendor.', 15, finalY + 30);
+
+      drawInvoiceFooter(doc, invoiceSettings, finalY + 38);
 
       doc.save(`Invoice_Vendor_${order.orderId || (order._id ? order._id.slice(-6).toUpperCase() : 'TEMP')}.pdf`);
     } catch (err) {
@@ -427,6 +445,7 @@ export default function Orders() {
 
   const tabs = useMemo(() => ['Active', 'Completed'], []);
 
+  const latestFilterRequest = React.useRef(0);
   const fetchAllOrders = async (currentPage = page, filters = {
     selectedZone,
     selectedCustomer,
@@ -435,6 +454,7 @@ export default function Orders() {
     endDate,
     activeTab
   }) => {
+    const requestId = ++latestFilterRequest.current;
     try {
       setLoading(true);
       const res = await orderApi.getAllOrders(currentPage, itemsPerPage, {
@@ -445,6 +465,7 @@ export default function Orders() {
         endDate: filters.endDate,
         activeTab: filters.activeTab
       });
+      if (requestId !== latestFilterRequest.current) return;
       
       if (res && res.data) {
         setAllOrders(res.data);
@@ -458,9 +479,10 @@ export default function Orders() {
         setTotalPages(1);
       }
     } catch (err) {
+      if (requestId !== latestFilterRequest.current) return;
       console.error('Fetch all orders error:', err);
     } finally {
-      setLoading(false);
+      if (requestId === latestFilterRequest.current) setLoading(false);
     }
   };
 
@@ -835,7 +857,7 @@ export default function Orders() {
       header: 'Order ID', 
       key: 'orderId',
       render: (val, row) => (
-        <span className="font-bold text-slate-900 text-[11px] tracking-[0.1em] uppercase group-hover:text-blue-600 transition-colors">{val}</span>
+        <button type="button" onClick={() => navigate(`/admin/orders/${encodeURIComponent(row._id)}`)} className="font-bold text-slate-900 text-[11px] tracking-[0.1em] uppercase hover:text-blue-600 hover:underline transition-colors" aria-label={`View order ${val}`}>{val}</button>
       )
     },
     { 
@@ -1114,28 +1136,28 @@ export default function Orders() {
       }
     },
     {
-      header: 'Actions',
+      header: 'Invoices',
       key: 'actions',
       render: (val, row) => (
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => handleDownloadCustomerInvoice(row)}
             className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 hover:border-blue-300 rounded text-[9px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer"
-            title="Download Customer Invoice"
+            title="Download Customer Invoice" aria-label="Download customer invoice"
           >
             <Download size={10} /> Cust Inv
           </button>
           <button
             onClick={() => handleDownloadVendorInvoice(row)}
             className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200 hover:border-emerald-300 rounded text-[9px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer"
-            title="Download Vendor Invoice"
+            title="Download Vendor Invoice" aria-label="Download vendor invoice"
           >
             <Download size={10} /> Vend Inv
           </button>
         </div>
       )
     }
-  ].filter(col => col.key !== 'actions' || activeTab === 'Completed'), [handleDownloadCustomerInvoice, handleDownloadVendorInvoice, activeTab]);
+  ], [handleDownloadCustomerInvoice, handleDownloadVendorInvoice, navigate]);
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50/50 pb-20">
@@ -1232,7 +1254,7 @@ export default function Orders() {
           <div className="flex items-center gap-3 flex-wrap justify-end">
             {/* Zone Filter */}
             <div className="relative flex items-center">
-              <select
+              <MultiSelectFilter
                 value={selectedZone}
                 onChange={(e) => {
                   setSelectedZone(e.target.value);
@@ -1246,13 +1268,13 @@ export default function Orders() {
                     {z.zoneName}
                   </option>
                 ))}
-              </select>
+              </MultiSelectFilter>
               <ChevronDown size={14} className="absolute right-3 pointer-events-none text-slate-500" />
             </div>
 
             {/* Customer Filter */}
             <div className="relative flex items-center">
-              <select
+              <MultiSelectFilter
                 value={selectedCustomer}
                 onChange={(e) => {
                   setSelectedCustomer(e.target.value);
@@ -1266,13 +1288,13 @@ export default function Orders() {
                     {name}
                   </option>
                 ))}
-              </select>
+              </MultiSelectFilter>
               <ChevronDown size={14} className="absolute right-3 pointer-events-none text-slate-500" />
             </div>
 
             {/* Status Filter */}
             <div className="relative flex items-center">
-              <select
+              <MultiSelectFilter
                 value={selectedStatus}
                 onChange={(e) => {
                   setSelectedStatus(e.target.value);
@@ -1286,7 +1308,7 @@ export default function Orders() {
                     {status.replace(/_/g, ' ')}
                   </option>
                 ))}
-              </select>
+              </MultiSelectFilter>
               <ChevronDown size={14} className="absolute right-3 pointer-events-none text-slate-500" />
             </div>
           </div>

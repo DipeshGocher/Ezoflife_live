@@ -1,0 +1,9 @@
+{
+  "tabsRendered": 5,
+  "errors": [],
+  "method": "Invoke the registered 60-second callback after completing a B2C filter response",
+  "selectedChannel": "B2C",
+  "channelAfterPoll": "All",
+  "refreshRequestIssued": true,
+  "preservesSelectedFilter": false
+}

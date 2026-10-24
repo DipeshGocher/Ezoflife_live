@@ -1,0 +1,2 @@
+export const PROFILE_FIELDS = ['phone', 'displayName', 'email', 'image', 'address', 'city', 'state', 'pincode', 'location', 'addresses', 'customerType', 'businessName', 'businessType', 'facilityName', 'ownerName', 'panNumber', 'aadharNumber', 'gstNumber', 'businessAddress', 'facilityAddress', 'shopDetails', 'supplierDetails', 'bankDetails', 'isProfileComplete', 'paymentMethods', 'paymentDetails'];
+export const pickProfileFields = value => Object.fromEntries(PROFILE_FIELDS.filter(key => value[key] !== undefined).map(key => [key, value[key]]));

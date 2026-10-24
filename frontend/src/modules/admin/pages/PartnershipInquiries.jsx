@@ -1,3 +1,4 @@
+import MultiSelectFilter from '../components/common/MultiSelectFilter';
 import React, { useState, useEffect, useMemo } from 'react';
 import { partnershipApi } from '../../../lib/api';
 import toast from 'react-hot-toast';
@@ -19,15 +20,19 @@ const PartnershipInquiries = () => {
     const [filters, setFilters] = useState({ companyName: '', email: '', phone: '', partnershipType: '', submitted: '' });
     const [filterOptions, setFilterOptions] = useState({ companyNames: [], emails: [], phones: [], partnershipTypes: [], dates: [] });
 
+    const latestFilterRequest = React.useRef(0);
     const fetchInquiries = async (currentFilters = filters) => {
+        const requestId = ++latestFilterRequest.current;
         try {
             setLoading(true);
             const data = await partnershipApi.getAll(currentFilters);
+            if (requestId !== latestFilterRequest.current) return;
             setInquiries(data);
         } catch (error) {
+            if (requestId !== latestFilterRequest.current) return;
             toast.error('Failed to fetch partnership inquiries');
         } finally {
-            setLoading(false);
+            if (requestId === latestFilterRequest.current) setLoading(false);
         }
     };
 
@@ -283,7 +288,7 @@ const PartnershipInquiries = () => {
                     showSearch={false}
                     actions={
                         <div className="flex items-center flex-wrap gap-2">
-                            <select
+                            <MultiSelectFilter
                                 value={filters.companyName}
                                 onChange={(e) => handleFilterChange('companyName', e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -292,8 +297,8 @@ const PartnershipInquiries = () => {
                                 {filterOptions.companyNames.map(brand => (
                                     <option key={brand} value={brand}>{brand}</option>
                                 ))}
-                            </select>
-                            <select
+                            </MultiSelectFilter>
+                            <MultiSelectFilter
                                 value={filters.email}
                                 onChange={(e) => handleFilterChange('email', e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -302,8 +307,8 @@ const PartnershipInquiries = () => {
                                 {filterOptions.emails.map(email => (
                                     <option key={email} value={email}>{email}</option>
                                 ))}
-                            </select>
-                            <select
+                            </MultiSelectFilter>
+                            <MultiSelectFilter
                                 value={filters.phone}
                                 onChange={(e) => handleFilterChange('phone', e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -312,8 +317,8 @@ const PartnershipInquiries = () => {
                                 {filterOptions.phones.map(phone => (
                                     <option key={phone} value={phone}>{phone}</option>
                                 ))}
-                            </select>
-                            <select
+                            </MultiSelectFilter>
+                            <MultiSelectFilter
                                 value={filters.partnershipType}
                                 onChange={(e) => handleFilterChange('partnershipType', e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-32 uppercase tracking-wider cursor-pointer"
@@ -322,8 +327,8 @@ const PartnershipInquiries = () => {
                                 {filterOptions.partnershipTypes.map(type => (
                                     <option key={type} value={type}>{type}</option>
                                 ))}
-                            </select>
-                            <select
+                            </MultiSelectFilter>
+                            <MultiSelectFilter
                                 value={filters.submitted}
                                 onChange={(e) => handleFilterChange('submitted', e.target.value)}
                                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-32 uppercase tracking-wider cursor-pointer"
@@ -332,7 +337,7 @@ const PartnershipInquiries = () => {
                                 {filterOptions.dates.map(date => (
                                     <option key={date} value={date}>{new Date(date).toLocaleDateString('en-GB')}</option>
                                 ))}
-                            </select>
+                            </MultiSelectFilter>
                             {(filters.companyName || filters.email || filters.phone || filters.partnershipType || filters.submitted) && (
                                 <button 
                                     onClick={handleResetFilters}

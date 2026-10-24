@@ -3,7 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import VendorHeader from '../components/VendorHeader';
 import VendorBottomNav from '../components/VendorBottomNav';
-import socket from '../../../lib/socket';
+import socket, { subscribeSocketRooms } from '../../../lib/socket';
 import { orderApi } from '../../../lib/api';
 import useNotificationStore from '../../../shared/stores/notificationStore';
 import useVendorOrderStore from '../../../shared/stores/vendorOrderStore';
@@ -77,13 +77,13 @@ const VendorLayout = () => {
             }
         };
 
-        socket.emit('join_room', 'vendors_pool');
-        socket.emit('join_room', `user_${vendorId}`);
+        const unsubscribeRooms = subscribeSocketRooms(socket, ['vendors_pool', `user_${vendorId}`]);
 
         socket.on('new_order_available', handleNewOrder);
         socket.on('new_notification', handleNewNotification);
 
         return () => {
+            unsubscribeRooms();
             socket.off('new_order_available', handleNewOrder);
             socket.off('new_notification', handleNewNotification);
         };

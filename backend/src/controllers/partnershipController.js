@@ -1,3 +1,4 @@
+import { filterCondition, dateFilter } from '../utils/queryFilters.js';
 import PartnershipInquiry from '../models/PartnershipInquiry.js';
 import { sendPartnershipConfirmation, sendAdminPartnershipNotification } from '../utils/emailHelper.js';
 import { httpStatusForError } from '../utils/errorResponse.js';
@@ -30,23 +31,19 @@ export const getAllPartnershipInquiries = async (req, res) => {
         const filter = {};
 
         if (companyName) {
-            filter.companyName = companyName;
+            filter.companyName = filterCondition(companyName);
         }
         if (email) {
-            filter.email = email;
+            filter.email = filterCondition(email);
         }
         if (phone) {
-            filter.phone = phone;
+            filter.phone = filterCondition(phone);
         }
         if (partnershipType) {
-            filter.partnershipType = partnershipType;
+            filter.partnershipType = filterCondition(partnershipType);
         }
         if (submitted) {
-            const start = new Date(submitted);
-            start.setHours(0, 0, 0, 0);
-            const end = new Date(submitted);
-            end.setHours(23, 59, 59, 999);
-            filter.createdAt = { $gte: start, $lte: end };
+            Object.assign(filter, dateFilter(submitted));
         }
 
         const inquiries = await PartnershipInquiry.find(filter).sort({ createdAt: -1 });

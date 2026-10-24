@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import mongoose from 'mongoose';
 import Order from '../models/Order.js';
 import { getLogisticsProvider, DeliveryStatus } from '../services/logistics/index.js';
 
@@ -109,12 +110,21 @@ export const handleLogisticsWebhook = async (req, res) => {
         const mappedStatus = ORDER_STATUS_FOR[leg]?.[parsed.status];
         if (mappedStatus) update.status = mappedStatus;
 
-        await Order.updateOne({ _id: order._id }, { $set: update });
+        // Record the actual transition atomically. Repeated provider callbacks
+        // must not move the delivery timestamp and postpone unpaid alerts.
+        const pipeline = [];
+        if (mappedStatus) pipeline.push({ $set: { statusHistory: { $cond: [
+            { $ne: ['$status', mappedStatus] },
+            { $concatArrays: [{ $ifNull: ['$statusHistory', []] }, [{ _id: new mongoose.Types.ObjectId(), status: mappedStatus, timestamp: new Date() }]] },
+            { $ifNull: ['$statusHistory', []] }
+        ] } } });
+        pipeline.push({ $set: Object.fromEntries(Object.entries(update).map(([key, value]) => [key, { $literal: value }])) });
+        await Order.updateOne({ _id: order._id }, pipeline);
 
         // ── notify listeners ──
         try {
-            const { getIO } = await import('../socket.js');
-            const io = getIO();
+            const { getEventPublisher } = await import('../socket.js');
+            const io = getEventPublisher();
             if (io) {
                 const fresh = await Order.findById(order._id)
                     .populate('customer', 'displayName phone address')

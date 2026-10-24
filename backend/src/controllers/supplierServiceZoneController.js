@@ -1,3 +1,4 @@
+import { filterCondition } from '../utils/queryFilters.js';
 import SupplierServiceZone from '../models/SupplierServiceZone.js';
 import { httpStatusForError } from '../utils/errorResponse.js';
 
@@ -49,7 +50,7 @@ export const supplierServiceZoneController = {
                 query.supplierId = { $regex: supplierId, $options: 'i' };
             }
             if (isActive !== undefined && isActive !== '') {
-                query.isActive = isActive === 'true';
+                query.isActive = filterCondition(isActive, value => String(value) === 'true');
             }
 
             if (page && limit) {

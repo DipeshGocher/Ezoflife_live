@@ -1,9 +1,11 @@
+import TicketEvidence from '../components/TicketEvidence';
+import TicketAssignment from '../components/TicketAssignment';
 import React, { useState, useEffect, useRef } from 'react';
 import { ShieldAlert, IndianRupee, Image, History, ArrowRight, User, CheckCircle2, XCircle, AlertCircle, Search, ExternalLink, Send, Clock } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 import StatusBadge from '../components/common/StatusBadge';
 import { ticketApi, mediaApi } from '../../../lib/api';
-import io from 'socket.io-client';
+import { createAuthenticatedSocket, subscribeSocketRooms } from '../../../lib/socket';
 import toast from 'react-hot-toast';
 
 export default function DisputeCenter() {
@@ -21,8 +23,9 @@ export default function DisputeCenter() {
 
   useEffect(() => {
     fetchTickets();
-    socketRef.current = io(import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000');
-    
+    socketRef.current = createAuthenticatedSocket();
+    const unsubscribeRooms = subscribeSocketRooms(socketRef.current, ['admins_pool']);
+
     socketRef.current.on('new_ticket', (data) => {
       // Refresh list if it's a dispute category
       fetchTickets();
@@ -30,6 +33,7 @@ export default function DisputeCenter() {
     });
 
     return () => {
+      unsubscribeRooms();
       if (socketRef.current) socketRef.current.disconnect();
     };
   }, []);
@@ -51,8 +55,9 @@ export default function DisputeCenter() {
   };
 
   useEffect(() => {
-    if (selectedTicket && socketRef.current) {
-      socketRef.current.emit('join_room', `ticket_${selectedTicket._id}`);
+    const client = socketRef.current;
+    const unsubscribeRooms = selectedTicket && client ? subscribeSocketRooms(client, [`ticket_${selectedTicket._id}`]) : () => {};
+    if (selectedTicket && client) {
       
       socketRef.current.on('new_message', (data) => {
         if (data.ticketId === selectedTicket._id) {
@@ -64,7 +69,8 @@ export default function DisputeCenter() {
       });
     }
     return () => {
-      if (socketRef.current) socketRef.current.off('new_message');
+      unsubscribeRooms();
+      if (client) client.off('new_message');
     };
   }, [selectedTicket?._id]);
 
@@ -321,7 +327,7 @@ export default function DisputeCenter() {
                    </div>
                 </div>
 
-                <button className="w-full py-4 bg-slate-50 text-slate-900 text-[10px] font-black uppercase tracking-[0.2em] rounded-sm border border-slate-200 hover:bg-slate-100 transition-all flex items-center justify-center gap-2">
+                <button onClick={() => { window.location.href = `/admin/orders/${selectedTicket.order._id}`; }} className="w-full py-4 bg-slate-50 text-slate-900 text-[10px] font-black uppercase tracking-[0.2em] rounded-sm border border-slate-200 hover:bg-slate-100 transition-all flex items-center justify-center gap-2">
                    View Full Order <ExternalLink size={12} />
                 </button>
              </div>
@@ -332,6 +338,10 @@ export default function DisputeCenter() {
              </div>
            )}
 
+           {selectedTicket && <>
+             <TicketAssignment key={`${selectedTicket._id}-${selectedTicket.assignmentVersion || 0}`} ticket={selectedTicket} onUpdated={async () => { const detail = await ticketApi.getTicketDetails(selectedTicket._id); setSelectedTicket(current => current?._id === detail._id ? detail : current); }} />
+             <TicketEvidence ticketId={selectedTicket._id} />
+           </>}
            <div className="bg-slate-900 text-white rounded-sm p-6 space-y-4 shadow-xl shadow-slate-900/20">
               <h3 className="text-[11px] font-black uppercase tracking-[0.2em]">Investigation Policy</h3>
               <p className="text-[9px] font-bold text-slate-400 uppercase leading-relaxed tracking-wider">

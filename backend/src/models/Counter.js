@@ -19,11 +19,15 @@ const Counter = mongoose.model('Counter', counterSchema);
  * Sequences start at 100000 to stay clear of the legacy 4-digit ids.
  */
 export const nextSequence = async (name, startAt = 100000) => {
-    const doc = await Counter.findByIdAndUpdate(
-        name,
-        { $inc: { seq: 1 } },
-        { new: true, upsert: true, setDefaultsOnInsert: true }
-    );
+    let doc;
+    try {
+        doc = await Counter.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true, upsert: true, setDefaultsOnInsert: true });
+    } catch (error) {
+        // Two first users of a sequence can race the initial upsert. The _id
+        // unique index chooses the winner; the loser still needs its own increment.
+        if (error.code !== 11000) throw error;
+        doc = await Counter.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
+    }
     return startAt + doc.seq;
 };
 

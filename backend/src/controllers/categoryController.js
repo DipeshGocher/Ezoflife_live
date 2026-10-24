@@ -1,3 +1,4 @@
+import { filterCondition, textFilter } from '../utils/queryFilters.js';
 import Category from '../models/Category.js';
 
 export const categoryController = {
@@ -29,13 +30,13 @@ export const categoryController = {
             
             let query = {};
             if (mainCategory) {
-                query.mainCategory = { $regex: mainCategory, $options: 'i' };
+                query.mainCategory = textFilter(mainCategory);
             }
             if (subCategory) {
-                query.subCategory = { $regex: subCategory, $options: 'i' };
+                query.subCategory = textFilter(subCategory);
             }
             if (isActive !== undefined && isActive !== '') {
-                query.isActive = isActive === 'true';
+                query.isActive = filterCondition(isActive, value => String(value) === 'true');
             }
 
             if (page && limit) {

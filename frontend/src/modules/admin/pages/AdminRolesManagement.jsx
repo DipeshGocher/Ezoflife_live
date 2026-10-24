@@ -1,5 +1,6 @@
+import MultiSelectFilter from '../components/common/MultiSelectFilter';
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, UserPlus, MapPin } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 import { toast } from 'react-hot-toast';
@@ -97,17 +98,6 @@ export default function AdminRolesManagement() {
         fetchAdmins();
         fetchGeofences();
     }, []);
-
-    const handleGeofenceToggle = (zone) => {
-        setFormData(prev => {
-            const current = prev.geofences;
-            if (current.includes(zone)) {
-                return { ...prev, geofences: current.filter(z => z !== zone) };
-            } else {
-                return { ...prev, geofences: [...current, zone] };
-            }
-        });
-    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -261,7 +251,7 @@ export default function AdminRolesManagement() {
             <AnimatePresence>
                 {isModalOpen && (
                     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-                        <motion.form 
+                        <Motion.form
                             onSubmit={handleSubmit}
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -410,26 +400,21 @@ export default function AdminRolesManagement() {
 
                                 <div className="space-y-3">
                                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">Geofence Restrictions (Scoping)</label>
-                                    <div className="grid grid-cols-2 gap-2 bg-slate-50 p-4 rounded-3xl border border-slate-100 max-h-40 overflow-y-auto">
-                                        {geofences.length === 0 ? (
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider col-span-2 text-center py-2">No Active Geofences Found</p>
-                                        ) : (
-                                            geofences.map(gf => {
-                                                const zoneName = gf.areaName || gf.name;
-                                                return (
-                                                    <label key={gf._id || zoneName} className="flex items-center gap-2 cursor-pointer p-2 hover:bg-white rounded-xl transition-all">
-                                                        <input 
-                                                            type="checkbox"
-                                                            checked={formData.geofences.includes(zoneName)}
-                                                            onChange={() => handleGeofenceToggle(zoneName)}
-                                                            className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer"
-                                                        />
-                                                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider truncate">{zoneName}</span>
-                                                    </label>
-                                                );
-                                            })
-                                        )}
-                                    </div>
+                                    <MultiSelectFilter
+                                        aria-label="Geofence restrictions"
+                                        emptyLabel="All locations (no restrictions)"
+                                        value={formData.geofences}
+                                        onChange={event => setFormData(prev => ({ ...prev, geofences: Array.isArray(event.target.value) ? event.target.value : [] }))}
+                                        disabled={geofences.length === 0}
+                                        className="w-full bg-slate-50 px-4 py-3.5 rounded-2xl border border-slate-100 text-[11px] font-bold text-slate-800 outline-none focus:border-slate-300 transition-all"
+                                    >
+                                        <option value="">All locations (no restrictions)</option>
+                                        {geofences.map(gf => {
+                                            const zoneName = gf.areaName || gf.name;
+                                            return zoneName ? <option key={gf._id || zoneName} value={zoneName}>{zoneName}</option> : null;
+                                        })}
+                                    </MultiSelectFilter>
+                                    <p className="text-[10px] text-slate-400 ml-1">{geofences.length ? 'Search and select multiple locations. Leave empty for access to all locations.' : 'No geofences available.'}</p>
                                 </div>
                             </div>
 
@@ -449,7 +434,7 @@ export default function AdminRolesManagement() {
                                     Generate Invitation
                                 </button>
                             </div>
-                        </motion.form>
+                        </Motion.form>
                     </div>
                 )}
             </AnimatePresence>

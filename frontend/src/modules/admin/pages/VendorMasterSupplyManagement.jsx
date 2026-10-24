@@ -1,3 +1,4 @@
+import MultiSelectFilter from '../components/common/MultiSelectFilter';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { vendorMasterSupplyApi, vendorSupplyCategoryApi, mediaApi } from '../../../lib/api';
 import { toast } from 'react-hot-toast';
@@ -67,13 +68,16 @@ const VendorMasterSupplyManagement = () => {
         }
     };
 
+    const latestFilterRequest = React.useRef(0);
     const fetchSupplies = async (page = 1, activeFilters = filters) => {
+        const requestId = ++latestFilterRequest.current;
         try {
             setLoading(true);
             const result = await vendorMasterSupplyApi.getPaginated(page, pagination.limit, {
                 ...activeFilters,
                 isTemplate: 'n'
             });
+            if (requestId !== latestFilterRequest.current) return;
             
             if (result.data && result.pagination) {
                 setSupplies(result.data);
@@ -82,9 +86,10 @@ const VendorMasterSupplyManagement = () => {
                 setSupplies(Array.isArray(result) ? result : []);
             }
         } catch (error) {
+            if (requestId !== latestFilterRequest.current) return;
             toast.error('Failed to fetch master supplies');
         } finally {
-            setLoading(false);
+            if (requestId === latestFilterRequest.current) setLoading(false);
         }
     };
 
@@ -654,7 +659,7 @@ const VendorMasterSupplyManagement = () => {
                     actions={
                         <div className="flex flex-col md:flex-row gap-2 w-full ml-auto flex-wrap justify-end">
                             <div className="flex items-center w-full md:w-auto">
-                                <select
+                                <MultiSelectFilter
                                     value={filters.categoryId}
                                     onChange={(e) => handleFilterChange('categoryId', e.target.value)}
                                     className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-full md:w-48 uppercase tracking-wider cursor-pointer"
@@ -665,10 +670,10 @@ const VendorMasterSupplyManagement = () => {
                                             {cat.mainCategory} — {cat.subCategory}
                                         </option>
                                     ))}
-                                </select>
+                                </MultiSelectFilter>
                             </div>
                             <div className="flex items-center w-full md:w-auto">
-                                <select
+                                <MultiSelectFilter
                                     value={filters.supplierId}
                                     onChange={(e) => handleFilterChange('supplierId', e.target.value)}
                                     className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-full md:w-32 uppercase tracking-wider cursor-pointer"
@@ -677,10 +682,10 @@ const VendorMasterSupplyManagement = () => {
                                     {uniqueSuppliers.map(sup => (
                                         <option key={sup} value={sup}>{sup}</option>
                                     ))}
-                                </select>
+                                </MultiSelectFilter>
                             </div>
                             <div className="flex items-center w-full md:w-auto">
-                                <select
+                                <MultiSelectFilter
                                     value={filters.deliveryFrequency}
                                     onChange={(e) => handleFilterChange('deliveryFrequency', e.target.value)}
                                     className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-full md:w-36 uppercase tracking-wider cursor-pointer"
@@ -689,10 +694,10 @@ const VendorMasterSupplyManagement = () => {
                                     {uniqueFrequencies.map(freq => (
                                         <option key={freq} value={freq}>{freq}</option>
                                     ))}
-                                </select>
+                                </MultiSelectFilter>
                             </div>
                             <div className="flex items-center w-full md:w-auto">
-                                <select
+                                <MultiSelectFilter
                                     value={filters.wholesaleRate}
                                     onChange={(e) => handleFilterChange('wholesaleRate', e.target.value)}
                                     className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-full md:w-32 uppercase tracking-wider cursor-pointer"
@@ -702,10 +707,10 @@ const VendorMasterSupplyManagement = () => {
                                     <option value="500-1000">₹500 - ₹1000</option>
                                     <option value="1000-5000">₹1000 - ₹5000</option>
                                     <option value="5000+">₹5000+</option>
-                                </select>
+                                </MultiSelectFilter>
                             </div>
                             <div className="flex items-center gap-2 w-full md:w-auto">
-                                <select
+                                <MultiSelectFilter
                                     value={filters.isActive}
                                     onChange={(e) => handleFilterChange('isActive', e.target.value)}
                                     className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-full md:w-28 uppercase tracking-wider cursor-pointer flex-1 md:flex-none"
@@ -713,7 +718,7 @@ const VendorMasterSupplyManagement = () => {
                                     <option value="">All Status</option>
                                     <option value="y">Active (Y)</option>
                                     <option value="n">Inactive (N)</option>
-                                </select>
+                                </MultiSelectFilter>
                                 {(filters.categoryId || filters.isActive !== '' || filters.supplierId !== '' || filters.deliveryFrequency !== '' || filters.wholesaleRate !== '') && (
                                     <button 
                                         onClick={() => {

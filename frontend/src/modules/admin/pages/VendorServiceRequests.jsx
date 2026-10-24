@@ -1,3 +1,5 @@
+import { matchesFilter } from '../utils/filters';
+import MultiSelectFilter from '../components/common/MultiSelectFilter';
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -90,9 +92,9 @@ export default function VendorServiceRequests() {
   const filteredData = useMemo(() => {
     return requests.filter(req => {
       const vendorName = req.vendorId?.shopDetails?.name || req.vendorId?.displayName || 'Unknown Vendor';
-      const matchesVendor = !selectedVendorName || vendorName === selectedVendorName;
-      const matchesItemName = !selectedItemName || req.name === selectedItemName;
-      const matchesPrice = !selectedPrice || String(req.basePrice) === selectedPrice;
+      const matchesVendor = matchesFilter(selectedVendorName, vendorName);
+      const matchesItemName = matchesFilter(selectedItemName, req.name);
+      const matchesPrice = matchesFilter(selectedPrice, String(req.basePrice));
       
       let matchesDate = true;
       if (req.createdAt) {
@@ -283,7 +285,7 @@ export default function VendorServiceRequests() {
 
             <div className="flex flex-wrap items-center gap-3 justify-end">
               {/* Vendor Name Filter */}
-              <select
+              <MultiSelectFilter
                 value={selectedVendorName}
                 onChange={e => setSelectedVendorName(e.target.value)}
                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -292,10 +294,10 @@ export default function VendorServiceRequests() {
                 {uniqueVendorNames.map(name => (
                   <option key={name} value={name}>{name}</option>
                 ))}
-              </select>
+              </MultiSelectFilter>
 
               {/* Item Name Filter */}
-              <select
+              <MultiSelectFilter
                 value={selectedItemName}
                 onChange={e => setSelectedItemName(e.target.value)}
                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -304,10 +306,10 @@ export default function VendorServiceRequests() {
                 {uniqueItemNames.map(name => (
                   <option key={name} value={name}>{name}</option>
                 ))}
-              </select>
+              </MultiSelectFilter>
 
               {/* Price Filter */}
-              <select
+              <MultiSelectFilter
                 value={selectedPrice}
                 onChange={e => setSelectedPrice(e.target.value)}
                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -316,7 +318,7 @@ export default function VendorServiceRequests() {
                 {uniquePrices.map(price => (
                   <option key={price} value={String(price)}>₹{price}</option>
                 ))}
-              </select>
+              </MultiSelectFilter>
 
               {/* Reset Button */}
               {(selectedVendorName || selectedItemName || selectedPrice || startDate || endDate) && (

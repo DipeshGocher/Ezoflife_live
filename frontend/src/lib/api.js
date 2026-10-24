@@ -1,3 +1,6 @@
+import { pickProfileFields } from '../../../shared/profileFields.mjs';
+import { getSessionToken } from './sessionToken';
+import FilterSearchParams from './FilterSearchParams';
 /**
  * Global fetch interceptor.
  *
@@ -10,20 +13,6 @@
  * Sending a token to a public endpoint is harmless; the server ignores it.
  */
 const originalFetch = window.fetch;
-
-/**
- * Pick the token for the portal currently being used. Each portal stores its own
- * key, and a browser may hold several (e.g. staff testing both apps).
- */
-const getSessionToken = () => {
-    const path = (typeof window !== 'undefined' && window.location?.pathname) || '';
-    const pick = (...keys) => keys.map(k => localStorage.getItem(k)).find(Boolean) || null;
-
-    if (path.startsWith('/admin')) return pick('adminToken', 'token');
-    if (path.startsWith('/vendor')) return pick('vendorToken', 'token');
-    if (path.startsWith('/supplier')) return pick('supplierToken', 'token');
-    return pick('token', 'user_auth_token', 'vendorToken', 'supplierToken', 'adminToken');
-};
 
 const getApiBaseUrl = () => {
     let raw = (import.meta.env.VITE_API_URL || 'http://localhost:5001/api').trim().replace(/\/$/, '');
@@ -80,7 +69,7 @@ window.fetch = async (input, init) => {
 
     const res = await originalFetch(input, options);
     
-    if (res.status === 401 || res.status === 403) {
+    if (res.status === 401) {
         const urlLower = url.toLowerCase();
         const isAdminEndpoint = urlLower.includes('/admin') || 
                                 (urlLower.includes('/geofence') && !urlLower.includes('/check-availability') && !urlLower.includes('/public/')) || 
@@ -123,7 +112,7 @@ export const categoryApi = {
         return res.json();
     },
     getPaginated: async (page = 1, limit = 10, filters = {}) => {
-        const queryParams = new URLSearchParams({
+        const queryParams = new FilterSearchParams({
             page,
             limit,
             ...filters
@@ -194,7 +183,7 @@ export const vendorSupplyCategoryApi = {
         return res.json();
     },
     getPaginated: async (page = 1, limit = 10, filters = {}) => {
-        const queryParams = new URLSearchParams({
+        const queryParams = new FilterSearchParams({
             page,
             limit,
             ...filters
@@ -260,7 +249,7 @@ export const vendorSupplyCategoryApi = {
 
 export const vendorMasterSupplyApi = {
     getAll: async (filters = {}) => {
-        const queryParams = new URLSearchParams(filters).toString();
+        const queryParams = new FilterSearchParams(filters).toString();
         const res = await fetch(`${BASE_URL}/vendor-master-supplies?${queryParams}`);
         return res.json();
     },
@@ -269,7 +258,7 @@ export const vendorMasterSupplyApi = {
         return res.json();
     },
     getPaginated: async (page = 1, limit = 10, filters = {}) => {
-        const queryParams = new URLSearchParams({
+        const queryParams = new FilterSearchParams({
             page,
             limit,
             ...filters
@@ -323,12 +312,12 @@ export const vendorMasterSupplyApi = {
 
 export const supplierServiceZoneApi = {
     getAll: async (filters = {}) => {
-        const queryParams = new URLSearchParams(filters).toString();
+        const queryParams = new FilterSearchParams(filters).toString();
         const res = await fetch(`${BASE_URL}/supplier-service-zones?${queryParams}`);
         return res.json();
     },
     getPaginated: async (page = 1, limit = 10, filters = {}) => {
-        const queryParams = new URLSearchParams({
+        const queryParams = new FilterSearchParams({
             page,
             limit,
             ...filters
@@ -459,7 +448,7 @@ export const authApi = {
                 headers: isFormData ? {} : { 'Content-Type': 'application/json' },
                 body: isFormData ? data : JSON.stringify(data)
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Vendor API Error:', error);
             throw error;
@@ -468,7 +457,7 @@ export const authApi = {
     getStatus: async (phone) => {
         try {
             const response = await fetch(`${BASE_URL}/auth/get-status?phone=${phone}`);
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Status API Error:', error);
             throw error;
@@ -477,24 +466,25 @@ export const authApi = {
     getProfile: async (id) => {
         try {
             const response = await fetch(`${BASE_URL}/auth/profile/${id}`);
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Get Profile Error:', error);
             throw error;
         }
     },
-    updateProfile: async (id, data) => {
+    updateProfile: async (id, data, addressAuthorization) => {
         try {
+            const profileData = data.shopDetails?.services ? { ...data, shopDetails: { ...data.shopDetails, services: data.shopDetails.services.map(service => { const { adminRate: _adminRate, rejectionReason: _reason, ...editable } = service; return editable; }) } } : data;
             const response = await fetch(`${BASE_URL}/auth/profile/update/${id}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
+                headers: { 'Content-Type': 'application/json', ...(addressAuthorization ? { 'X-Walk-In-Authorization': addressAuthorization } : {}) },
+                body: JSON.stringify(profileData)
             });
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Update failed');
             }
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Update Profile Error:', error);
             throw error;
@@ -507,7 +497,7 @@ export const authApi = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Become Vendor API Error:', error);
             throw error;
@@ -521,7 +511,7 @@ export const authApi = {
                 headers: isFormData ? {} : { 'Content-Type': 'application/json' },
                 body: isFormData ? formData : JSON.stringify(formData)
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Become Supplier API Error:', error);
             throw error;
@@ -534,7 +524,7 @@ export const authApi = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ services })
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Submit Services Error:', error);
             throw error;
@@ -546,7 +536,7 @@ export const authApi = {
                 method: 'PATCH',
                 body: formData
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Update Documents API Error:', error);
             throw error;
@@ -558,7 +548,7 @@ export const authApi = {
                 method: 'PATCH',
                 body: formData
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Update Profile Image API Error:', error);
             throw error;
@@ -571,7 +561,7 @@ export const authApi = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId, fcmToken })
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Update FCM Token Error:', error);
             throw error;
@@ -580,7 +570,7 @@ export const authApi = {
     getDraftCart: async (userId) => {
         try {
             const response = await fetch(`${BASE_URL}/auth/cart/${userId}`);
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Get Cart Error:', error);
             throw error;
@@ -593,7 +583,7 @@ export const authApi = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ cart })
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Update Cart Error:', error);
             throw error;
@@ -606,7 +596,7 @@ export const authApi = {
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Lookup failed');
             }
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Lookup Phone API Error:', error);
             throw error;
@@ -863,13 +853,32 @@ export const b2bOrderApi = {
 };
 
 
+const readApiResponse = async response => {
+    const data = await response.json();
+    if (!response.ok) {
+        throw Object.assign(new Error(data.message || 'Request failed'), { status: response.status });
+    }
+    return data;
+};
+
 export const adminApi = {
+    issueInvoice: async (id, type = 'customer') => readApiResponse(await fetch(`${BASE_URL}/admin/orders/${id}/invoices`, { method: 'POST', headers: adminAuthHeaders(), body: JSON.stringify({ type }) })),
+    getUserHistory: async (id, filters = {}) => {
+        const response = await fetch(`${BASE_URL}/admin/users/${encodeURIComponent(id)}/history?${new FilterSearchParams(filters)}`, { headers: adminAuthHeaders() });
+        return readApiResponse(response);
+    },
+    getAuditEvents: async (filters = {}) => {
+        const response = await fetch(`${BASE_URL}/admin/audit-events?${new FilterSearchParams(filters)}`, { headers: adminAuthHeaders() });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Unable to load audit history.');
+        return data;
+    },
     getSidebarCounts: async () => {
         try {
             const response = await fetch(`${BASE_URL}/admin/sidebar-counts`, {
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Sidebar Counts Error:', error);
             return {};
@@ -880,7 +889,7 @@ export const adminApi = {
             const response = await fetch(`${BASE_URL}/admin/stats`, {
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Admin Stats Error:', error);
             throw error;
@@ -891,7 +900,7 @@ export const adminApi = {
             const response = await fetch(`${BASE_URL}/admin/cloudinary-usage`, {
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Cloudinary Usage Error:', error);
             throw error;
@@ -899,12 +908,12 @@ export const adminApi = {
     },
     getPendingApprovals: async (filters = {}) => {
         try {
-            const queryParams = new URLSearchParams(filters).toString();
+            const queryParams = new FilterSearchParams(filters).toString();
             const url = `${BASE_URL}/admin/pending-approvals${queryParams ? `?${queryParams}` : ''}`;
             const response = await fetch(url, {
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Admin Approvals Error:', error);
             throw error;
@@ -915,7 +924,7 @@ export const adminApi = {
             const response = await fetch(`${BASE_URL}/admin/customers`, {
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Admin Customers Error:', error);
             throw error;
@@ -926,7 +935,7 @@ export const adminApi = {
             const response = await fetch(`${BASE_URL}/admin/users${role ? `?role=${role}` : ''}`, {
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Admin All Users Error:', error);
             throw error;
@@ -938,7 +947,7 @@ export const adminApi = {
                 method: 'PATCH',
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Toggle User Status Error:', error);
             throw error;
@@ -954,7 +963,7 @@ export const adminApi = {
                 },
                 body: JSON.stringify({ deleteRelatedData })
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Delete User Error:', error);
             throw error;
@@ -966,7 +975,7 @@ export const adminApi = {
                 method: 'POST',
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Approve Vendor Error:', error);
             throw error;
@@ -979,7 +988,7 @@ export const adminApi = {
                 headers: adminAuthHeaders(),
                 body: JSON.stringify(data)
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Reject Vendor Error:', error);
             throw error;
@@ -990,7 +999,7 @@ export const adminApi = {
             const response = await fetch(`${BASE_URL}/admin/vendor-request/${id}`, {
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Get Vendor Request Error:', error);
             throw error;
@@ -1003,7 +1012,7 @@ export const adminApi = {
                 headers: adminAuthHeaders(),
                 body: JSON.stringify({ tier })
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Initial Approval Error:', error);
             throw error;
@@ -1015,7 +1024,7 @@ export const adminApi = {
                 method: 'PATCH',
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Final Approval Error:', error);
             throw error;
@@ -1026,7 +1035,7 @@ export const adminApi = {
             const response = await fetch(`${BASE_URL}/admin/vendors`, {
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('All Vendors Error:', error);
             throw error;
@@ -1038,7 +1047,7 @@ export const adminApi = {
                 method: 'DELETE',
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Delete Vendor Error:', error);
             throw error;
@@ -1051,7 +1060,7 @@ export const adminApi = {
                 headers: adminAuthHeaders(),
                 body: JSON.stringify(data)
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Register Customer Error:', error);
             throw error;
@@ -1062,7 +1071,7 @@ export const adminApi = {
             const response = await fetch(`${BASE_URL}/admin/vendors/${id}`, {
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Get Vendor By ID Error:', error);
             throw error;
@@ -1075,7 +1084,7 @@ export const adminApi = {
                 headers: adminAuthHeaders(),
                 body: JSON.stringify(data)
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Update Service Status Error:', error);
             throw error;
@@ -1088,7 +1097,7 @@ export const adminApi = {
                 headers: adminAuthHeadersFormData(),
                 body: formData
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Upload Vendor Doc Error:', error);
             throw error;
@@ -1099,7 +1108,7 @@ export const adminApi = {
             const response = await fetch(`${BASE_URL}/admin/suppliers`, {
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('All Suppliers Error:', error);
             throw error;
@@ -1111,7 +1120,7 @@ export const adminApi = {
                 method: 'PATCH',
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Approve Supplier Error:', error);
             throw error;
@@ -1123,7 +1132,7 @@ export const adminApi = {
                 method: 'PATCH',
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Reject Supplier Error:', error);
             throw error;
@@ -1136,7 +1145,7 @@ export const adminApi = {
                 headers: adminAuthHeaders(),
                 body: JSON.stringify(data)
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Update Supplier Error:', error);
             throw error;
@@ -1148,7 +1157,7 @@ export const adminApi = {
                 method: 'DELETE',
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Delete Supplier Error:', error);
             throw error;
@@ -1164,17 +1173,31 @@ export const adminApi = {
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Failed to clear orders');
             }
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Clear All Orders Error:', error);
             throw error;
         }
     },
+    getOrderDetail: async (id) => {
+        const response = await fetch(`${BASE_URL}/admin/orders/${encodeURIComponent(id)}`, {
+            headers: adminAuthHeaders()
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            const error = new Error(data.message || 'Unable to load order details.');
+            error.status = response.status;
+            throw error;
+        }
+        return data;
+    },
     getConfig: async () => {
         try {
             // Config GET is public (needed for app boot), no auth required
             const response = await fetch(`${BASE_URL}/admin/config`);
-            return await response.json();
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Unable to load configuration');
+            return data;
         } catch (error) {
             console.error('Get Config Error:', error);
             throw error;
@@ -1188,7 +1211,9 @@ export const adminApi = {
                 headers: adminAuthHeaders(),
                 body: JSON.stringify(body)
             });
-            return await response.json();
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Unable to save configuration');
+            return data;
         } catch (error) {
             console.error('Update Config Error:', error);
             throw error;
@@ -1199,7 +1224,7 @@ export const adminApi = {
             const response = await fetch(`${BASE_URL}/admin/customer-payments`, {
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Get Customer Payments Error:', error);
             throw error;
@@ -1210,7 +1235,7 @@ export const adminApi = {
             const response = await fetch(`${BASE_URL}/admin/vendor-payments`, {
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Get Vendor Payments Error:', error);
             throw error;
@@ -1223,7 +1248,7 @@ export const adminApi = {
                 headers: adminAuthHeaders(),
                 body: JSON.stringify(data)
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Record Payout Error:', error);
             throw error;
@@ -1234,9 +1259,9 @@ export const adminApi = {
             const response = await fetch(`${BASE_URL}/auth/profile/update/${id}`, {
                 method: 'PATCH',
                 headers: adminAuthHeaders(),
-                body: JSON.stringify(data)
+                body: JSON.stringify({ ...pickProfileFields(data), ...(['approved', 'rejected'].includes(data.status) ? { status: data.status } : {}) })
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Update User Profile Error:', error);
             throw error;
@@ -1286,7 +1311,7 @@ export const orderApi = {
     },
     getMyOrders: async (customerId, filters = {}) => {
         try {
-            const queryParams = new URLSearchParams({ customerId, ...filters }).toString();
+            const queryParams = new FilterSearchParams({ customerId, ...filters }).toString();
             const response = await fetch(`${BASE_URL}/orders/my?${queryParams}`);
             return await response.json();
         } catch (error) {
@@ -1306,7 +1331,7 @@ export const orderApi = {
                     console.error('Error parsing user from localStorage', e);
                 }
             }
-            const queryParams = new URLSearchParams({ lat, lng, radius });
+            const queryParams = new FilterSearchParams({ lat, lng, radius });
             if (customerId) {
                 queryParams.append('customerId', customerId);
             }
@@ -1344,7 +1369,7 @@ export const orderApi = {
             const params = {};
             if (page !== undefined && page !== null && page !== '') params.page = page;
             if (limit !== undefined && limit !== null && limit !== '') params.limit = limit;
-            const queryParams = new URLSearchParams({
+            const queryParams = new FilterSearchParams({
                 ...params,
                 ...filters
             }).toString();
@@ -1516,7 +1541,7 @@ export const notificationApi = {
 export const serviceApi = {
     getAll: async (params = {}) => {
         try {
-            const query = new URLSearchParams(params).toString();
+            const query = new FilterSearchParams(params).toString();
             const url = `${BASE_URL}/services${query ? `?${query}` : ''}`;
             const response = await fetch(url);
             return await response.json();
@@ -1629,6 +1654,9 @@ export const materialApi = {
 };
 
 export const ticketApi = {
+    getEvidence: async id => readApiResponse(await fetch(`${BASE_URL}/tickets/admin/${id}/evidence`, { headers: adminAuthHeaders() })),
+    getSupportStaff: async () => readApiResponse(await fetch(`${BASE_URL}/tickets/admin/staff`, { headers: adminAuthHeaders() })),
+    assignTicket: async (id, data) => readApiResponse(await fetch(`${BASE_URL}/tickets/admin/${id}/assignment`, { method: 'PATCH', headers: adminAuthHeaders(), body: JSON.stringify(data) })),
     createTicket: async (ticketData) => {
         try {
             const response = await fetch(`${BASE_URL}/tickets/create`, {
@@ -1636,7 +1664,7 @@ export const ticketApi = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(ticketData)
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Create Ticket Error:', error);
             throw error;
@@ -1645,7 +1673,7 @@ export const ticketApi = {
     getCustomerTickets: async (customerId) => {
         try {
             const response = await fetch(`${BASE_URL}/tickets/customer/${customerId}`);
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Get Customer Tickets Error:', error);
             throw error;
@@ -1654,7 +1682,7 @@ export const ticketApi = {
     getTicketByOrder: async (orderId) => {
         try {
             const response = await fetch(`${BASE_URL}/tickets/order/${orderId}`);
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Get Ticket By Order Error:', error);
             throw error;
@@ -1663,7 +1691,7 @@ export const ticketApi = {
     getTicketDetails: async (ticketId) => {
         try {
             const response = await fetch(`${BASE_URL}/tickets/${ticketId}`);
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Get Ticket Details Error:', error);
             throw error;
@@ -1676,7 +1704,7 @@ export const ticketApi = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(messageData)
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Send Message Error:', error);
             throw error;
@@ -1687,7 +1715,7 @@ export const ticketApi = {
             const response = await fetch(`${BASE_URL}/tickets/admin/all`, {
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Get All Tickets Error:', error);
             throw error;
@@ -1700,7 +1728,7 @@ export const ticketApi = {
                 headers: adminAuthHeaders(),
                 body: JSON.stringify({ status })
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Update Ticket Status Error:', error);
             throw error;
@@ -1713,7 +1741,7 @@ export const ticketApi = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Update Ticket Error:', error);
             throw error;
@@ -1724,7 +1752,7 @@ export const ticketApi = {
             const response = await fetch(`${BASE_URL}/tickets/${ticketId}`, {
                 method: 'DELETE'
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Delete Ticket Error:', error);
             throw error;
@@ -1811,7 +1839,7 @@ export const feedbackApi = {
     },
     getAll: async (filters = {}) => {
         try {
-            const params = new URLSearchParams();
+            const params = new FilterSearchParams();
             Object.keys(filters).forEach(key => {
                 if (filters[key]) params.append(key, filters[key]);
             });
@@ -1880,7 +1908,7 @@ export const mediaApi = {
                 method: 'POST',
                 body: formData
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Media Upload Error:', error);
             throw error;
@@ -1921,7 +1949,7 @@ export const mediaApi = {
     },
     getAllInquiries: async (filters = {}) => {
         try {
-            const queryParams = new URLSearchParams();
+            const queryParams = new FilterSearchParams();
             Object.entries(filters).forEach(([key, val]) => {
                 if (val !== undefined && val !== null && val !== '') {
                     queryParams.append(key, val);
@@ -2028,7 +2056,7 @@ export const partnershipApi = {
     },
     getAll: async (filters = {}) => {
         try {
-            const params = new URLSearchParams();
+            const params = new FilterSearchParams();
             Object.keys(filters).forEach(key => {
                 if (filters[key]) params.append(key, filters[key]);
             });
@@ -2474,7 +2502,7 @@ export const jobApi = {
 
 export const masterServiceApi = {
     getAll: async (params = {}) => {
-        const query = new URLSearchParams(params).toString();
+        const query = new FilterSearchParams(params).toString();
         const res = await fetch(`${BASE_URL}/master-services${query ? `?${query}` : ''}`);
         return res.json();
     },
@@ -2609,9 +2637,9 @@ export const vendorPaymentApi = {
 };
 
 export const dashboardApi = {
-    getAnalytics: async (filters = {}) => {
+    getAnalytics: async (filters = {}, options = {}) => {
         try {
-            const queryParams = new URLSearchParams();
+            const queryParams = new FilterSearchParams();
             Object.entries(filters).forEach(([key, val]) => {
                 if (val !== undefined && val !== null && val !== '') {
                     queryParams.append(key, val);
@@ -2619,9 +2647,10 @@ export const dashboardApi = {
             });
             const url = `${BASE_URL}/admin/dashboard-analytics${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
             const response = await fetch(url, {
+                signal: options.signal,
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Get Dashboard Analytics Error:', error);
             throw error;
@@ -2632,7 +2661,7 @@ export const dashboardApi = {
             const response = await fetch(`${BASE_URL}/admin/dashboard-analytics/filters`, {
                 headers: adminAuthHeaders()
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Get Dashboard Filters Error:', error);
             throw error;
@@ -2652,7 +2681,7 @@ export const referralApi = {
                 },
                 body: JSON.stringify(data)
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Create Referral Error:', error);
             throw error;
@@ -2666,12 +2695,10 @@ export const referralApi = {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            return await response.json();
+            return await readApiResponse(response);
         } catch (error) {
             console.error('Get Referrals Error:', error);
             throw error;
         }
     }
 };
-
-

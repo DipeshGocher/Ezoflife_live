@@ -1,8 +1,13 @@
+import { getOperationalDashboard } from './operationalDashboardController.js';
+import { slaExceptions } from '../utils/operationalMetrics.js';
+import { analyticsWindow, inWindow } from '../utils/analyticsWindow.js';
+import { createAdminReportScope } from '../utils/adminReportScope.js';
+import { canAccessAccount } from '../utils/adminScope.js';
+import { filterCondition, textFilter } from '../utils/queryFilters.js';
 import User from '../models/User.js';
 import Order from '../models/Order.js';
 import B2BOrder from '../models/B2BOrder.js';
 import Ticket from '../models/Ticket.js';
-import JobApplication from '../models/JobApplication.js';
 import Feedback from '../models/Feedback.js';
 import MasterService from '../models/MasterService.js';
 import VendorMasterSupply from '../models/VendorMasterSupply.js';
@@ -10,181 +15,122 @@ import SupplierApplication from '../models/SupplierApplication.js';
 import ServiceArea from '../models/ServiceArea.js';
 
 export const getDashboardAnalytics = async (req, res) => {
+    if (req.query.view === 'operational') return getOperationalDashboard(req, res);
     try {
-        const { channel, state, city, pincode, geofence, timeRange, startDate, endDate } = req.query;
+        const { channel, state, city, pincode, geofence } = req.query;
 
-        // Parse temporal range
-        let start = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // default 30 days
-        let end = new Date();
-
-        if (timeRange === 'Today') {
-            start = new Date();
-            start.setHours(0, 0, 0, 0);
-        } else if (timeRange === 'Last 7 Days') {
-            start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-        } else if (timeRange === 'Last 30 Days') {
-            start = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        } else if (timeRange === 'Year-to-Date') {
-            start = new Date(new Date().getFullYear(), 0, 1);
-        } else if (timeRange === 'Custom Range' && startDate) {
-            start = new Date(startDate);
-            if (endDate) {
-                end = new Date(endDate);
-                end.setHours(23, 59, 59, 999);
-            }
-        }
+        let period;
+        try { period = analyticsWindow(req.query); }
+        catch (error) { return res.status(400).json({ success: false, message: error.message }); }
+        const { start, end } = period;
+        const scope = await createAdminReportScope(req, ['User', 'Order', 'Ticket', 'Feedback', 'B2BOrder', 'SupplierApplication', 'VendorMasterSupply', 'ServiceArea']);
 
         // Resolve geofence boundary pincodes
         let geofencePincodes = [];
         if (geofence) {
-            const area = await ServiceArea.findOne({ areaName: geofence });
-            if (area) {
-                geofencePincodes = area.pincodes || [];
-            }
+            const areas = await ServiceArea.find(scope.query('ServiceArea', { areaName: filterCondition(geofence) }));
+            geofencePincodes = [...new Set(areas.flatMap(area => area.pincodes || []))];
         }
 
         // Helper to construct dynamic queries for Users
         const buildUserQuery = (role, extra = {}) => {
-            const q = { role, ...extra };
-            q.createdAt = { $gte: start, $lte: end };
-
+            const q = { ...(role === 'User' ? { role: { $in: ['Customer', 'Vendor', 'Supplier'] } } : { role }), ...extra };
+            const location = {};
+            if (state) location.state = textFilter(state);
+            if (city) location.city = textFilter(city);
+            if (pincode) location.pincode = filterCondition(pincode);
             const conditions = [];
-            if (state) {
-                conditions.push({
-                    $or: [
-                        { 'addresses.state': { $regex: new RegExp(state, 'i') } },
-                        { 'shopDetails.state': { $regex: new RegExp(state, 'i') } },
-                        { 'supplierDetails.state': { $regex: new RegExp(state, 'i') } }
-                    ]
-                });
-            }
-            if (city) {
-                conditions.push({
-                    $or: [
-                        { 'addresses.city': { $regex: new RegExp(city, 'i') } },
-                        { 'shopDetails.city': { $regex: new RegExp(city, 'i') } },
-                        { 'supplierDetails.city': { $regex: new RegExp(city, 'i') } }
-                    ]
-                });
-            }
-            if (pincode) {
-                conditions.push({
-                    $or: [
-                        { 'addresses.pincode': pincode },
-                        { 'shopDetails.pincode': pincode },
-                        { 'supplierDetails.pincode': pincode }
-                    ]
-                });
+            if (Object.keys(location).length) {
+                conditions.push({ $or: [
+                    { addresses: { $elemMatch: location } },
+                    Object.fromEntries(Object.entries(location).map(([key, value]) => [`shopDetails.${key}`, value])),
+                    Object.fromEntries(Object.entries(location).map(([key, value]) => [`supplierDetails.${key}`, value]))
+                ] });
             }
             if (geofence) {
-                if (geofencePincodes.length) {
-                    conditions.push({
-                        $or: [
-                            { 'addresses.pincode': { $in: geofencePincodes } },
-                            { 'shopDetails.pincode': { $in: geofencePincodes } },
-                            { 'supplierDetails.pincode': { $in: geofencePincodes } }
-                        ]
-                    });
-                } else {
-                    q._id = null; // No pincodes matches nothing
-                }
+                conditions.push({ $or: [
+                    { 'addresses.pincode': { $in: geofencePincodes } },
+                    { 'shopDetails.pincode': { $in: geofencePincodes } },
+                    { 'supplierDetails.pincode': { $in: geofencePincodes } }
+                ] });
             }
-
-            if (conditions.length) {
-                q.$and = conditions;
-            }
+            if (conditions.length) q.$and = conditions;
             return q;
         };
 
         // Helper to construct dynamic queries for B2C Orders
         const buildOrderQuery = async (extra = {}) => {
             const q = { ...extra };
-            q.createdAt = { $gte: start, $lte: end };
+
 
             if (channel === 'B2B') {
                 q._id = null;
-                return q;
+                return inWindow(q, start, end);
             }
 
             if (state || city || pincode || geofence) {
                 const userQuery = buildUserQuery('Customer');
-                const customerIds = await User.distinct('_id', userQuery);
+                const customerIds = await User.distinct('_id', scope.query('User', userQuery));
                 q.customer = { $in: customerIds };
             }
-            return q;
+            return inWindow(q, start, end);
         };
 
         // Helper to construct dynamic queries for B2B Orders
         const buildB2BOrderQuery = async (extra = {}) => {
             const q = { ...extra };
-            q.createdAt = { $gte: start, $lte: end };
+
 
             if (channel === 'B2C') {
                 q._id = null;
-                return q;
+                return inWindow(q, start, end);
             }
 
             if (city) {
-                q.city = { $regex: new RegExp(city, 'i') };
+                q.city = textFilter(city);
             }
             if (pincode) {
-                q.pincode = pincode;
+                q.pincode = filterCondition(pincode);
             }
             if (geofence) {
                 if (geofencePincodes.length) {
-                    q.pincode = { $in: geofencePincodes };
+                    q.$and = [...(q.$and || []), { pincode: { $in: geofencePincodes } }];
                 } else {
                     q._id = null;
                 }
             }
             if (state) {
                 const vendorQuery = buildUserQuery('Vendor');
-                const vendorIds = await User.distinct('_id', vendorQuery);
+                const vendorIds = await User.distinct('_id', scope.query('User', vendorQuery));
                 q.vendor = { $in: vendorIds };
             }
-            return q;
+            return inWindow(q, start, end);
         };
 
         // Helper to construct dynamic queries for Tickets
         const buildTicketQuery = async (extra = {}) => {
             const q = { ...extra };
-            q.createdAt = { $gte: start, $lte: end };
+
 
             if (state || city || pincode || geofence) {
                 const userQuery = buildUserQuery('Customer');
-                const customerIds = await User.distinct('_id', userQuery);
+                const customerIds = await User.distinct('_id', scope.query('User', userQuery));
                 q.customer = { $in: customerIds };
             }
-            return q;
-        };
-
-        // Helper to construct dynamic queries for JobApplications
-        const buildJobApplicationQuery = async (extra = {}) => {
-            const q = { ...extra };
-            q.createdAt = { $gte: start, $lte: end };
-
-            if (state || city || pincode || geofence) {
-                const userQuery = buildUserQuery('User');
-                const userIds = await User.distinct('_id', userQuery);
-                q.$or = [
-                    { applicant: { $in: userIds } },
-                    { vendor: { $in: userIds } }
-                ];
-            }
-            return q;
+            return inWindow(q, start, end);
         };
 
         // Helper to construct dynamic queries for Feedbacks
-        const buildFeedbackQuery = async (extra = {}) => {
+        const buildFeedbackQuery = async (extra = {}, window = { start, end }) => {
             const q = { ...extra };
-            q.createdAt = { $gte: start, $lte: end };
+
 
             if (state || city || pincode || geofence) {
                 const userQuery = buildUserQuery('Customer');
-                const customerIds = await User.distinct('_id', userQuery);
+                const customerIds = await User.distinct('_id', scope.query('User', userQuery));
                 q.user = { $in: customerIds };
             }
-            return q;
+            return inWindow(q, window.start, window.end);
         };
 
         // ----------------------------------------------------
@@ -198,7 +144,7 @@ export const getDashboardAnalytics = async (req, res) => {
         const individualQuery = buildUserQuery('Customer', { customerType: { $ne: 'retail' } });
         const businessQuery = buildUserQuery('Customer', { customerType: 'retail' });
         const recentOrderQuery = await buildOrderQuery({ createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } });
-        const recentRegQuery = buildUserQuery('Customer', { createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } });
+        const recentRegQuery = inWindow(buildUserQuery('Customer', { createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }), start, end);
 
         const priorCustomerQuery = buildUserQuery('Customer');
         priorCustomerQuery.createdAt = { $gte: priorStart, $lt: priorEnd };
@@ -209,30 +155,32 @@ export const getDashboardAnalytics = async (req, res) => {
             businessCustomers,
             activeCustomerIds,
             recentRegUsers,
-            priorCustomersCount
+            priorCustomersCount,
+            currentRegistrations
         ] = await Promise.all([
-            User.countDocuments(customerQuery),
-            User.countDocuments(individualQuery),
-            User.countDocuments(businessQuery),
-            Order.distinct('customer', recentOrderQuery),
-            User.find(recentRegQuery).select('_id').lean(),
-            User.countDocuments(priorCustomerQuery)
+            User.countDocuments(scope.query('User', customerQuery)),
+            User.countDocuments(scope.query('User', individualQuery)),
+            User.countDocuments(scope.query('User', businessQuery)),
+            Order.distinct('customer', scope.query('Order', recentOrderQuery)),
+            User.find(scope.query('User', recentRegQuery)).select('_id').lean(),
+            User.countDocuments(scope.query('User', priorCustomerQuery)),
+            User.countDocuments(scope.query('User', inWindow(customerQuery, start, end)))
         ]);
 
         const churnRiskCount = Math.max(0, totalCustomers - activeCustomerIds.length);
 
         let customerTrendMoM = '0%';
         if (priorCustomersCount > 0) {
-            const diff = ((totalCustomers - priorCustomersCount) / priorCustomersCount) * 100;
+            const diff = ((currentRegistrations - priorCustomersCount) / priorCustomersCount) * 100;
             customerTrendMoM = (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%';
-        } else if (totalCustomers > 0) {
+        } else if (currentRegistrations > 0) {
             customerTrendMoM = '+100%';
         }
 
         // Vectorized onboarding friction check (no N+1 loop)
         const recentRegCustomerIds = recentRegUsers.map(u => u._id);
         const orderedCustomerIds = recentRegCustomerIds.length > 0 
-            ? await Order.distinct('customer', { customer: { $in: recentRegCustomerIds } })
+            ? await Order.distinct('customer', scope.query('Order', { customer: { $in: recentRegCustomerIds } }))
             : [];
         const onboardingFrictionCount = Math.max(0, recentRegCustomerIds.length - orderedCustomerIds.length);
 
@@ -244,7 +192,6 @@ export const getDashboardAnalytics = async (req, res) => {
         const feedbackQuery = await buildFeedbackQuery({ vendor: { $exists: true } });
         const b2bOrdersQuery = await buildB2BOrderQuery();
         const b2bRecentOrdersQuery = await buildB2BOrderQuery({ createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } });
-        const jobAppQuery = await buildJobApplicationQuery({ creatorRole: 'Vendor', createdAt: { $gte: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000) } });
 
         const [
             totalVendors,
@@ -257,19 +204,17 @@ export const getDashboardAnalytics = async (req, res) => {
             feedbacks,
             b2bOrderVendors,
             b2bRecentOrderVendors,
-            talentReqIndex
         ] = await Promise.all([
-            User.countDocuments(vendorQuery),
-            User.countDocuments(buildUserQuery('Vendor', { businessType: { $in: ['', null] } })),
-            User.countDocuments(buildUserQuery('Vendor', { businessType: 'Proprietorship' })),
-            User.countDocuments(buildUserQuery('Vendor', { businessType: 'Partnership' })),
-            User.countDocuments(buildUserQuery('Vendor', { businessType: 'Pvt Ltd' })),
-            User.countDocuments(buildUserQuery('Vendor', { businessType: 'Franchise' })),
-            Order.distinct('vendor', activeVendorOrderQuery),
-            Feedback.find(feedbackQuery).populate('vendor', 'displayName phone').lean(),
-            B2BOrder.distinct('vendor', b2bOrdersQuery),
-            B2BOrder.distinct('vendor', b2bRecentOrdersQuery),
-            JobApplication.countDocuments(jobAppQuery)
+            User.countDocuments(scope.query('User', vendorQuery)),
+            User.countDocuments(scope.query('User', buildUserQuery('Vendor', { businessType: { $in: ['', null] } }))),
+            User.countDocuments(scope.query('User', buildUserQuery('Vendor', { businessType: 'Proprietorship' }))),
+            User.countDocuments(scope.query('User', buildUserQuery('Vendor', { businessType: 'Partnership' }))),
+            User.countDocuments(scope.query('User', buildUserQuery('Vendor', { businessType: 'Pvt Ltd' }))),
+            User.countDocuments(scope.query('User', buildUserQuery('Vendor', { businessType: 'Franchise' }))),
+            Order.distinct('vendor', scope.query('Order', activeVendorOrderQuery)),
+            Feedback.find(scope.query('Feedback', feedbackQuery)).populate('vendor', 'displayName phone').lean(),
+            B2BOrder.distinct('vendor', scope.query('B2BOrder', b2bOrdersQuery)),
+            B2BOrder.distinct('vendor', scope.query('B2BOrder', b2bRecentOrdersQuery)),
         ]);
 
         const dormantVendorsCount = Math.max(0, totalVendors - activeVendorIds.length);
@@ -309,12 +254,6 @@ export const getDashboardAnalytics = async (req, res) => {
         const refundOrderQ = await buildOrderQuery({ paymentStatus: 'Refunded' });
         const refundB2BOrderQ = await buildB2BOrderQuery({ escrowStatus: 'Refunded' });
 
-        // Past 6 months for dynamic monthly trend
-        const sixMonthsAgo = new Date();
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
-        sixMonthsAgo.setDate(1);
-        sixMonthsAgo.setHours(0, 0, 0, 0);
-
         const [
             totalSuppliers,
             wholesalersCount,
@@ -328,52 +267,52 @@ export const getDashboardAnalytics = async (req, res) => {
             supplierDeliveriesAgg,
             allSuppliersList
         ] = await Promise.all([
-            User.countDocuments(supplierQuery),
-            User.countDocuments(wholesalerQuery),
-            Order.aggregate([
+            User.countDocuments(scope.query('User', supplierQuery)),
+            User.countDocuments(scope.query('User', wholesalerQuery)),
+            Order.aggregate([{ $match: scope.query('Order') }, ...[
                 { $match: orderQ },
                 { $group: { _id: null, total: { $sum: '$totalAmount' }, platform: { $sum: '$priceBreakdown.platformFee' }, logistics: { $sum: '$priceBreakdown.logisticsFee' } } }
-            ]),
-            B2BOrder.aggregate([
+            ]]),
+            B2BOrder.aggregate([{ $match: scope.query('B2BOrder') }, ...[
                 { $match: b2bOrderQ },
                 { $group: { _id: null, total: { $sum: '$totalAmount' }, platform: { $sum: '$platformFee' } } }
-            ]),
-            User.aggregate([
+            ]]),
+            User.aggregate([{ $match: scope.query('User') }, ...[
                 { $match: walletQuery },
                 { $group: { _id: null, total: { $sum: '$walletBalance' } } }
-            ]),
-            Order.aggregate([
-                { $match: { createdAt: { $gte: sixMonthsAgo }, status: { $ne: 'CANCELLED' } } },
+            ]]),
+            Order.aggregate([{ $match: scope.query('Order') }, ...[
+                { $match: orderQ },
                 { $group: {
-                    _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
+                    _id: { year: { $year: { date: '$createdAt', timezone: 'Asia/Kolkata' } }, month: { $month: { date: '$createdAt', timezone: 'Asia/Kolkata' } } },
                     revenue: { $sum: '$totalAmount' },
                     platform: { $sum: '$priceBreakdown.platformFee' },
                     logistics: { $sum: '$priceBreakdown.logisticsFee' }
                 }},
                 { $sort: { '_id.year': 1, '_id.month': 1 } }
-            ]),
-            B2BOrder.aggregate([
-                { $match: { createdAt: { $gte: sixMonthsAgo }, status: { $nin: ['CANCELLED', 'REJECTED'] } } },
+            ]]),
+            B2BOrder.aggregate([{ $match: scope.query('B2BOrder') }, ...[
+                { $match: b2bOrderQ },
                 { $group: {
-                    _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
+                    _id: { year: { $year: { date: '$createdAt', timezone: 'Asia/Kolkata' } }, month: { $month: { date: '$createdAt', timezone: 'Asia/Kolkata' } } },
                     revenue: { $sum: '$totalAmount' },
                     platform: { $sum: '$platformFee' }
                 }},
                 { $sort: { '_id.year': 1, '_id.month': 1 } }
-            ]),
-            Order.aggregate([
+            ]]),
+            Order.aggregate([{ $match: scope.query('Order') }, ...[
                 { $match: refundOrderQ },
                 { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-            ]),
-            B2BOrder.aggregate([
+            ]]),
+            B2BOrder.aggregate([{ $match: scope.query('B2BOrder') }, ...[
                 { $match: refundB2BOrderQ },
                 { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-            ]),
-            B2BOrder.aggregate([
-                { $match: { status: { $in: ['DELIVERED', 'Delivered', 'SETTLED', 'Settled'] } } },
+            ]]),
+            B2BOrder.aggregate([{ $match: scope.query('B2BOrder') }, ...[
+                { $match: await buildB2BOrderQuery({ status: { $in: ['DELIVERED', 'Delivered', 'SETTLED', 'Settled'] } }) },
                 { $group: { _id: '$supplier', count: { $sum: 1 } } }
-            ]),
-            User.find({ role: 'Supplier' }).select('_id supplierDetails').lean()
+            ]]),
+            User.find(scope.query('User', supplierQuery)).select('_id supplierDetails').lean()
         ]);
 
         const manufacturersCount = Math.max(0, totalSuppliers - wholesalersCount);
@@ -396,13 +335,10 @@ export const getDashboardAnalytics = async (req, res) => {
         // Merge real monthly aggregations
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const dynamicMonthlyTrend = [];
-        for (let i = 5; i >= 0; i--) {
-            const d = new Date();
-            d.setMonth(d.getMonth() - i);
-            const y = d.getFullYear();
-            const m = d.getMonth() + 1;
-            const label = monthNames[d.getMonth()];
-
+        const months = [...new Set([...monthlyB2CAgg, ...monthlyB2BAgg].map(item => `${item._id.year}-${String(item._id.month).padStart(2, '0')}`))].sort();
+        for (const key of months) {
+            const [y, m] = key.split('-').map(Number);
+            const label = `${monthNames[m - 1]} ${y}`;
             const b2cItem = monthlyB2CAgg.find(item => item._id.year === y && item._id.month === m);
             const b2bItem = monthlyB2BAgg.find(item => item._id.year === y && item._id.month === m);
 
@@ -410,7 +346,7 @@ export const getDashboardAnalytics = async (req, res) => {
             const b2bMRev = b2bItem?.revenue || 0;
             const b2cMPlat = b2cItem?.platform || 0;
             const b2bMPlat = b2bItem?.platform || 0;
-            const logM = b2cItem?.logistics || 0;
+            const logM = channel === 'B2B' ? 0 : (b2cItem?.logistics || 0);
 
             const revM = (channel === 'B2B') ? b2bMRev : (channel === 'B2C') ? b2cMRev : (b2cMRev + b2bMRev);
             const profM = (channel === 'B2B') ? b2bMPlat : (channel === 'B2C') ? b2cMPlat : (b2cMPlat + b2bMPlat);
@@ -426,8 +362,8 @@ export const getDashboardAnalytics = async (req, res) => {
         }
 
         // Revenue MoM calculation from real monthly history
-        const curMRev = dynamicMonthlyTrend[5]?.Revenue || 0;
-        const prevMRev = dynamicMonthlyTrend[4]?.Revenue || 0;
+        const curMRev = dynamicMonthlyTrend.at(-1)?.Revenue || 0;
+        const prevMRev = dynamicMonthlyTrend.at(-2)?.Revenue || 0;
         let revenueTrendMoM = '0%';
         if (prevMRev > 0) {
             const diff = ((curMRev - prevMRev) / prevMRev) * 100;
@@ -443,8 +379,8 @@ export const getDashboardAnalytics = async (req, res) => {
         });
         const dynamicSupplierScatter = allSuppliersList.map(s => ({
             deliveries: supplierDeliveriesMap[s._id.toString()] || 0,
-            rating: Number((s.supplierDetails?.rating || 5.0).toFixed(1))
-        }));
+            rating: Number.isFinite(s.supplierDetails?.rating) ? Number(s.supplierDetails.rating.toFixed(1)) : null
+        })).filter(supplier => supplier.rating !== null);
 
         // ----------------------------------------------------
         // MODULE 2.5 & 2.6: CATALOGS (Parallelized)
@@ -457,12 +393,12 @@ export const getDashboardAnalytics = async (req, res) => {
             inactiveB2BProducts,
             pendingMaterialReviews
         ] = await Promise.all([
-            MasterService.countDocuments({ active: true }),
-            MasterService.countDocuments({ active: false }),
-            User.countDocuments(buildUserQuery('Vendor', { 'shopDetails.services.status': 'pending' })),
-            VendorMasterSupply.countDocuments(),
-            VendorMasterSupply.countDocuments({ active: false }),
-            SupplierApplication.countDocuments({ status: 'pending' })
+            MasterService.countDocuments({ isActive: true }),
+            MasterService.countDocuments({ isActive: false }),
+            User.countDocuments(scope.query('User', buildUserQuery('Vendor', { 'shopDetails.services.status': 'pending' }))),
+            VendorMasterSupply.countDocuments(scope.query('VendorMasterSupply')),
+            VendorMasterSupply.countDocuments(scope.query('VendorMasterSupply', { isActive: 'n' })),
+            SupplierApplication.countDocuments(scope.query('SupplierApplication', { status: 'pending' }))
         ]);
 
         // ----------------------------------------------------
@@ -480,10 +416,8 @@ export const getDashboardAnalytics = async (req, res) => {
 
         const pickupViolationsQ = await buildOrderQuery({ pickupStatus: { $in: ['failed', 'rescheduled'] } });
         const dropoffViolationsQ = await buildOrderQuery({ deliveryStatus: 'failed' });
-        const vendorSlaViolationsQ = await buildOrderQuery({ 
-            status: 'PROCESSING', 
-            updatedAt: { $lt: new Date(Date.now() - 48 * 60 * 60 * 1000) } 
-        });
+        const slaOrders = await Order.find(scope.query('Order', mainOrderQuery)).select('_id orderId status statusHistory createdAt pickupExpectedDate pickupTriggerTime pickupStatus orderType deliveryMode paymentStatus dueAmount').lean();
+        const confirmedSla = slaOrders.flatMap(order => slaExceptions(order));
 
         const [
             totalSubmitted,
@@ -499,18 +433,18 @@ export const getDashboardAnalytics = async (req, res) => {
             dropoffViolations,
             vendorSlaViolations
         ] = await Promise.all([
-            Order.countDocuments(mainOrderQuery),
-            Order.countDocuments(acceptedOrderQuery),
-            Order.countDocuments(logisticsBouncesQuery),
-            Order.countDocuments(immediateTimeoutsQuery),
-            Order.countDocuments(criticalTimeoutsQuery),
-            Order.countDocuments(inProgressQ),
-            Order.countDocuments(readyForDispatchQ),
-            Order.countDocuments(outboundLogisticsQ),
-            Order.countDocuments(reverseLogisticsQ),
-            Order.countDocuments(pickupViolationsQ),
-            Order.countDocuments(dropoffViolationsQ),
-            Order.countDocuments(vendorSlaViolationsQ)
+            Order.countDocuments(scope.query('Order', mainOrderQuery)),
+            Order.countDocuments(scope.query('Order', acceptedOrderQuery)),
+            Order.countDocuments(scope.query('Order', logisticsBouncesQuery)),
+            Order.countDocuments(scope.query('Order', immediateTimeoutsQuery)),
+            Order.countDocuments(scope.query('Order', criticalTimeoutsQuery)),
+            Order.countDocuments(scope.query('Order', inProgressQ)),
+            Order.countDocuments(scope.query('Order', readyForDispatchQ)),
+            Order.countDocuments(scope.query('Order', outboundLogisticsQ)),
+            Order.countDocuments(scope.query('Order', reverseLogisticsQ)),
+            Order.countDocuments(scope.query('Order', pickupViolationsQ)),
+            Order.countDocuments(scope.query('Order', dropoffViolationsQ)),
+            Promise.resolve(confirmedSla.filter(alert => alert.rule === 'processing_24h').length)
         ]);
 
         // ----------------------------------------------------
@@ -551,46 +485,40 @@ export const getDashboardAnalytics = async (req, res) => {
             b2bCancelledSupplier,
             b2bCancelledVendor
         ] = await Promise.all([
-            B2BOrder.countDocuments(b2bTotalPlacedQ),
-            B2BOrder.countDocuments(b2bAcceptedQ),
-            B2BOrder.countDocuments(b2bInProgressQ),
-            B2BOrder.countDocuments(b2bDispatchedQ),
-            B2BOrder.countDocuments(b2bDeliveredQ),
-            B2BOrder.countDocuments(b2bCancelledQ),
-            B2BOrder.countDocuments(b2bSla1hQ),
-            B2BOrder.countDocuments(b2bSla48hQ),
-            B2BOrder.countDocuments(b2bLateQ),
-            B2BOrder.countDocuments(b2bCancelledSupplierQ),
-            B2BOrder.countDocuments(b2bCancelledVendorQ)
+            B2BOrder.countDocuments(scope.query('B2BOrder', b2bTotalPlacedQ)),
+            B2BOrder.countDocuments(scope.query('B2BOrder', b2bAcceptedQ)),
+            B2BOrder.countDocuments(scope.query('B2BOrder', b2bInProgressQ)),
+            B2BOrder.countDocuments(scope.query('B2BOrder', b2bDispatchedQ)),
+            B2BOrder.countDocuments(scope.query('B2BOrder', b2bDeliveredQ)),
+            B2BOrder.countDocuments(scope.query('B2BOrder', b2bCancelledQ)),
+            B2BOrder.countDocuments(scope.query('B2BOrder', b2bSla1hQ)),
+            B2BOrder.countDocuments(scope.query('B2BOrder', b2bSla48hQ)),
+            B2BOrder.countDocuments(scope.query('B2BOrder', b2bLateQ)),
+            B2BOrder.countDocuments(scope.query('B2BOrder', b2bCancelledSupplierQ)),
+            B2BOrder.countDocuments(scope.query('B2BOrder', b2bCancelledVendorQ))
         ]);
 
         const b2bOnTime = Math.max(0, b2bDelivered - b2bLate);
 
         // ----------------------------------------------------
-        // MODULE 2.9 & 2.10: ATS, HELPDESK & FEEDBACK SENTIMENT (Parallelized)
+        // MODULE 2.9 & 2.10: HELPDESK & FEEDBACK SENTIMENT (Parallelized)
         // ----------------------------------------------------
         const priorFeedbackQ = await buildFeedbackQuery({
             createdAt: { $gte: priorStart, $lt: priorEnd }
-        });
+        }, { start: priorStart, end: priorEnd });
 
         const [
-            adminApplicants,
-            vendorApplicants,
-            supplierApplicants,
             openTickets,
             progressTickets,
             resolvedTickets,
             closedTickets,
             priorFeedbacks
         ] = await Promise.all([
-            JobApplication.countDocuments(await buildJobApplicationQuery({ creatorRole: 'Admin' })),
-            JobApplication.countDocuments(await buildJobApplicationQuery({ creatorRole: 'Vendor' })),
-            JobApplication.countDocuments(await buildJobApplicationQuery({ creatorRole: 'Supplier' })),
-            Ticket.countDocuments(await buildTicketQuery({ status: 'Open' })),
-            Ticket.countDocuments(await buildTicketQuery({ status: 'In Progress' })),
-            Ticket.countDocuments(await buildTicketQuery({ status: 'Resolved' })),
-            Ticket.countDocuments(await buildTicketQuery({ status: 'Closed' })),
-            Feedback.find(priorFeedbackQ).select('rating').lean()
+            Ticket.countDocuments(scope.query('Ticket', await buildTicketQuery({ status: 'Open' }))),
+            Ticket.countDocuments(scope.query('Ticket', await buildTicketQuery({ status: 'In Progress' }))),
+            Ticket.countDocuments(scope.query('Ticket', await buildTicketQuery({ status: 'Resolved' }))),
+            Ticket.countDocuments(scope.query('Ticket', await buildTicketQuery({ status: 'Closed' }))),
+            Feedback.find(scope.query('Feedback', priorFeedbackQ)).select('rating').lean()
         ]);
 
         let avgRating = 0;
@@ -662,7 +590,7 @@ export const getDashboardAnalytics = async (req, res) => {
             pendingVendorCount,
             pendingSupplierCount
         ] = await Promise.all([
-            User.countDocuments({
+            User.countDocuments(scope.query('User', {
                 role: 'Vendor',
                 $or: [
                     { onboardingStage: { $in: ['INITIAL_REVIEW', 'FINAL_REVIEW', 'DOCUMENTS_SUBMITTED', 'PENDING'] } },
@@ -672,16 +600,20 @@ export const getDashboardAnalytics = async (req, res) => {
                     { status: 'approved', onboardingStage: 'COMPLETED' },
                     { status: 'approved', onboardingStage: { $in: [null, undefined, ''] } }
                 ]
-            }),
-            SupplierApplication.countDocuments({
+            })),
+            SupplierApplication.countDocuments(scope.query('SupplierApplication', {
                 status: { $in: ['Pending', 'pending', 'Revision_Required'] },
                 onboardingStage: { $ne: 'Onboarded' }
-            })
+            }))
         ]);
 
         // Compile all analytics response (pure database numbers)
         res.status(200).json({
             success: true,
+            scope: scope.metadata,
+            measuredAt: new Date().toISOString(),
+            period: { start, end, timezone: period.timezone },
+            definitions: { grossRevenue: 'Booked non-cancelled order value, not cash collected', netProfit: 'Recorded platform fees, not accounting profit', refunds: 'Value of orders marked refunded; partial transfers require reconciliation', populations: 'Current geographically eligible accounts, independent of registration date', monthlyTrend: 'Same channel, geography, permission and booking window as totals' },
             data: {
                 channel: channel || 'All',
                 pendingVerifications: {
@@ -712,7 +644,6 @@ export const getDashboardAnalytics = async (req, res) => {
                     bottomVendors: bottomVendors,
                     neverOrderedB2B: neverOrderedB2B,
                     dormancy30DaysB2B: dormancy30DaysB2B,
-                    talentRequisitionIndex: talentReqIndex
                 },
                 supplierAnalytics: {
                     totalSuppliers: totalSuppliers,
@@ -751,6 +682,7 @@ export const getDashboardAnalytics = async (req, res) => {
                     readyForDispatch: readyForDispatch,
                     outboundLogistics: outboundLogistics,
                     reverseLogistics: reverseLogistics,
+                    sla: { pickup2h: confirmedSla.filter(alert => alert.rule === 'pickup_2h').length, processing24h: confirmedSla.filter(alert => alert.rule === 'processing_24h').length, unpaidDelivery2h: confirmedSla.filter(alert => alert.rule === 'unpaid_delivery_2h').length },
                     violations: {
                         pickup: pickupViolations,
                         dropoff: dropoffViolations,
@@ -769,11 +701,6 @@ export const getDashboardAnalytics = async (req, res) => {
                     onTime: b2bOnTime,
                     late: b2bLate,
                     cancellations: { supplier: b2bCancelledSupplier, vendor: b2bCancelledVendor }
-                },
-                atsLaborExchange: {
-                    admin: adminApplicants,
-                    vendor: vendorApplicants,
-                    supplier: supplierApplicants
                 },
                 helpdesk: {
                     open: openTickets,
@@ -796,16 +723,10 @@ export const getDashboardAnalytics = async (req, res) => {
 
 export const getDashboardFilters = async (req, res) => {
     try {
+        const scope = await createAdminReportScope(req, ['User', 'ServiceArea']);
         const capitalize = (str) => {
             if (!str) return '';
             return str.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-        };
-
-        const getStateForCity = (city) => {
-            const c = city.toLowerCase();
-            if (c === 'indore' || c === 'bhopal') return 'Madhya Pradesh';
-            if (c === 'nashik' || c === 'mumbai' || c === 'pune') return 'Maharashtra';
-            return 'Madhya Pradesh'; // default fallback
         };
 
         const stateCityMap = {};
@@ -814,17 +735,10 @@ export const getDashboardFilters = async (req, res) => {
         const allStates = new Set();
 
         // 1. Process ServiceAreas (Geofences)
-        const serviceAreas = await ServiceArea.find({}).lean();
+        const serviceAreas = await ServiceArea.find(scope.query('ServiceArea', { isActive: true })).lean();
         for (const area of serviceAreas) {
             if (!area.city) continue;
             const normalizedCity = capitalize(area.city.trim());
-            const normalizedState = getStateForCity(normalizedCity);
-
-            allStates.add(normalizedState);
-
-            if (!stateCityMap[normalizedState]) stateCityMap[normalizedState] = new Set();
-            stateCityMap[normalizedState].add(normalizedCity);
-
             if (!cityPincodeMap[normalizedCity]) cityPincodeMap[normalizedCity] = new Set();
             if (area.pincodes) {
                 area.pincodes.forEach(p => {
@@ -834,15 +748,16 @@ export const getDashboardFilters = async (req, res) => {
 
             if (!geofenceMap[normalizedCity]) geofenceMap[normalizedCity] = new Set();
             if (area.areaName) {
-                geofenceMap[normalizedCity].add(capitalize(area.areaName.trim()));
+                geofenceMap[normalizedCity].add(area.areaName);
             }
         }
 
         // 2. Process Users (Customers, Vendors, Suppliers)
-        const users = await User.find({ role: { $in: ['Customer', 'Vendor', 'Supplier'] } }).lean();
+        const users = await User.find(scope.query('User', { role: { $in: ['Customer', 'Vendor', 'Supplier'] } })).lean();
         for (const u of users) {
             if (u.addresses) {
-                u.addresses.forEach(addr => {
+                for (const addr of u.addresses) {
+                    if (scope.scoped && !await canAccessAccount(req, { role: 'Customer', addresses: [addr] })) continue;
                     if (addr.state && addr.city) {
                         const s = capitalize(addr.state.trim());
                         const c = capitalize(addr.city.trim());
@@ -855,9 +770,9 @@ export const getDashboardFilters = async (req, res) => {
                             cityPincodeMap[c].add(addr.pincode.trim());
                         }
                     }
-                });
+                }
             }
-            const details = u.shopDetails || u.supplierDetails;
+            const details = u.role === 'Supplier' ? u.supplierDetails : u.shopDetails;
             if (details && details.city && details.state) {
                 const s = capitalize(details.state.trim());
                 const c = capitalize(details.city.trim());
@@ -889,6 +804,7 @@ export const getDashboardFilters = async (req, res) => {
 
         res.status(200).json({
             success: true,
+            scope: scope.metadata,
             data: {
                 states: Array.from(allStates).sort(),
                 stateCityMap: formattedStateCityMap,

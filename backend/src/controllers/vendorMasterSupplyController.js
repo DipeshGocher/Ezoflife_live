@@ -1,3 +1,4 @@
+import { filterCondition, textFilter, priceFilter } from '../utils/queryFilters.js';
 import VendorMasterSupply from '../models/VendorMasterSupply.js';
 import VendorSupplyCategory from '../models/VendorSupplyCategory.js';
 import SupplierApplication from '../models/SupplierApplication.js';
@@ -218,36 +219,28 @@ export const vendorMasterSupplyController = {
                 if (supplierId === '-') {
                     query.supplierId = '-';
                 } else {
-                    query.supplierId = { $regex: supplierId, $options: 'i' };
+                    query.supplierId = textFilter(supplierId);
                 }
             }
             if (categoryId) {
-                query.categoryId = categoryId;
+                query.categoryId = filterCondition(categoryId);
             }
             if (isActive !== undefined && isActive !== '') {
-                query.isActive = isActive;
+                query.isActive = filterCondition(isActive);
             }
             if (deliveryFrequency) {
                 const matchingApps = await SupplierApplication.find({
-                    deliveryFrequency: { $regex: deliveryFrequency, $options: 'i' }
+                    deliveryFrequency: textFilter(deliveryFrequency)
                 });
                 const appNames = matchingApps.map(app => app.registeredBusinessName);
                 
                 query.$or = [
-                    { deliveryFrequency: { $regex: deliveryFrequency, $options: 'i' } },
+                    { deliveryFrequency: textFilter(deliveryFrequency) },
                     { supplierFacilityName: { $in: appNames } }
                 ];
             }
             if (wholesaleRate) {
-                if (wholesaleRate.includes('-')) {
-                    const [min, max] = wholesaleRate.split('-');
-                    query.wholesaleRate = { $gte: Number(min), $lte: Number(max) };
-                } else if (wholesaleRate.includes('+')) {
-                    const min = wholesaleRate.replace('+', '');
-                    query.wholesaleRate = { $gte: Number(min) };
-                } else {
-                    query.wholesaleRate = Number(wholesaleRate);
-                }
+                query.$and = [...(query.$and || []), priceFilter(wholesaleRate)];
             }
             if (isTemplate === 'y') {
                 query.supplierId = '-';

@@ -128,8 +128,8 @@ export const masterPricingService = {
 
                             // Broadcast Socket.io Event
                             try {
-                                const { getIO } = await import('../socket.js');
-                                const io = getIO();
+                                const { getEventPublisher } = await import('../socket.js');
+                                const io = getEventPublisher();
                                 if (io) {
                                     io.to(`user_${vendor._id}`).emit('new_service_request', {
                                         message: `Admin has added new services in your zone: ${newServicesAdded.join(', ')}.`

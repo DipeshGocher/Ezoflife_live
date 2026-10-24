@@ -1,3 +1,5 @@
+import { matchesFilter } from '../utils/filters';
+import MultiSelectFilter from '../components/common/MultiSelectFilter';
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -93,10 +95,10 @@ export default function SupplierProductRequests() {
   const filteredData = useMemo(() => {
     return requests.filter(req => {
       const supplierName = req.supplierFacilityName || req.supplierId || 'Unknown Supplier';
-      const matchesSupplier = !selectedSupplierName || supplierName === selectedSupplierName;
+      const matchesSupplier = matchesFilter(selectedSupplierName, supplierName);
       const categoryName = req.categoryId?.mainCategory || 'Other';
-      const matchesCategory = !selectedCategory || categoryName === selectedCategory;
-      const matchesPrice = !selectedPrice || String(req.wholesaleRate) === selectedPrice;
+      const matchesCategory = matchesFilter(selectedCategory, categoryName);
+      const matchesPrice = matchesFilter(selectedPrice, String(req.wholesaleRate));
       
       let matchesDate = true;
       if (req.createdAt) {
@@ -296,7 +298,7 @@ export default function SupplierProductRequests() {
 
             <div className="flex flex-wrap items-center gap-3 justify-end text-[10px]">
               {/* Supplier Name Filter */}
-              <select
+              <MultiSelectFilter
                 value={selectedSupplierName}
                 onChange={e => setSelectedSupplierName(e.target.value)}
                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -305,10 +307,10 @@ export default function SupplierProductRequests() {
                 {uniqueSupplierNames.map(name => (
                   <option key={name} value={name}>{name}</option>
                 ))}
-              </select>
+              </MultiSelectFilter>
 
               {/* Category Filter */}
-              <select
+              <MultiSelectFilter
                 value={selectedCategory}
                 onChange={e => setSelectedCategory(e.target.value)}
                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -317,10 +319,10 @@ export default function SupplierProductRequests() {
                 {uniqueCategories.map(name => (
                   <option key={name} value={name}>{name}</option>
                 ))}
-              </select>
+              </MultiSelectFilter>
 
               {/* Price Filter */}
-              <select
+              <MultiSelectFilter
                 value={selectedPrice}
                 onChange={e => setSelectedPrice(e.target.value)}
                 className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-sm text-[10px] font-bold text-slate-900 focus:bg-white focus:border-slate-900 transition-all outline-none w-36 uppercase tracking-wider cursor-pointer"
@@ -329,7 +331,7 @@ export default function SupplierProductRequests() {
                 {uniquePrices.map(price => (
                   <option key={price} value={String(price)}>₹{price}</option>
                 ))}
-              </select>
+              </MultiSelectFilter>
 
               {/* Reset Button */}
               {(selectedSupplierName || selectedCategory || selectedPrice || startDate || endDate) && (

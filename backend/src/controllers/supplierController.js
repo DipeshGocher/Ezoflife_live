@@ -1,7 +1,8 @@
+import { filterCondition } from '../utils/queryFilters.js';
 import SupplierApplication from '../models/SupplierApplication.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
-import { getIO } from '../socket.js';
+import { getEventPublisher } from '../socket.js';
 import axios from 'axios';
 import { sendError, httpStatusForError } from '../utils/errorResponse.js';
 
@@ -169,20 +170,20 @@ export const getAllApplications = async (req, res) => {
         const query = {};
 
         if (supplierName) {
-            query.contactPersonName = supplierName;
+            query.contactPersonName = filterCondition(supplierName);
         }
         if (businessName) {
-            query.registeredBusinessName = businessName;
+            query.registeredBusinessName = filterCondition(businessName);
         }
         if (phone) {
-            const matchingUsers = await User.find({ phone }).select('_id');
+            const matchingUsers = await User.find({ phone: filterCondition(phone) }).select('_id');
             const userIds = matchingUsers.map(u => u._id);
             query.user = { $in: userIds };
         }
 
         // Only return pending/revision supplier requests needing admin verification
         if (status) {
-            query.status = status;
+            query.status = filterCondition(status);
         } else if (all !== 'true') {
             query.status = { $in: ['Pending', 'pending', 'Revision_Required'] };
             query.onboardingStage = { $ne: 'Onboarded' };
@@ -226,7 +227,7 @@ export const initialApproveApplication = async (req, res) => {
             });
 
             // Emit Real-time via Socket
-            const io = getIO();
+            const io = getEventPublisher();
             io.to(`user_${application.user.toString()}`).emit('push_notification', {
                 title: 'Application Approved! 🎉',
                 body: 'Admin approved your request. Please select your products to continue.',

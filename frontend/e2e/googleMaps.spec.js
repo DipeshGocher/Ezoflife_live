@@ -77,7 +77,7 @@ test('the Maps SDK actually loads into the page', async ({ page }) => {
 
 test('the required Maps libraries are present', async ({ page }) => {
     await page.goto('/user/auth');
-    await page.waitForFunction(() => Boolean(window.google?.maps), null, { timeout: 30_000 });
+    await page.waitForFunction(() => typeof window.google?.maps?.Geocoder === 'function' && Boolean(window.google.maps.places) && Boolean(window.google.maps.geometry), null, { timeout: 30_000 });
 
     const available = await page.evaluate(() => ({
         geocoder: typeof window.google.maps.Geocoder === 'function',
@@ -92,7 +92,7 @@ test('the required Maps libraries are present', async ({ page }) => {
 
 test('reverse geocoding works in-browser (no CORS failure)', async ({ page }) => {
     await page.goto('/user/auth');
-    await page.waitForFunction(() => Boolean(window.google?.maps), null, { timeout: 30_000 });
+    await page.waitForFunction(() => typeof window.google?.maps?.Geocoder === 'function' && Boolean(window.google.maps.places) && Boolean(window.google.maps.geometry), null, { timeout: 30_000 });
 
     // Exercise the same SDK path locationService now uses.
     const result = await page.evaluate(async () => {
