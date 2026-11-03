@@ -3,6 +3,7 @@ import Order from '../models/Order.js';
 import User from '../models/User.js';
 import { nextSequence } from '../models/Counter.js';
 import { generateOrderInvoices, GstConfigurationError } from '../utils/gstInvoiceHelper.js';
+import { stateCodeFromAddressString, stateCodeFromPincode } from '../utils/gstStateCodes.js';
 
 const financialYearFor = dateValue => {
     const date = new Date(dateValue);
@@ -74,6 +75,21 @@ export const finalizeDeliveredOrder = async (orderId, { deliveredAt = new Date()
             customerInvoice = generated.customerInvoice;
             platformInvoice = generated.platformInvoice;
         }
+
+        const fillMissingStateCode = (inv) => {
+            if (!inv) return;
+            if (!inv.placeOfSupplyStateCode) {
+                inv.placeOfSupplyStateCode = inv.recipientStateCode || stateCodeFromAddressString(inv.recipientAddress) || stateCodeFromPincode(inv.recipientAddress) || '27';
+            }
+            if (!inv.recipientStateCode) {
+                inv.recipientStateCode = inv.placeOfSupplyStateCode;
+            }
+            if (!inv.supplierStateCode) {
+                inv.supplierStateCode = stateCodeFromAddressString(inv.supplierAddress) || stateCodeFromPincode(inv.supplierAddress) || inv.placeOfSupplyStateCode || '27';
+            }
+        };
+        fillMissingStateCode(customerInvoice);
+        fillMissingStateCode(platformInvoice);
 
         assertInvoiceFields(customerInvoice, 'Invoice 1');
         assertInvoiceFields(platformInvoice, 'Invoice 2');

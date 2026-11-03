@@ -89,8 +89,8 @@ const VendorProfile = () => {
     const fetchProfile = async () => {
       try {
         const storedUser = JSON.parse(
-          localStorage.getItem("user") ||
-            localStorage.getItem("vendorData") ||
+          localStorage.getItem("vendorData") ||
+            localStorage.getItem("user") ||
             localStorage.getItem("userData") ||
             "{}",
         );
@@ -145,8 +145,8 @@ const VendorProfile = () => {
 
       // Sync updatedUser back to local storage cache
       const rawStored =
-        localStorage.getItem("user") ||
         localStorage.getItem("vendorData") ||
+            localStorage.getItem("user") ||
         localStorage.getItem("userData");
       if (rawStored) {
         try {

@@ -26,7 +26,7 @@ const VendorAddressesPage = () => {
   const [autocomplete, setAutocomplete] = useState(null);
   
   const initialAddresses = useMemo(() => {
-    const user = JSON.parse(localStorage.getItem('user') || localStorage.getItem('vendorData') || '{}');
+    const user = JSON.parse(localStorage.getItem('vendorData') || localStorage.getItem('user') || '{}');
     return user.addresses || [];
   }, []);
 
@@ -146,7 +146,7 @@ const VendorAddressesPage = () => {
 
     try {
       setIsLoading(true);
-      const user = JSON.parse(localStorage.getItem('user') || localStorage.getItem('vendorData') || '{}');
+      const user = JSON.parse(localStorage.getItem('vendorData') || localStorage.getItem('user') || '{}');
       const userId = user.id || user._id;
 
       if (!userId) {
@@ -273,7 +273,7 @@ const VendorAddressesPage = () => {
   const deleteAddress = async (addrId) => {
     try {
       setIsLoading(true);
-      const user = JSON.parse(localStorage.getItem('user') || localStorage.getItem('vendorData') || '{}');
+      const user = JSON.parse(localStorage.getItem('vendorData') || localStorage.getItem('user') || '{}');
       const userId = user.id || user._id;
 
       if (!userId) {

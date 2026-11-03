@@ -1384,7 +1384,7 @@ const HomePage = () => {
 
   return (
     <div className="min-h-[100dvh] flex flex-col text-slate-900">
-      <main className="flex-1 pb-44 sm:pb-36 max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6">
+      <main className="flex-1 pb-44 sm:pb-36 max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 pt-16 sm:pt-20 pb-44 sm:pb-36">
         {/* 1. HERO PROMO BANNER */}
         <section className="mb-6 w-full">
           <div className="overflow-hidden rounded-3xl shadow-sm border border-slate-200/80">
