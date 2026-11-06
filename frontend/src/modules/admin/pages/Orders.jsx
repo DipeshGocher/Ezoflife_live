@@ -14,6 +14,55 @@ import DataGrid from '../components/tables/DataGrid';
 import StatusBadge from '../components/common/StatusBadge';
 import { orderApi, adminApi, supplierServiceZoneApi } from '../../../lib/api';
 
+/**
+ * Delivery-partner info for the admin table + exports.
+ *
+ * Real rider name/phone only exist once the courier has assigned a rider
+ * (saved into `riderDetails` by the logistics webhook). Until then we show what
+ * the booking itself gives us: courier name and AWB. Orders booked by the mock
+ * provider (task ids prefixed "MOCK-") carry a fake "Mock Rider", which must
+ * never be shown as a real rider, so it is ignored and labelled as test data.
+ */
+const getRiderInfo = (order) => {
+  const pickup = order?.shipmentDetails || {};
+  const ret = order?.deliveryShipmentDetails || {};
+  // Latest leg wins: once a return/delivery leg is booked, show that one.
+  const leg = (ret.awbCode || ret.taskId) ? ret : pickup;
+
+  const awb = leg.awbCode || leg.taskId || '';
+  const isMock = [pickup.taskId, ret.taskId, leg.awbCode].some(
+    (v) => typeof v === 'string' && v.startsWith('MOCK-')
+  );
+  const courier = leg.courierName || '';
+
+  const rider = order?.riderDetails || {};
+  const name = (rider.name || order?.riderSnapshot?.displayName || '').trim();
+  const phone = (rider.phone || order?.riderSnapshot?.phone || '').trim();
+  const hasRider = !isMock && !!(name || phone);
+
+  return {
+    awb,
+    courier,
+    isMock,
+    hasRider,
+    riderName: hasRider ? name : '',
+    riderPhone: hasRider ? phone : ''
+  };
+};
+
+/** Plain-text versions of the three rider columns (used by PDF/Excel/CSV export). */
+const getRiderExportCells = (order) => {
+  const info = getRiderInfo(order);
+  const suffix = info.isMock ? ' (test)' : '';
+  return [
+    info.awb ? `AWB: ${info.awb}${suffix}` : '-',
+    info.hasRider && info.riderName
+      ? info.riderName
+      : info.courier ? `Courier: ${info.courier}${suffix}` : '-',
+    info.hasRider && info.riderPhone ? info.riderPhone : '-'
+  ];
+};
+
 const generateStatusHistory = (row) => {
   // If the order already has a tracked history of multiple states, use it
   if (row.statusHistory && row.statusHistory.length > 1) {
@@ -584,9 +633,7 @@ export default function Orders() {
         row.createdAt ? new Date(row.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A',
         row.singleItem ? `${row.singleItem.name} (Qty: ${row.singleItem.quantity}, Rate: Rs. ${row.singleItem.price})` : '-',
         row.status,
-        "-",
-        "-",
-        "-",
+        ...getRiderExportCells(row),
         JSON.stringify(generateStatusHistory(row).map(h => ({
           status: h.status,
           time: h.timestamp ? new Date(h.timestamp).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A'
@@ -688,9 +735,7 @@ export default function Orders() {
         row.createdAt ? new Date(row.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A',
         row.singleItem ? `${row.singleItem.name} (Qty: ${row.singleItem.quantity}, Rate: Rs. ${row.singleItem.price})` : '-',
         row.status,
-        "-",
-        "-",
-        "-",
+        ...getRiderExportCells(row),
         JSON.stringify(generateStatusHistory(row).map(h => ({
           status: h.status,
           time: h.timestamp ? new Date(h.timestamp).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A'
@@ -939,20 +984,48 @@ export default function Orders() {
       key: 'status', 
       render: (val) => <StatusBadge status={val} /> 
     },
-    { 
-      header: 'Rider ID', 
-      key: 'riderIdPlaceholder', 
-      render: () => <span className="text-slate-400 font-bold">-</span> 
+    {
+      header: 'Rider ID',
+      key: 'riderId',
+      render: (_, row) => {
+        const info = getRiderInfo(row);
+        if (!info.awb) return <span className="text-slate-400 font-bold">-</span>;
+        return (
+          <div className="text-[10px] leading-tight">
+            <div className="text-slate-400 font-bold uppercase tracking-wider">AWB{info.isMock ? ' (test)' : ''}</div>
+            <div className="font-bold text-slate-700 break-all">{info.awb}</div>
+          </div>
+        );
+      }
     },
-    { 
-      header: 'Rider Name', 
-      key: 'riderNamePlaceholder', 
-      render: () => <span className="text-slate-400 font-bold">-</span> 
+    {
+      header: 'Rider Name',
+      key: 'riderName',
+      render: (_, row) => {
+        const info = getRiderInfo(row);
+        if (info.hasRider && info.riderName) {
+          return <span className="font-bold text-slate-700 text-xs">{info.riderName}</span>;
+        }
+        if (info.courier) {
+          return (
+            <div className="text-[10px] leading-tight">
+              <div className="text-slate-400 font-bold uppercase tracking-wider">Courier{info.isMock ? ' (test)' : ''}</div>
+              <div className="font-bold text-slate-700">{info.courier}</div>
+            </div>
+          );
+        }
+        return <span className="text-slate-400 font-bold">-</span>;
+      }
     },
-    { 
-      header: 'Rider Contact Number', 
-      key: 'riderContactPlaceholder', 
-      render: () => <span className="text-slate-400 font-bold">-</span> 
+    {
+      header: 'Rider Contact Number',
+      key: 'riderContact',
+      render: (_, row) => {
+        const info = getRiderInfo(row);
+        return info.hasRider && info.riderPhone
+          ? <span className="font-bold text-slate-700 text-xs">{info.riderPhone}</span>
+          : <span className="text-slate-400 font-bold">-</span>;
+      }
     },
     {
       header: 'Status Timestamp History',

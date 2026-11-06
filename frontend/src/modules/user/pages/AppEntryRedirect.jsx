@@ -1,23 +1,13 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { safeStorage } from '@/lib/safeStorage';
+import { isLiveToken } from '../../../shared/components/RequireAuth';
 
 // Signed-in vendors and suppliers go to their own apps. Admins are never sent
 // to the admin panel from here: the site root is the customer app.
 const HOME_BY_ROLE = {
   vendor: '/vendor/dashboard',
   supplier: '/supplier/dashboard'
-};
-
-/** True if the JWT exists and has not expired. */
-const isLiveToken = (token) => {
-  if (!token) return false;
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-    return !payload.exp || payload.exp * 1000 > Date.now();
-  } catch {
-    return false;
-  }
 };
 
 /**

@@ -8,6 +8,7 @@ import SupplierFulfillmentPage from "../pages/SupplierFulfillmentPage";
 import SupplierLogistics from "../pages/SupplierLogistics";
 import SupplierWallet from "../pages/SupplierWallet";
 import SupplierLayout from "../layouts/SupplierLayout";
+import RequireAuth from "../../../shared/components/RequireAuth";
 import SupplierProfile from "../pages/SupplierProfile";
 import SupplierMorePage from "../pages/SupplierMorePage";
 import SupplierLaborRequestPage from "../pages/SupplierLaborRequestPage";
@@ -29,6 +30,9 @@ const SupplierRoutes = () => {
         <Route path="/auth" element={<SupplierAuth />} />
         <Route path="/otp" element={<SupplierOtp />} />
 
+        {/* Everything below needs a live login; otherwise -> /supplier/auth */}
+        <Route element={<RequireAuth tokenKeys={["supplierToken", "token"]} loginPath="/supplier/auth" />}>
+
         {/* Main Hub */}
         <Route path="/dashboard" element={<SupplierDashboard />} />
         <Route path="/notifications" element={<SupplierNotifications />} />
@@ -47,6 +51,7 @@ const SupplierRoutes = () => {
           path="/labor-request/create"
           element={<SupplierCreateJobRequisition />}
         />
+        </Route>
 
         {/* Default redirect to dashboard */}
         <Route

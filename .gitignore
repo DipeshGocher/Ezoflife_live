@@ -3,11 +3,7 @@ node_modules/
 **/node_modules/
 
 # Environment / secrets — never commit these
-.env
-.env.*
 !.env.example
-**/.env
-**/.env.*
 !**/.env.example
 *.pem
 *.key
@@ -40,7 +36,6 @@ blob-report/
 coverage/
 
 # Editor / OS
-.vscode/*
 !.vscode/extensions.json
 .idea/
 .DS_Store
@@ -51,3 +46,4 @@ coverage/
 
 # Local scratch
 *.local
+config.bat
