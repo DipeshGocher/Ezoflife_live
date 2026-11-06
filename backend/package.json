@@ -4,8 +4,8 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
+    "start": "node init && node server.js",
+    "dev": "node init && nodemon server.js",
     "seed-services": "node scratch/seed_vendor_services.js",
     "test": "npm run test:unit && npm run test:api && npm run verify:gst",
     "test:unit": "node --test --test-reporter=spec tests/unit/*.test.js",

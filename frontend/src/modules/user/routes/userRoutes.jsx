@@ -40,6 +40,7 @@ import SupplierProductSelectionPage from '../pages/SupplierProductSelectionPage'
 
 
 import UserLayout from '../layouts/UserLayout';
+import RequireAuth from '../../../shared/components/RequireAuth';
 import ServiceImageUploadPage from '../pages/ServiceImageUploadPage';
 import ReferralPage from '../pages/ReferralPage';
 
@@ -52,6 +53,9 @@ const UserRoutes = () => {
       <Route element={<UserLayout />}>
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/otp" element={<OtpVerificationPage />} />
+
+        {/* Everything below needs a live login; otherwise -> /user/auth */}
+        <Route element={<RequireAuth tokenKeys={['token']} loginPath="/user/auth" />}>
         <Route path="/home" element={<HomePage />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/confirmation" element={<OrderConfirmationPage />} />
@@ -86,6 +90,7 @@ const UserRoutes = () => {
         <Route path="/feedback" element={<FeedbackForm />} />
         <Route path="/upload-photos" element={<ServiceImageUploadPage />} />
         <Route path="/referral" element={<ReferralPage />} />
+        </Route>
       </Route>
 
       {/* Standalone independent legal routes under /user/ */}

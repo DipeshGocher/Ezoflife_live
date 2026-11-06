@@ -50,6 +50,7 @@ import PrivacyPolicyPage from "../../user/pages/PrivacyPolicyPage";
 import TermsConditionsPage from "../../user/pages/TermsConditionsPage";
 
 import VendorLayout from "../layouts/VendorLayout";
+import RequireAuth from "../../../shared/components/RequireAuth";
 
 const VendorRoutes = () => {
   return (
@@ -59,6 +60,9 @@ const VendorRoutes = () => {
         <Route path="/splash" element={<Navigate to="/vendor/auth" replace />} />
         <Route path="/auth" element={<VendorAuth />} />
         <Route path="/otp" element={<VendorOtp />} />
+
+        {/* Everything below needs a live login; otherwise -> /vendor/auth */}
+        <Route element={<RequireAuth tokenKeys={["vendorToken", "token"]} loginPath="/vendor/auth" />}>
 
         {/* Registration Flow */}
         <Route path="/register" element={<ShopDetails />} />
@@ -112,6 +116,7 @@ const VendorRoutes = () => {
         <Route path="/terms-conditions" element={<VendorTermsConditions />} />
         <Route path="/rejected-services" element={<RejectedServices />} />
         <Route path="/addresses" element={<VendorAddressesPage />} />
+        </Route>
 
         {/* Default */}
         <Route path="*" element={<Navigate to="/vendor/splash" replace />} />
