@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authApi } from '../../../lib/api';
 import { safeStorage } from '@/lib/safeStorage';
+import { useLocationStore } from '../../../shared/stores/locationStore';
 
 const OtpVerificationPage = () => {
   const navigate = useNavigate();
@@ -79,6 +80,10 @@ const OtpVerificationPage = () => {
           }
 
           console.log(`🎯 [AUTH_DEBUG] Final Acting Role: ${actingRole}`);
+
+          // Drop any address left over from a previous user/session so the header
+          // never shows a stale address before this user's default address loads.
+          useLocationStore.getState().clearLocation();
 
           safeStorage.setItem('token', response.token);
           safeStorage.setItem('user_auth_token', response.token);

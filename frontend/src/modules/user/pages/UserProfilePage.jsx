@@ -357,8 +357,9 @@ const UserProfilePage = () => {
         <div className="px-2">
           <button
             onClick={() => { 
+              useLocationStore.getState().clearLocation();
               localStorage.clear();
-              navigate('/user/auth'); 
+              navigate('/user/auth');
               toast.success('Logged out successfully'); 
             }}
             className="w-full py-4 bg-rose-50 border border-rose-100 rounded-[1.8rem] text-[10px] font-black text-rose-500 uppercase tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 transition-all"

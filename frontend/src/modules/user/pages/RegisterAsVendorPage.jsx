@@ -1490,7 +1490,7 @@ const RegisterAsVendorPage = () => {
                         </button>
                         <button 
                             onClick={handleSubmit}
-                            disabled={isSubmitting || !bankVerified || !isAgreed}
+                            disabled={isSubmitting || (!bankVerified && !bankCheckUnavailable) || !isAgreed}
                             className="flex-[2] bg-primary text-on-primary py-3 rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] shadow-2xl shadow-primary/30 flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50"
                         >
                             {isSubmitting ? 'Submitting...' : 'Submit for Review'}
