@@ -299,15 +299,19 @@ const HomePage = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
+  // The account's saved default address is the single source of truth.
+  // Only ask for live GPS once we know the account has NO saved address,
+  // otherwise GPS shows first and a refresh swaps it for the saved one.
+  const [addressesChecked, setAddressesChecked] = useState(false);
   useEffect(() => {
     let timeoutId;
-    if (!location && !pickupAddress) {
-      timeoutId = setTimeout(() => setPromptOpen(true), 1500);
+    if (addressesChecked && !location && !pickupAddress) {
+      timeoutId = setTimeout(() => setPromptOpen(true), 500);
     }
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [location, pickupAddress, setPromptOpen]);
+  }, [addressesChecked, location, pickupAddress, setPromptOpen]);
 
   const [isLocating, setIsLocating] = useState(false);
   const [addressDetails, setAddressDetails] = useState({
@@ -727,6 +731,8 @@ const HomePage = () => {
       }
     } catch (err) {
       console.error("Error fetching delivery config/profile:", err);
+    } finally {
+      setAddressesChecked(true);
     }
   };
 
