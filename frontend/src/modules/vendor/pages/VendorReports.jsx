@@ -145,10 +145,10 @@ const VendorReports = () => {
 
   return (
     <div className="min-h-screen pb-32 font-body text-slate-800">
-      <main className="max-w-md mx-auto px-5 pt-0">
+      <main className="max-w-md mx-auto px-5 pt-6">
         
         {/* Header */}
-        <header className="mb-6 flex items-center gap-3.5 -mt-4">
+        <header className="mb-6 flex items-center gap-3.5">
           <button 
             onClick={() => navigate('/vendor/more')}
             className="w-10 h-10 bg-white rounded-2xl border border-black/5 shadow-sm flex items-center justify-center text-slate-800 hover:text-black transition-all active:scale-95 shrink-0"
