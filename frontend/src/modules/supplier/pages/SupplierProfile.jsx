@@ -36,7 +36,7 @@ const SupplierProfile = () => {
     useEffect(() => {
         const fetchProfile = async () => {
             try {
-                const storedUser = JSON.parse(localStorage.getItem('user') || localStorage.getItem('supplierData') || localStorage.getItem('userData') || '{}');
+                const storedUser = JSON.parse(localStorage.getItem('supplierData') || localStorage.getItem('userData') || localStorage.getItem('user') || '{}');
                 const userId = storedUser.id || storedUser._id;
 
                 if (!userId) {
@@ -89,7 +89,7 @@ const SupplierProfile = () => {
             setUser(updatedUser);
 
             // Sync updatedUser back to local storage cache to keep it fresh across pages
-            const rawStored = localStorage.getItem('user') || localStorage.getItem('supplierData') || localStorage.getItem('userData');
+            const rawStored = localStorage.getItem('supplierData') || localStorage.getItem('userData') || localStorage.getItem('user');
             if (rawStored) {
                 try {
                     const parsed = JSON.parse(rawStored);
