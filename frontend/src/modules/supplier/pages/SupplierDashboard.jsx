@@ -61,9 +61,10 @@ const SupplierDashboard = () => {
         try {
             setLoading(true);
             const ordersData = await b2bOrderApi.getSupplierOrders(supplierId);
-            setOrders(ordersData);
+            setOrders(Array.isArray(ordersData) ? ordersData : (ordersData?.data && Array.isArray(ordersData.data) ? ordersData.data : []));
         } catch (error) {
             console.error('Fetch Data Error:', error);
+            setOrders([]);
             toast.error('Failed to load dashboard data');
         } finally {
             setLoading(false);

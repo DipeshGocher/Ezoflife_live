@@ -36,19 +36,35 @@ const formatAddress = (address) => {
   return address;
 };
 
+const getInitialVendorUser = () => {
+  try {
+    const stored =
+      localStorage.getItem("vendorData") ||
+      localStorage.getItem("user") ||
+      localStorage.getItem("userData");
+    if (!stored) return null;
+    const parsed = JSON.parse(stored);
+    const resolved = parsed.user ? parsed.user : parsed;
+    return resolved && (resolved._id || resolved.id) ? resolved : null;
+  } catch (e) {
+    return null;
+  }
+};
+
 const VendorProfile = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
-  const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const initialUser = getInitialVendorUser();
+  const [user, setUser] = useState(initialUser);
+  const [isLoading, setIsLoading] = useState(!initialUser);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    shopName: "",
-    phone: "",
-    accountHolderName: "",
-    accountNumber: "",
-    ifscCode: "",
-    bankName: "",
+    shopName: initialUser?.shopDetails?.name || "",
+    phone: initialUser?.phone || "",
+    accountHolderName: initialUser?.bankDetails?.accountHolderName || "",
+    accountNumber: initialUser?.bankDetails?.accountNumber || "",
+    ifscCode: initialUser?.bankDetails?.ifscCode || "",
+    bankName: initialUser?.bankDetails?.bankName || "",
   });
 
   const effectiveDocuments = useMemo(() => {
@@ -86,40 +102,62 @@ const VendorProfile = () => {
   }, [user]);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchProfile = async () => {
       try {
-        const storedUser = JSON.parse(
-          localStorage.getItem("vendorData") ||
-            localStorage.getItem("user") ||
-            localStorage.getItem("userData") ||
-            "{}",
-        );
+        const storedUser = getInitialVendorUser() || {};
         const userId = storedUser.id || storedUser._id;
 
         if (!userId) {
-          navigate("/vendor/auth");
+          if (!user) navigate("/vendor/auth");
           return;
         }
 
         const data = await authApi.getProfile(userId);
-        setUser(data);
-        setFormData({
-          shopName: data.shopDetails?.name || "",
-          phone: data.phone || "",
-          accountHolderName: data.bankDetails?.accountHolderName || "",
-          accountNumber: data.bankDetails?.accountNumber || "",
-          ifscCode: data.bankDetails?.ifscCode || "",
-          bankName: data.bankDetails?.bankName || "",
-        });
+        if (!isMounted) return;
+
+        if (data && (data._id || data.id)) {
+          setUser(data);
+
+          const rawStored =
+            localStorage.getItem("vendorData") ||
+            localStorage.getItem("user") ||
+            localStorage.getItem("userData");
+          let merged = data;
+          if (rawStored) {
+            try {
+              const parsed = JSON.parse(rawStored);
+              if (parsed.user) merged = { ...parsed, user: { ...parsed.user, ...data } };
+              else merged = { ...parsed, ...data };
+            } catch (e) {}
+          }
+          localStorage.setItem("user", JSON.stringify(merged));
+          localStorage.setItem("vendorData", JSON.stringify(merged));
+          localStorage.setItem("userData", JSON.stringify(merged));
+
+          setFormData(prev => ({
+            shopName: data.shopDetails?.name || prev.shopName,
+            phone: data.phone || prev.phone,
+            accountHolderName: data.bankDetails?.accountHolderName || prev.accountHolderName,
+            accountNumber: data.bankDetails?.accountNumber || prev.accountNumber,
+            ifscCode: data.bankDetails?.ifscCode || prev.ifscCode,
+            bankName: data.bankDetails?.bankName || prev.bankName,
+          }));
+        }
       } catch (err) {
         console.error("Profile fetch error:", err);
-        toast.error("Failed to load profile");
+        if (!user) {
+          toast.error("Failed to load profile");
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchProfile();
+    return () => { isMounted = false; };
   }, [navigate]);
 
   const handleSave = async () => {
@@ -219,7 +257,7 @@ const VendorProfile = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading && !user) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 space-y-3">
         <div className="w-10 h-10 border-4 border-slate-900 border-t-transparent rounded-full animate-spin" />
