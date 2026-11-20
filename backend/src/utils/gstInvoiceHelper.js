@@ -134,8 +134,14 @@ export const generateOrderInvoices = async ({ order, customer, vendor, configs =
     const snapshot = buildGstSnapshot({ customer, vendor, order, configs: activeConfigs, scenario });
     const baseWithArea = Number(order.priceBreakdown?.baseWithArea || 0);
     const expressSurcharge = Number(order.priceBreakdown?.expressSurcharge || 0);
-    const platformFee = Number(order.priceBreakdown?.platformFee ?? activeConfigs.platformFeeFixed ?? 0);
-    const vendorPlatformFee = activeConfigs.platformFeeFixed;
+    const platformFee = Number(order.priceBreakdown?.platformFee ?? 0);
+    // Spinzyt's platform fee on Invoice 2 is exactly the fee the customer was
+    // charged at checkout (it is part of Invoice 1, so it comes back out of the
+    // vendor payout). The vendor is not charged any separate flat fee; the old
+    // platform_fee_fixed setting is no longer used. Walk-in orders carry no
+    // customer platform fee.
+    const vendorPlatformFee = order.orderType !== 'Walk-In' && order.priceBreakdown?.platformFee != null
+        ? money(order.priceBreakdown.platformFee) : 0;
     const hasStoredTax = order.orderType !== 'Walk-In' && order.priceBreakdown?.gstAmount != null;
     // Pre-fix paid orders did not tax customer fees. Retain those historical
     // terms; new checkouts always persist feeGstPercent explicitly.

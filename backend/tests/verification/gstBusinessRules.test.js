@@ -173,15 +173,27 @@ test('URD vendor cannot impersonate an RD vendor through the pool vendorId param
     assert.equal(response.body.some(row => String(row._id) === String(order._id)), false);
 });
 
-test('Invoice 2 uses the configured fixed platform fee, independently of customer percentage pricing', async () => {
+test('the platform fee the customer paid is Spinzyt\'s, so the vendor payout is the service value only', () => {
+    // cases.A was created before any promotion exists, so no discount skews the payout.
+    const { customerInvoice: one, platformInvoice: two, ledger, order } = cases.A;
+    const customerFee = order.priceBreakdown.platformFee;
+    assert.ok(customerFee > 0);
+    // Invoice 2 carries exactly the fee shown to the customer at checkout.
+    assert.equal(two.platformFee, customerFee);
+    assert.equal(ledger.vendorNetPayout, round(one.totalAmount - two.totalInvoiceAmount));
+    // Vendor receives service value + its GST: nothing of the platform or logistics fees.
+    const service = order.priceBreakdown.baseWithArea + order.priceBreakdown.expressSurcharge;
+    assert.equal(ledger.vendorNetPayout, round(service * 1.18));
+});
+
+test('a leftover platform_fee_fixed setting no longer charges the vendor anything extra', async () => {
     const configs = mongoose.connection.collection('systemconfigs');
     await configs.updateOne({ key: 'platform_fee_fixed' }, { $set: { value: 35 } });
     try {
-        const result = await complete('urdCustomer', 'rdVendor');
-        assert.equal(result.platformInvoice.platformFee, 35);
-        assert.equal(result.platformInvoice.platformFeeTax, 6.3);
+        const { platformInvoice: two, order } = await complete('urdCustomer', 'rdVendor');
+        assert.equal(two.platformFee, order.priceBreakdown.platformFee);
     } finally {
-        await configs.updateOne({ key: 'platform_fee_fixed' }, { $set: { value: 20 } });
+        await configs.updateOne({ key: 'platform_fee_fixed' }, { $set: { value: 0 } });
     }
 });
 

@@ -102,7 +102,7 @@ export const startTestEnvironment = async ({ silent = true, env: extraEnv = {} }
     });
     await seed.collection('systemconfigs').insertMany([
         { key: 'gst_percent', value: 18 },
-        { key: 'platform_fee_fixed', value: 20 },
+        { key: 'platform_fee_fixed', value: 0 },
         { key: 'platform_fee_gst_percent', value: 18 },
         { key: 'logistics_fee_gst_percent', value: 18 },
         { key: 'spinzyt_gstin', value: '23ABCDE1234F1Z5' },

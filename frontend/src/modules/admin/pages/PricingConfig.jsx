@@ -145,7 +145,7 @@ export default function PricingConfig() {
   };
 
   const stats = useMemo(() => [
-    { label: 'Normal Logistics', value: `${normalLogisticsFee}%`, icon: Truck, color: 'text-blue-600' },
+    { label: 'Normal Logistics', value: `₹${normalLogisticsFee}`, icon: Truck, color: 'text-blue-600' },
     { label: 'Express Uplift', value: `${expressSurcharge}%`, icon: Zap, color: 'text-amber-500' },
     { label: 'Essential Base', value: `${essentialFee}%`, icon: Sparkles, color: 'text-emerald-500' },
     { label: 'Heritage Premium', value: `${heritageFee}%`, icon: Gem, color: 'text-purple-500' },
