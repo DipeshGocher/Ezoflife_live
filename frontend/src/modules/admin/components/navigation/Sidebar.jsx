@@ -111,7 +111,8 @@ const navItems = [
                     { label: 'Category Management', path: '/admin/vendor-supply-pricing/categories' },
                     { label: 'Product Table', path: '/admin/vendor-supply-pricing/products' },
                     { label: 'Supplier Service Zone', path: '/admin/vendor-supply-pricing/zones' },
-                    { label: 'Master Supplies Table', path: '/admin/vendor-supply-pricing/supplies' }
+                    { label: 'Master Supplies Table', path: '/admin/vendor-supply-pricing/supplies' },
+                    { label: 'Platform Fee Settings', path: '/admin/vendor-supply-pricing/platform-fee' },
                 ]
             },
 
