@@ -100,6 +100,7 @@ const navItems = [
                     { label: 'Master Services', path: '/admin/master-services' },
                     { label: 'Service Geofence', path: '/admin/geofence-table' },
                     { label: 'Master Pricing Table', path: '/admin/master-pricing' },
+                    { label: 'Area Pricing Overrides', path: '/admin/pricing-overrides' },
                 ]
             },
             { 
